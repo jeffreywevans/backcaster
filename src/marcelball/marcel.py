@@ -83,7 +83,22 @@ def project_player(
 
     if "Season" not in prior_three.columns:
         raise ProjectionError("Missing required Season column in prior seasons input.")
-    prior_df = prior_three.sort_values("Season", ascending=False).reset_index(drop=True).copy()
+
+    season_values = prior_three["Season"]
+    if season_values.isna().any():
+        raise ProjectionError("Season values must be non-missing in prior seasons input.")
+
+    try:
+        season_numeric = pd.to_numeric(season_values, errors="raise")
+    except (TypeError, ValueError) as exc:
+        raise ProjectionError("Season values must be numeric and consistently typed.") from exc
+
+    prior_df = (
+        prior_three.assign(Season=season_numeric)
+        .sort_values("Season", ascending=False, kind="mergesort")
+        .reset_index(drop=True)
+        .copy()
+    )
 
     for c in comps:
         if c not in prior_df.columns:
