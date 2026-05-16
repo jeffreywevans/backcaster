@@ -187,6 +187,38 @@ def test_project_player_rejects_more_than_three_prior_seasons() -> None:
         project_player("Test Hitter", df, "batting", 2026)
 
 
+
+
+def test_project_player_rejects_missing_season_values() -> None:
+    prior = _batting_prior().copy()
+    prior.loc[1, "Season"] = None
+
+    with pytest.raises(ProjectionError, match="non-missing"):
+        project_player("Test Hitter", prior, "batting", 2026)
+
+
+def test_project_player_rejects_non_numeric_season_values() -> None:
+    prior = _batting_prior().copy()
+    prior["Season"] = prior["Season"].astype("object")
+    prior.loc[0, "Season"] = "bad-season"
+
+    with pytest.raises(ProjectionError, match="numeric"):
+        project_player("Test Hitter", prior, "batting", 2026)
+
+
+def test_project_player_uses_stable_sort_for_duplicate_seasons() -> None:
+    prior = pd.DataFrame(
+        [
+            {"Season": 2025, "PA": 600, "AB": 500, "H": 150, "2B": 30, "3B": 2, "HR": 20, "BB": 70, "SO": 110, "HBP": 3, "SF": 4},
+            {"Season": 2025, "PA": 300, "AB": 250, "H": 80, "2B": 15, "3B": 1, "HR": 10, "BB": 35, "SO": 60, "HBP": 2, "SF": 2},
+            {"Season": 2024, "PA": 200, "AB": 180, "H": 50, "2B": 10, "3B": 1, "HR": 5, "BB": 20, "SO": 45, "HBP": 1, "SF": 2},
+        ]
+    )
+
+    out = project_player("Test Hitter", prior, "batting", 2026)
+    expected_weighted_pa = (600 * 5 + 300 * 4 + 200 * 3) / 12
+    assert float(out.loc[0, "PA"]) == pytest.approx(expected_weighted_pa * 1.006)
+
 def test_project_team_success() -> None:
     p1 = _batting_prior().assign(Name="A")
     p2 = _batting_prior().assign(Name="B")
