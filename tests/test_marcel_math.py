@@ -1,6 +1,7 @@
 import pandas as pd
+import pytest
 
-from marcelball.marcel import project_player
+from marcelball.marcel import ProjectionError, project_player
 from marcelball.schemas import MarcelConfig
 
 
@@ -42,9 +43,5 @@ def test_projection_rejects_more_than_three_prior_seasons() -> None:
         ]
     )
 
-    try:
+    with pytest.raises(ProjectionError, match="at most three"):
         project_player("Test Hitter", df, "batting", 2026, MarcelConfig(regression_pa=300.0))
-        assert False, "Expected ProjectionError for histories longer than three seasons"
-    except Exception as exc:
-        assert type(exc).__name__ == "ProjectionError"
-        assert "at most three" in str(exc)
