@@ -22,14 +22,16 @@ def _normalize_name(value: str) -> str:
     return " ".join(value.strip().lower().split())
 
 
+def _clean_name_value(row: pd.Series, key: str) -> str:
+    value = row.get(key)
+    return str(value).strip() if pd.notna(value) else ""
+
+
 def _candidate_full_names(row: pd.Series) -> set[str]:
     names: set[str] = set()
-    val_first = row.get("name_first")
-    first = str(val_first).strip() if pd.notna(val_first) else ""
-    val_last = row.get("name_last")
-    last = str(val_last).strip() if pd.notna(val_last) else ""
-    val_given = row.get("name_given")
-    given = str(val_given).strip() if pd.notna(val_given) else ""
+    first = _clean_name_value(row, "name_first")
+    last = _clean_name_value(row, "name_last")
+    given = _clean_name_value(row, "name_given")
     if first and last:
         names.add(_normalize_name(f"{first} {last}"))
     if given:
@@ -87,12 +89,9 @@ def resolve_player_lookup(name: str, lookup_df: pd.DataFrame, target_years: Iter
 
     details = []
     for _, row in candidates.iterrows():
-        val_given = row.get("name_given")
-        given = str(val_given).strip() if pd.notna(val_given) else ""
-        val_first_name = row.get("name_first")
-        first_name = str(val_first_name).strip() if pd.notna(val_first_name) else ""
-        val_last_name = row.get("name_last")
-        last_name = str(val_last_name).strip() if pd.notna(val_last_name) else ""
+        given = _clean_name_value(row, "name_given")
+        first_name = _clean_name_value(row, "name_first")
+        last_name = _clean_name_value(row, "name_last")
         label = given or f"{first_name} {last_name}".strip() or "Unknown Player"
         fg = _format_numeric_or_unknown(row.get("key_fangraphs"))
         start = _format_numeric_or_unknown(row.get("mlb_played_first"))
