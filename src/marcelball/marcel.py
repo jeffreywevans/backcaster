@@ -44,6 +44,7 @@ def project_player(
     year: int,
     config: MarcelConfig | None = None,
     age: float = 29,
+    league_df: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     config = config or MarcelConfig()
     if prior_three.empty:
@@ -68,14 +69,18 @@ def project_player(
     weighted_pt = float(weighted[pt_col])
     reliability = min(1.0, safe_divide(weighted_pt, config.reliability_scale))
 
-    league_pt = float(prior_df[pt_col].sum())
-    league_rates = {c: safe_divide(float(prior_df[c].sum()), league_pt) for c in comps[1:]}
+    baseline_df = prior_df if league_df is None else league_df.copy()
+    for c in comps:
+        if c not in baseline_df.columns:
+            baseline_df[c] = 0.0
+
+    league_pt = float(baseline_df[pt_col].sum())
+    league_rates = {c: safe_divide(float(baseline_df[c].sum()), league_pt) for c in comps[1:]}
 
     regressed = weighted.copy()
     regressed[pt_col] = weighted_pt
     for c in comps[1:]:
-        player_rate = safe_divide(float(weighted[c]), weighted_pt)
-        regressed_rate = safe_divide(player_rate * weighted_pt + league_rates[c] * reg_pt, weighted_pt + reg_pt)
+        regressed_rate = safe_divide(float(weighted[c]) + league_rates[c] * reg_pt, weighted_pt + reg_pt)
         regressed[c] = regressed_rate * weighted_pt
 
     growth = config.default_pa_growth if kind == "batting" else config.default_ip_growth
@@ -99,7 +104,10 @@ def project_player(
 def project_team(team_df: pd.DataFrame, kind: str, year: int, config: MarcelConfig | None = None) -> pd.DataFrame:
     config = config or MarcelConfig()
     grouped = team_df.groupby("Name", as_index=False)
-    projections = [project_player(name, grp.sort_values("Season", ascending=False).head(3), kind, year, config) for name, grp in grouped]
+    projections = [
+        project_player(name, grp.sort_values("Season", ascending=False).head(3), kind, year, config, league_df=team_df)
+        for name, grp in grouped
+    ]
     if not projections:
         raise ProjectionError("No players available to project for this team.")
     return pd.concat(projections, ignore_index=True)
