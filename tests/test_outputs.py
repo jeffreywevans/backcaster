@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from marcelball.outputs import to_csv, to_html
+from marcelball.outputs import to_cli_table, to_csv, to_html
 
 
 def test_csv_output_creation(tmp_path: Path) -> None:
@@ -22,3 +22,8 @@ def test_html_output_creation(tmp_path: Path) -> None:
     content = out.read_text(encoding="utf-8")
     assert "<table" in content
     assert "A" in content
+
+
+def test_cli_table_output() -> None:
+    df = pd.DataFrame([{"Name": "A", "PA": 100}])
+    assert to_cli_table(df) == df.to_string(index=False)
