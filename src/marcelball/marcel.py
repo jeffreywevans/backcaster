@@ -83,10 +83,8 @@ def project_player(
 
     if "Season" not in prior_three.columns:
         raise ProjectionError("Missing required Season column in prior seasons input.")
-    if not prior_three["Season"].is_monotonic_decreasing:
-        raise ProjectionError("Prior seasons must be sorted by Season descending.")
+    prior_df = prior_three.sort_values("Season", ascending=False).reset_index(drop=True).copy()
 
-    prior_df = prior_three.copy()
     for c in comps:
         if c not in prior_df.columns:
             prior_df[c] = 0.0
