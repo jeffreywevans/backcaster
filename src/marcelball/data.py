@@ -56,9 +56,14 @@ def _format_numeric_or_unknown(value: object) -> str:
 def _filter_candidates_by_name(
     requested_name: str, lookup_df: pd.DataFrame
 ) -> pd.DataFrame:
-    first_names = lookup_df["name_first"].fillna("").astype(str).str.strip()
-    last_names = lookup_df["name_last"].fillna("").astype(str).str.strip()
-    given_names = lookup_df["name_given"].fillna("").astype(str).str.strip()
+    def _normalized_name_column(column_name: str) -> pd.Series:
+        if column_name not in lookup_df.columns:
+            return pd.Series("", index=lookup_df.index, dtype="object")
+        return lookup_df[column_name].astype("string").fillna("").str.strip()
+
+    first_names = _normalized_name_column("name_first")
+    last_names = _normalized_name_column("name_last")
+    given_names = _normalized_name_column("name_given")
 
     full_names = (first_names + " " + last_names).str.strip().map(_normalize_name)
     given_names = given_names.map(_normalize_name)
