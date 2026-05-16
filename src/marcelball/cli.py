@@ -54,7 +54,7 @@ def run_player(args: argparse.Namespace) -> int:
             idfg_numeric = pd.to_numeric(league["IDfg"], errors="coerce")
             row = league[idfg_numeric == fg_key_numeric].copy()
 
-        if row.empty:
+        if row.empty and pd.isna(fg_key_numeric):
             row = league[league["Name"].astype(str).str.casefold() == args.name.casefold()].copy()
         if row.empty:
             raise ProjectionError(f"Missing season {y} for player '{args.name}'.")
