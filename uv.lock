@@ -1,0 +1,25 @@
+version = 1
+revision = 3
+requires-python = ">=3.10"
+
+[[package]]
+name = "marcelball"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+  { name = "pandas", version = "2.3.3" },
+  { name = "pybaseball", version = "2.2.7" },
+]
+
+[package.metadata]
+requires-dist = [
+  { name = "pandas", specifier = ">=2.0" },
+  { name = "pybaseball", specifier = ">=2.2" },
+]
+provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [
+  { name = "pytest", version = "8.4.2" },
+  { name = "pytest-cov", version = "7.0.0" },
+]
