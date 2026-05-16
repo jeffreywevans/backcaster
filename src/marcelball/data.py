@@ -24,9 +24,12 @@ def _normalize_name(value: str) -> str:
 
 def _candidate_full_names(row: pd.Series) -> set[str]:
     names: set[str] = set()
-    first = str(row.get("name_first")).strip() if pd.notna(row.get("name_first")) else ""
-    last = str(row.get("name_last")).strip() if pd.notna(row.get("name_last")) else ""
-    given = str(row.get("name_given")).strip() if pd.notna(row.get("name_given")) else ""
+    val_first = row.get("name_first")
+    first = str(val_first).strip() if pd.notna(val_first) else ""
+    val_last = row.get("name_last")
+    last = str(val_last).strip() if pd.notna(val_last) else ""
+    val_given = row.get("name_given")
+    given = str(val_given).strip() if pd.notna(val_given) else ""
     if first and last:
         names.add(_normalize_name(f"{first} {last}"))
     if given:
@@ -41,6 +44,11 @@ def _to_int_or_none(value: object) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def _format_numeric_or_unknown(value: object) -> str:
+    as_int = _to_int_or_none(value)
+    return str(as_int) if as_int is not None else "?"
 
 
 def resolve_player_lookup(name: str, lookup_df: pd.DataFrame, target_years: Iterable[int]) -> pd.Series:
@@ -79,13 +87,16 @@ def resolve_player_lookup(name: str, lookup_df: pd.DataFrame, target_years: Iter
 
     details = []
     for _, row in candidates.iterrows():
-        given = str(row.get("name_given")).strip() if pd.notna(row.get("name_given")) else ""
-        first_name = str(row.get("name_first")).strip() if pd.notna(row.get("name_first")) else ""
-        last_name = str(row.get("name_last")).strip() if pd.notna(row.get("name_last")) else ""
+        val_given = row.get("name_given")
+        given = str(val_given).strip() if pd.notna(val_given) else ""
+        val_first_name = row.get("name_first")
+        first_name = str(val_first_name).strip() if pd.notna(val_first_name) else ""
+        val_last_name = row.get("name_last")
+        last_name = str(val_last_name).strip() if pd.notna(val_last_name) else ""
         label = given or f"{first_name} {last_name}".strip() or "Unknown Player"
-        fg = row.get("key_fangraphs") if pd.notna(row.get("key_fangraphs")) else "?"
-        start = row.get("mlb_played_first") if pd.notna(row.get("mlb_played_first")) else "?"
-        end = row.get("mlb_played_last") if pd.notna(row.get("mlb_played_last")) else "?"
+        fg = _format_numeric_or_unknown(row.get("key_fangraphs"))
+        start = _format_numeric_or_unknown(row.get("mlb_played_first"))
+        end = _format_numeric_or_unknown(row.get("mlb_played_last"))
         details.append(f"{label} (key_fangraphs={fg}, MLB={start}-{end})")
 
     raise PlayerLookupError(

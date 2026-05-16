@@ -39,7 +39,7 @@ def run_player(args: argparse.Namespace) -> int:
     pid_df = lookup_player_ids(args.name)
     resolved = resolve_player_lookup(args.name, pid_df, years)
     fg_key = resolved.get("key_fangraphs")
-    fg_key_str = str(int(fg_key)) if pd.notna(fg_key) else None
+    fg_key_numeric = pd.to_numeric([fg_key], errors="coerce")[0] if pd.notna(fg_key) else None
 
     frames = []
     league_frames = []
@@ -50,11 +50,9 @@ def run_player(args: argparse.Namespace) -> int:
         league_frames.append(league)
 
         row = pd.DataFrame()
-        if fg_key_str and "IDfg" in league.columns:
-            fg_numeric = pd.to_numeric(fg_key_str, errors="coerce")
+        if pd.notna(fg_key_numeric) and "IDfg" in league.columns:
             idfg_numeric = pd.to_numeric(league["IDfg"], errors="coerce")
-            if pd.notna(fg_numeric):
-                row = league[idfg_numeric == fg_numeric].copy()
+            row = league[idfg_numeric == fg_key_numeric].copy()
 
         if row.empty:
             row = league[league["Name"].astype(str).str.casefold() == args.name.casefold()].copy()
