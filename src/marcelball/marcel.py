@@ -49,6 +49,14 @@ def _compute_baseline_rates(df: pd.DataFrame, comps: list[str]) -> tuple[float, 
     return league_pt, league_rates
 
 
+def _validate_projection_kind(kind: str) -> str:
+    if kind not in {"batting", "pitching"}:
+        raise ProjectionError(
+            f"Invalid kind {kind!r}. Expected one of: 'batting', 'pitching'."
+        )
+    return kind
+
+
 def project_player(
     player_name: str,
     prior_three: pd.DataFrame,
@@ -65,14 +73,13 @@ def project_player(
     if prior_three.shape[0] > 3:
         raise ProjectionError("Expected at most three prior seasons for projection.")
 
+    kind = _validate_projection_kind(kind)
     if kind == "batting":
         comps = BATTING_COMPONENTS
         reg_pt = config.regression_pa
-    elif kind == "pitching":
+    else:
         comps = PITCHING_COMPONENTS
         reg_pt = config.regression_ip
-    else:
-        raise ProjectionError("Invalid kind. Expected 'batting' or 'pitching'.")
 
     if "Season" not in prior_three.columns:
         raise ProjectionError("Missing required Season column in prior seasons input.")
@@ -125,12 +132,11 @@ def project_team(team_df: pd.DataFrame, kind: str, year: int, config: MarcelConf
         raise ProjectionError("Missing required Name column in team input.")
     if "Season" not in team_df.columns:
         raise ProjectionError("Missing required Season column in team input.")
+    kind = _validate_projection_kind(kind)
     if kind == "batting":
         comps = BATTING_COMPONENTS
-    elif kind == "pitching":
-        comps = PITCHING_COMPONENTS
     else:
-        raise ProjectionError("Invalid kind. Expected 'batting' or 'pitching'.")
+        comps = PITCHING_COMPONENTS
     _, baseline_rates = _compute_baseline_rates(team_df, comps)
     grouped = team_df.groupby("Name", as_index=False)
     projections = [
