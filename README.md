@@ -14,7 +14,7 @@ This repository is configured with `sonar-project.properties` for Python source,
 ### 1) Install development dependencies
 
 ```bash
-pip install -e '.[dev]'
+uv sync --extra dev
 ```
 
 ### 2) Generate test and coverage reports
@@ -54,17 +54,17 @@ uv lock
 A malformed or manually-authored lockfile can cause `uv` commands to fail (for example, parse/resolve errors), blocking setup for everyone.
 Removing a broken lockfile is safer than keeping a known-invalid one in version control.
 
-### What to do when you see "errors if it exists" vs "errors if it does not"
+### Troubleshooting lockfile issues
 
 - If `uv.lock` **exists but is invalid**: regenerate it in a networked environment with `uv lock` and commit the regenerated file.
-- If `uv.lock` **does not exist**: development can still proceed from `pyproject.toml` constraints (for example with `pip install -e '.[dev]'`). Then generate and commit `uv.lock` when network access is available.
+- If `uv.lock` **does not exist**: development can still proceed by syncing from `pyproject.toml` constraints with `uv sync --extra dev`. Then generate and commit `uv.lock` when network access is available.
 
 ### Recommended contributor workflow
 
 1. Install deps for development immediately:
 
    ```bash
-   pip install -e '.[dev]'
+   uv sync --extra dev
    ```
 
 2. Regenerate lockfile before opening/merging PRs (network required):
