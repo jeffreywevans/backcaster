@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import replace
-
 import pandas as pd
 
 from marcelball.normalize import safe_divide
@@ -17,10 +15,10 @@ PITCHING_COMPONENTS = ["IP", "ER", "H", "HR", "BB", "SO", "BF"]
 
 
 def _weighted_row(rows: list[pd.Series], weights: tuple[float, float, float], cols: list[str]) -> pd.Series:
-    total_w = sum(weights)
+    total_w = sum(weights[: len(rows)])
     out = {}
     for col in cols:
-        out[col] = sum(float(r.get(col, 0.0)) * w for r, w in zip(rows, weights)) / total_w
+        out[col] = sum(float(r.get(col, 0.0)) * w for r, w in zip(rows, weights)) / total_w if total_w else 0.0
     return pd.Series(out)
 
 
@@ -48,8 +46,8 @@ def project_player(
     age: float = 29,
 ) -> pd.DataFrame:
     config = config or MarcelConfig()
-    if prior_three.shape[0] != 3:
-        raise ProjectionError("Expected exactly 3 prior seasons for projection.")
+    if prior_three.empty:
+        raise ProjectionError("Expected at least one prior season for projection.")
 
     if kind == "batting":
         comps = BATTING_COMPONENTS
@@ -58,23 +56,33 @@ def project_player(
         comps = PITCHING_COMPONENTS
         reg_pt = config.regression_ip
 
+    prior_df = prior_three.copy()
     for c in comps:
-        if c not in prior_three.columns:
-            prior_three[c] = 0.0
+        if c not in prior_df.columns:
+            prior_df[c] = 0.0
 
-    rows = [prior_three.iloc[i] for i in range(3)]
+    rows = [prior_df.iloc[i] for i in range(min(3, prior_df.shape[0]))]
     weighted = _weighted_row(rows, config.season_weights, comps)
 
-    league_avg = prior_three[comps].mean(numeric_only=True)
-    reliability = min(1.0, safe_divide(weighted[comps[0]], config.reliability_scale))
+    pt_col = comps[0]
+    weighted_pt = float(weighted[pt_col])
+    reliability = min(1.0, safe_divide(weighted_pt, config.reliability_scale))
+
+    league_pt = float(prior_df[pt_col].sum())
+    league_rates = {c: safe_divide(float(prior_df[c].sum()), league_pt) for c in comps[1:]}
 
     regressed = weighted.copy()
-    for c in comps:
-        regressed[c] = (weighted[c] * weighted[comps[0]] + league_avg[c] * reg_pt) / (weighted[comps[0]] + reg_pt)
+    regressed[pt_col] = weighted_pt
+    for c in comps[1:]:
+        player_rate = safe_divide(float(weighted[c]), weighted_pt)
+        regressed_rate = safe_divide(player_rate * weighted_pt + league_rates[c] * reg_pt, weighted_pt + reg_pt)
+        regressed[c] = regressed_rate * weighted_pt
 
     growth = config.default_pa_growth if kind == "batting" else config.default_ip_growth
     age_adj = config.age_adjustment_fn(age)
-    regressed *= growth * age_adj
+    projected_pt = weighted_pt * growth * age_adj
+    pt_scale = safe_divide(projected_pt, weighted_pt)
+    regressed *= pt_scale
 
     if kind == "batting":
         rates = _derive_batting_rates(regressed)
