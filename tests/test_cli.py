@@ -157,9 +157,10 @@ def test_main_error_handling(
     assert f"Error: {msg}" in capsys.readouterr().err
 
 
-def test_main_block_via_runpy() -> None:
-    with pytest.raises(SystemExit, match="2"):
-        runpy.run_module("marcelball.cli", run_name="__main__")
+def test_main_block_via_runpy_warns_and_exits() -> None:
+    with pytest.warns(RuntimeWarning, match="marcelball.cli"):
+        with pytest.raises(SystemExit, match="2"):
+            runpy.run_module("marcelball.cli", run_name="__main__")
 
 
 def test_run_player_matches_fangraphs_id_successfully(monkeypatch: pytest.MonkeyPatch) -> None:
