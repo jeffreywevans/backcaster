@@ -9,20 +9,21 @@ from marcelball.data import DataFetchError, PlayerLookupError, fetch_season_stat
 from marcelball.marcel import ProjectionError, project_player, project_team
 from marcelball.outputs import to_cli_table, to_csv, to_html
 
+_FILE_RENDERERS = {"csv": to_csv, "html": to_html}
+_OUTPUT_FORMAT_CHOICES = ("cli", *_FILE_RENDERERS.keys())
+
 
 def _prior_years(year: int) -> tuple[int, int, int]:
     return year - 1, year - 2, year - 3
 
 
 def _render(df: pd.DataFrame, output_format: str, out: str | None) -> None:
-    renderers = {"csv": to_csv, "html": to_html}
-
     if output_format == "cli":
         print(to_cli_table(df))
-    elif output_format in renderers:
+    elif output_format in _FILE_RENDERERS:
         if not out:
             raise ValueError(f"--out is required for {output_format} output")
-        renderers[output_format](df, out)
+        _FILE_RENDERERS[output_format](df, out)
     else:
         raise ValueError(f"Unsupported format: {output_format}")
 
@@ -90,7 +91,7 @@ def build_parser() -> argparse.ArgumentParser:
     def add_common(sp: argparse.ArgumentParser) -> None:
         sp.add_argument("--year", type=int, required=True)
         sp.add_argument("--kind", choices=["batting", "pitching"], required=True)
-        sp.add_argument("--format", choices=["cli", "csv", "html"], default="cli")
+        sp.add_argument("--format", choices=_OUTPUT_FORMAT_CHOICES, default="cli")
         sp.add_argument("--out")
 
     pp = sub.add_parser("player")
