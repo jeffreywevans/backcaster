@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Iterable
 
 import pandas as pd
 
@@ -15,6 +16,78 @@ class DataFetchError(RuntimeError):
 
 class PlayerLookupError(RuntimeError):
     pass
+
+
+def _normalize_name(value: str) -> str:
+    return " ".join(value.strip().lower().split())
+
+
+def _candidate_full_names(row: pd.Series) -> set[str]:
+    names: set[str] = set()
+    first = str(row.get("name_first", "") or "").strip()
+    last = str(row.get("name_last", "") or "").strip()
+    given = str(row.get("name_given", "") or "").strip()
+    if first and last:
+        names.add(_normalize_name(f"{first} {last}"))
+    if given:
+        names.add(_normalize_name(given))
+    return names
+
+
+def _to_int_or_none(value: object) -> int | None:
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def resolve_player_lookup(name: str, lookup_df: pd.DataFrame, target_years: Iterable[int]) -> pd.Series:
+    if lookup_df.empty:
+        raise PlayerLookupError(f"No player found for '{name}'.")
+
+    requested = _normalize_name(name)
+    candidates = lookup_df.copy()
+
+    name_mask = candidates.apply(lambda row: requested in _candidate_full_names(row), axis=1)
+    if name_mask.any():
+        candidates = candidates[name_mask]
+
+    years = sorted({int(y) for y in target_years})
+    if years and {"mlb_played_first", "mlb_played_last"}.issubset(candidates.columns):
+        def overlaps_window(row: pd.Series) -> bool:
+            first = _to_int_or_none(row.get("mlb_played_first"))
+            last = _to_int_or_none(row.get("mlb_played_last"))
+            if first is None and last is None:
+                return True
+            if first is None:
+                return min(years) <= last
+            if last is None:
+                return max(years) >= first
+            return not (last < min(years) or first > max(years))
+
+        window_mask = candidates.apply(overlaps_window, axis=1)
+        if window_mask.any():
+            candidates = candidates[window_mask]
+
+    if len(candidates) == 1:
+        return candidates.iloc[0]
+
+    if len(candidates) == 0:
+        raise PlayerLookupError(f"No player found for '{name}' in seasons {years}.")
+
+    details = []
+    for _, row in candidates.iterrows():
+        label = str(row.get("name_given") or f"{row.get('name_first', '')} {row.get('name_last', '')}").strip()
+        fg = row.get("key_fangraphs", "?")
+        first = row.get("mlb_played_first", "?")
+        last = row.get("mlb_played_last", "?")
+        details.append(f"{label} (key_fangraphs={fg}, MLB={first}-{last})")
+
+    raise PlayerLookupError(
+        f"Duplicate player match for '{name}'. Candidates: " + "; ".join(details)
+    )
 
 
 def _cache_path(kind: Kind, year: int, ext: str = "csv") -> Path:

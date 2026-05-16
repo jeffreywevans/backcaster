@@ -5,7 +5,13 @@ import sys
 
 import pandas as pd
 
-from marcelball.data import DataFetchError, PlayerLookupError, fetch_season_stats, lookup_player_ids
+from marcelball.data import (
+    DataFetchError,
+    PlayerLookupError,
+    fetch_season_stats,
+    lookup_player_ids,
+    resolve_player_lookup,
+)
 from marcelball.marcel import ProjectionError, project_player, project_team
 from marcelball.outputs import to_cli_table, to_csv, to_html
 
@@ -31,8 +37,9 @@ def _render(df: pd.DataFrame, output_format: str, out: str | None) -> None:
 def run_player(args: argparse.Namespace) -> int:
     years = _prior_years(args.year)
     pid_df = lookup_player_ids(args.name)
-    if len(pid_df) > 1:
-        raise PlayerLookupError(f"Duplicate player match for '{args.name}'. Be more specific.")
+    resolved = resolve_player_lookup(args.name, pid_df, years)
+    fg_key = resolved.get("key_fangraphs")
+    fg_key_str = str(int(fg_key)) if pd.notna(fg_key) else None
 
     frames = []
     league_frames = []
@@ -42,7 +49,10 @@ def run_player(args: argparse.Namespace) -> int:
         league["Season"] = y
         league_frames.append(league)
 
-        row = league[league["Name"] == args.name].copy()
+        if fg_key_str and "IDfg" in league.columns:
+            row = league[league["IDfg"].astype(str) == fg_key_str].copy()
+        else:
+            row = league[league["Name"].astype(str).str.casefold() == args.name.casefold()].copy()
         if row.empty:
             raise ProjectionError(f"Missing season {y} for player '{args.name}'.")
         frames.append(row)
