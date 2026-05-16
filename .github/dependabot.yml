@@ -12,7 +12,7 @@ updates:
       - "dependencies"
       - "python"
     commit-message:
-      prefix: "deps"
+      prefix: "chore"
       include: "scope"
 
   - package-ecosystem: "github-actions"
@@ -27,5 +27,5 @@ updates:
       - "dependencies"
       - "github-actions"
     commit-message:
-      prefix: "deps"
+      prefix: "chore"
       include: "scope"
