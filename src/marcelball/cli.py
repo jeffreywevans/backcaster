@@ -49,9 +49,14 @@ def run_player(args: argparse.Namespace) -> int:
         league["Season"] = y
         league_frames.append(league)
 
+        row = pd.DataFrame()
         if fg_key_str and "IDfg" in league.columns:
-            row = league[pd.to_numeric(league["IDfg"], errors="coerce") == float(fg_key_str)].copy()
-        else:
+            fg_numeric = pd.to_numeric(fg_key_str, errors="coerce")
+            idfg_numeric = pd.to_numeric(league["IDfg"], errors="coerce")
+            if pd.notna(fg_numeric):
+                row = league[idfg_numeric == fg_numeric].copy()
+
+        if row.empty:
             row = league[league["Name"].astype(str).str.casefold() == args.name.casefold()].copy()
         if row.empty:
             raise ProjectionError(f"Missing season {y} for player '{args.name}'.")
