@@ -17,18 +17,16 @@ def _prior_years(year: int) -> tuple[int, int, int]:
 def _render(df: pd.DataFrame, output_format: str, out: str | None) -> None:
     if output_format == "cli":
         print(to_cli_table(df))
-        return
-    if output_format == "csv":
+    elif output_format == "csv":
         if not out:
             raise ValueError("--out is required for csv output")
         to_csv(df, out)
-        return
-    if output_format == "html":
+    elif output_format == "html":
         if not out:
             raise ValueError("--out is required for html output")
         to_html(df, out)
-        return
-    raise ValueError(f"Unsupported format: {output_format}")
+    else:
+        raise ValueError(f"Unsupported format: {output_format}")
 
 
 def run_player(args: argparse.Namespace) -> int:
