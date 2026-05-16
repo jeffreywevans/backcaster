@@ -38,16 +38,21 @@ def run_player(args: argparse.Namespace) -> int:
         raise PlayerLookupError(f"Duplicate player match for '{args.name}'. Be more specific.")
 
     frames = []
+    league_frames = []
     for y in years:
         df = fetch_season_stats(y, args.kind)
-        row = df[df["Name"] == args.name].copy()
+        league = df.copy()
+        league["Season"] = y
+        league_frames.append(league)
+
+        row = league[league["Name"] == args.name].copy()
         if row.empty:
             raise ProjectionError(f"Missing season {y} for player '{args.name}'.")
-        row["Season"] = y
         frames.append(row)
 
     prior = pd.concat(frames, ignore_index=True).sort_values("Season", ascending=False)
-    proj = project_player(args.name, prior, args.kind, args.year)
+    league_prior = pd.concat(league_frames, ignore_index=True)
+    proj = project_player(args.name, prior, args.kind, args.year, league_df=league_prior)
     return _render(proj, args.format, args.out)
 
 
