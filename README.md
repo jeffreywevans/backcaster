@@ -41,4 +41,4 @@ SonarQube reads:
 uv lock
 ```
 
-If you are working offline, regenerate `uv.lock` later in a networked environment before opening a PR.
+If you are working offline, regenerate `uv.lock` later in a networked environment and commit the updated lockfile before opening a PR.
