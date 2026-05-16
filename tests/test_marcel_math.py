@@ -30,3 +30,21 @@ def test_pitching_projection_derives_rates_from_components() -> None:
     assert float(result.loc[0, "ERA"]) > 0
     assert float(result.loc[0, "WHIP"]) > 0
     assert 0 <= float(result.loc[0, "Reliability"]) <= 1
+
+
+def test_projection_rejects_more_than_three_prior_seasons() -> None:
+    df = pd.DataFrame(
+        [
+            {"Season": 2025, "PA": 700, "AB": 600, "H": 180, "2B": 35, "3B": 2, "HR": 30, "BB": 80, "SO": 120, "HBP": 5, "SF": 6},
+            {"Season": 2024, "PA": 650, "AB": 560, "H": 165, "2B": 30, "3B": 3, "HR": 28, "BB": 75, "SO": 110, "HBP": 4, "SF": 5},
+            {"Season": 2023, "PA": 620, "AB": 540, "H": 155, "2B": 28, "3B": 4, "HR": 25, "BB": 70, "SO": 108, "HBP": 4, "SF": 4},
+            {"Season": 2022, "PA": 610, "AB": 530, "H": 150, "2B": 26, "3B": 3, "HR": 22, "BB": 68, "SO": 105, "HBP": 3, "SF": 4},
+        ]
+    )
+
+    try:
+        project_player("Test Hitter", df, "batting", 2026, MarcelConfig(regression_pa=300.0))
+        assert False, "Expected ProjectionError for histories longer than three seasons"
+    except Exception as exc:
+        assert type(exc).__name__ == "ProjectionError"
+        assert "at most three" in str(exc)
