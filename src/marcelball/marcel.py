@@ -68,9 +68,16 @@ def project_player(
     if kind == "batting":
         comps = BATTING_COMPONENTS
         reg_pt = config.regression_pa
-    else:
+    elif kind == "pitching":
         comps = PITCHING_COMPONENTS
         reg_pt = config.regression_ip
+    else:
+        raise ProjectionError("Invalid kind. Expected 'batting' or 'pitching'.")
+
+    if "Season" not in prior_three.columns:
+        raise ProjectionError("Missing required Season column in prior seasons input.")
+    if not prior_three["Season"].is_monotonic_decreasing:
+        raise ProjectionError("Prior seasons must be sorted by Season descending.")
 
     prior_df = prior_three.copy()
     for c in comps:
@@ -114,7 +121,16 @@ def project_player(
 
 def project_team(team_df: pd.DataFrame, kind: str, year: int, config: MarcelConfig | None = None) -> pd.DataFrame:
     config = config or MarcelConfig()
-    comps = BATTING_COMPONENTS if kind == "batting" else PITCHING_COMPONENTS
+    if "Name" not in team_df.columns:
+        raise ProjectionError("Missing required Name column in team input.")
+    if "Season" not in team_df.columns:
+        raise ProjectionError("Missing required Season column in team input.")
+    if kind == "batting":
+        comps = BATTING_COMPONENTS
+    elif kind == "pitching":
+        comps = PITCHING_COMPONENTS
+    else:
+        raise ProjectionError("Invalid kind. Expected 'batting' or 'pitching'.")
     _, baseline_rates = _compute_baseline_rates(team_df, comps)
     grouped = team_df.groupby("Name", as_index=False)
     projections = [
