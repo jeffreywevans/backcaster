@@ -84,7 +84,7 @@ def test_filter_candidates_by_years_with_matching_window() -> None:
     assert list(filtered["key_fangraphs"]) == [1]
 
 
-def test_filter_candidates_by_years_with_no_matching_window_returns_original() -> None:
+def test_filter_candidates_by_years_with_no_matching_window_returns_empty() -> None:
     candidates = pd.DataFrame(
         [
             {"key_fangraphs": 1, "mlb_played_first": 1980, "mlb_played_last": 1985},
@@ -92,7 +92,7 @@ def test_filter_candidates_by_years_with_no_matching_window_returns_original() -
         ]
     )
     filtered = data._filter_candidates_by_years(candidates, [2020, 2021])
-    pd.testing.assert_frame_equal(filtered, candidates)
+    assert filtered.empty
 
 
 def test_resolve_player_lookup_with_empty_lookup() -> None:
@@ -129,9 +129,8 @@ def test_resolve_player_lookup_with_no_candidate_in_target_seasons() -> None:
             }
         ]
     )
-    # no overlap -> year filter returns original candidates, so this resolves to only candidate
-    resolved = data.resolve_player_lookup("Mike Trout", lookup, [2020, 2021])
-    assert int(resolved["key_fangraphs"]) == 101
+    with pytest.raises(PlayerLookupError, match="No player found.*in seasons"):
+        data.resolve_player_lookup("Mike Trout", lookup, [2020, 2021])
 
 
 def test_cache_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
