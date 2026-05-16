@@ -95,7 +95,7 @@ def _filter_candidates_by_years(
     window_mask = candidates.apply(
         lambda row: _overlaps_year_window(row, start_year, end_year), axis=1
     )
-    return candidates[window_mask] if window_mask.any() else candidates
+    return candidates[window_mask]
 
 
 def _format_candidate_detail(row: pd.Series) -> str:
