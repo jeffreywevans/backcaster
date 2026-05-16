@@ -1,0 +1,18 @@
+version = 1
+revision = 3
+requires-python = ">=3.10"
+
+[[package]]
+name = "marcelball"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+  { name = "pandas", specifier = ">=2.0" },
+  { name = "pybaseball", specifier = ">=2.2" },
+]
+
+[package.metadata]
+requires-dist = [
+  { name = "pandas", specifier = ">=2.0" },
+  { name = "pybaseball", specifier = ">=2.2" },
+]
