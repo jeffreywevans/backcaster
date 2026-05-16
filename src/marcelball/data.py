@@ -53,33 +53,61 @@ def _format_numeric_or_unknown(value: object) -> str:
     return str(as_int) if as_int is not None else "?"
 
 
+def _filter_candidates_by_name(
+    requested_name: str, lookup_df: pd.DataFrame
+) -> pd.DataFrame:
+    candidates = lookup_df.copy()
+    name_mask = candidates.apply(
+        lambda row: requested_name in _candidate_full_names(row), axis=1
+    )
+    return candidates[name_mask] if name_mask.any() else candidates
+
+
+def _overlaps_year_window(row: pd.Series, start_year: int, end_year: int) -> bool:
+    first = _to_int_or_none(row.get("mlb_played_first"))
+    last = _to_int_or_none(row.get("mlb_played_last"))
+    if first is None and last is None:
+        return True
+    if first is None:
+        return start_year <= last
+    if last is None:
+        return end_year >= first
+    return not (last < start_year or first > end_year)
+
+
+def _filter_candidates_by_years(
+    candidates: pd.DataFrame, years: list[int]
+) -> pd.DataFrame:
+    has_year_cols = {"mlb_played_first", "mlb_played_last"}.issubset(candidates.columns)
+    if not years or not has_year_cols:
+        return candidates
+    start_year, end_year = min(years), max(years)
+    window_mask = candidates.apply(
+        lambda row: _overlaps_year_window(row, start_year, end_year), axis=1
+    )
+    return candidates[window_mask] if window_mask.any() else candidates
+
+
+def _format_candidate_detail(row: pd.Series) -> str:
+    given = _clean_name_value(row, "name_given")
+    first_name = _clean_name_value(row, "name_first")
+    last_name = _clean_name_value(row, "name_last")
+    label = given or f"{first_name} {last_name}".strip() or "Unknown Player"
+    fg = _format_numeric_or_unknown(row.get("key_fangraphs"))
+    start = _format_numeric_or_unknown(row.get("mlb_played_first"))
+    end = _format_numeric_or_unknown(row.get("mlb_played_last"))
+    return f"{label} (key_fangraphs={fg}, MLB={start}-{end})"
+
+
 def resolve_player_lookup(name: str, lookup_df: pd.DataFrame, target_years: Iterable[int]) -> pd.Series:
     if lookup_df.empty:
         raise PlayerLookupError(f"No player found for '{name}'.")
 
     requested = _normalize_name(name)
-    candidates = lookup_df.copy()
-
-    name_mask = candidates.apply(lambda row: requested in _candidate_full_names(row), axis=1)
-    if name_mask.any():
-        candidates = candidates[name_mask]
+    candidates = _filter_candidates_by_name(requested, lookup_df)
 
     years = sorted({int(y) for y in target_years})
-    if years and {"mlb_played_first", "mlb_played_last"}.issubset(candidates.columns):
-        def overlaps_window(row: pd.Series) -> bool:
-            first = _to_int_or_none(row.get("mlb_played_first"))
-            last = _to_int_or_none(row.get("mlb_played_last"))
-            if first is None and last is None:
-                return True
-            if first is None:
-                return min(years) <= last
-            if last is None:
-                return max(years) >= first
-            return not (last < min(years) or first > max(years))
-
-        window_mask = candidates.apply(overlaps_window, axis=1)
-        if window_mask.any():
-            candidates = candidates[window_mask]
+    candidates = _filter_candidates_by_years(candidates, years)
 
     if len(candidates) == 1:
         return candidates.iloc[0]
@@ -87,16 +115,7 @@ def resolve_player_lookup(name: str, lookup_df: pd.DataFrame, target_years: Iter
     if len(candidates) == 0:
         raise PlayerLookupError(f"No player found for '{name}' in seasons {years}.")
 
-    details = []
-    for _, row in candidates.iterrows():
-        given = _clean_name_value(row, "name_given")
-        first_name = _clean_name_value(row, "name_first")
-        last_name = _clean_name_value(row, "name_last")
-        label = given or f"{first_name} {last_name}".strip() or "Unknown Player"
-        fg = _format_numeric_or_unknown(row.get("key_fangraphs"))
-        start = _format_numeric_or_unknown(row.get("mlb_played_first"))
-        end = _format_numeric_or_unknown(row.get("mlb_played_last"))
-        details.append(f"{label} (key_fangraphs={fg}, MLB={start}-{end})")
+    details = [_format_candidate_detail(row) for _, row in candidates.iterrows()]
 
     raise PlayerLookupError(
         f"Duplicate player match for '{name}'. Candidates: " + "; ".join(details)
