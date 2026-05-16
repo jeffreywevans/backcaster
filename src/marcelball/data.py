@@ -56,9 +56,15 @@ def _format_numeric_or_unknown(value: object) -> str:
 def _filter_candidates_by_name(
     requested_name: str, lookup_df: pd.DataFrame
 ) -> pd.DataFrame:
-    name_mask = lookup_df.apply(
-        lambda row: requested_name in _candidate_full_names(row), axis=1
-    )
+    first_names = lookup_df["name_first"].fillna("").astype(str).str.strip()
+    last_names = lookup_df["name_last"].fillna("").astype(str).str.strip()
+    given_names = lookup_df["name_given"].fillna("").astype(str).str.strip()
+
+    full_names = (first_names + " " + last_names).str.strip().map(_normalize_name)
+    given_names = given_names.map(_normalize_name)
+
+    has_full_name = first_names.ne("") & last_names.ne("")
+    name_mask = (has_full_name & full_names.eq(requested_name)) | given_names.eq(requested_name)
     return lookup_df[name_mask] if name_mask.any() else lookup_df
 
 
