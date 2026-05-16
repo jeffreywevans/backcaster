@@ -1,0 +1,119 @@
+from __future__ import annotations
+
+import argparse
+import sys
+
+import pandas as pd
+
+from marcelball.data import DataFetchError, PlayerLookupError, fetch_season_stats, lookup_player_ids
+from marcelball.marcel import ProjectionError, project_player, project_team
+from marcelball.outputs import to_cli_table, to_csv, to_html
+
+
+def _prior_years(year: int) -> tuple[int, int, int]:
+    return year - 1, year - 2, year - 3
+
+
+def _render(df: pd.DataFrame, output_format: str, out: str | None) -> int:
+    if output_format == "cli":
+        print(to_cli_table(df))
+        return 0
+    if output_format == "csv":
+        if not out:
+            raise ValueError("--out is required for csv output")
+        to_csv(df, out)
+        return 0
+    if output_format == "html":
+        if not out:
+            raise ValueError("--out is required for html output")
+        to_html(df, out)
+        return 0
+    raise ValueError(f"Unsupported format: {output_format}")
+
+
+def run_player(args: argparse.Namespace) -> int:
+    years = _prior_years(args.year)
+    pid_df = lookup_player_ids(args.name)
+    if len(pid_df) > 1:
+        raise PlayerLookupError(f"Duplicate player match for '{args.name}'. Be more specific.")
+
+    frames = []
+    for y in years:
+        df = fetch_season_stats(y, args.kind)
+        row = df[df["Name"] == args.name].copy()
+        if row.empty:
+            raise ProjectionError(f"Missing season {y} for player '{args.name}'.")
+        row["Season"] = y
+        frames.append(row)
+
+    prior = pd.concat(frames, ignore_index=True).sort_values("Season", ascending=False)
+    proj = project_player(args.name, prior, args.kind, args.year)
+    return _render(proj, args.format, args.out)
+
+
+def run_team(args: argparse.Namespace) -> int:
+    years = _prior_years(args.year)
+    frames = []
+    for y in years:
+        df = fetch_season_stats(y, args.kind)
+        row = df[df["Team"] == args.team].copy()
+        if row.empty:
+            raise ProjectionError(f"Missing season {y} for team '{args.team}'.")
+        row["Season"] = y
+        frames.append(row)
+    all_team = pd.concat(frames, ignore_index=True)
+    proj = project_team(all_team, args.kind, args.year)
+    return _render(proj, args.format, args.out)
+
+
+def run_batch(args: argparse.Namespace) -> int:
+    years = _prior_years(args.year)
+    frames = []
+    for y in years:
+        df = fetch_season_stats(y, args.kind)
+        df = df.copy()
+        df["Season"] = y
+        frames.append(df)
+    all_players = pd.concat(frames, ignore_index=True)
+    proj = project_team(all_players, args.kind, args.year)
+    return _render(proj, args.format, args.out)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(prog="marcelball")
+    sub = p.add_subparsers(dest="command", required=True)
+
+    def add_common(sp: argparse.ArgumentParser) -> None:
+        sp.add_argument("--year", type=int, required=True)
+        sp.add_argument("--kind", choices=["batting", "pitching"], required=True)
+        sp.add_argument("--format", choices=["cli", "csv", "html"], default="cli")
+        sp.add_argument("--out")
+
+    pp = sub.add_parser("player")
+    add_common(pp)
+    pp.add_argument("--name", required=True)
+    pp.set_defaults(func=run_player)
+
+    tp = sub.add_parser("team")
+    add_common(tp)
+    tp.add_argument("--team", required=True)
+    tp.set_defaults(func=run_team)
+
+    bp = sub.add_parser("batch")
+    add_common(bp)
+    bp.set_defaults(func=run_batch)
+    return p
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    try:
+        return args.func(args)
+    except (DataFetchError, PlayerLookupError, ProjectionError, ValueError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
