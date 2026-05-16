@@ -56,11 +56,10 @@ def _format_numeric_or_unknown(value: object) -> str:
 def _filter_candidates_by_name(
     requested_name: str, lookup_df: pd.DataFrame
 ) -> pd.DataFrame:
-    candidates = lookup_df.copy()
-    name_mask = candidates.apply(
+    name_mask = lookup_df.apply(
         lambda row: requested_name in _candidate_full_names(row), axis=1
     )
-    return candidates[name_mask] if name_mask.any() else candidates
+    return lookup_df[name_mask] if name_mask.any() else lookup_df
 
 
 def _overlaps_year_window(row: pd.Series, start_year: int, end_year: int) -> bool:
