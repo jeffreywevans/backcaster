@@ -15,16 +15,14 @@ def _prior_years(year: int) -> tuple[int, int, int]:
 
 
 def _render(df: pd.DataFrame, output_format: str, out: str | None) -> None:
+    renderers = {"csv": to_csv, "html": to_html}
+
     if output_format == "cli":
         print(to_cli_table(df))
-    elif output_format == "csv":
+    elif output_format in renderers:
         if not out:
-            raise ValueError("--out is required for csv output")
-        to_csv(df, out)
-    elif output_format == "html":
-        if not out:
-            raise ValueError("--out is required for html output")
-        to_html(df, out)
+            raise ValueError(f"--out is required for {output_format} output")
+        renderers[output_format](df, out)
     else:
         raise ValueError(f"Unsupported format: {output_format}")
 
