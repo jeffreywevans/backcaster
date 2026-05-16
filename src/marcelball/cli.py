@@ -39,7 +39,7 @@ def run_player(args: argparse.Namespace) -> int:
     pid_df = lookup_player_ids(args.name)
     resolved = resolve_player_lookup(args.name, pid_df, years)
     fg_key = resolved.get("key_fangraphs")
-    fg_key_numeric = pd.to_numeric([fg_key], errors="coerce")[0] if pd.notna(fg_key) else None
+    fg_key_numeric = pd.to_numeric(fg_key, errors="coerce") if pd.notna(fg_key) else None
 
     frames = []
     league_frames = []
