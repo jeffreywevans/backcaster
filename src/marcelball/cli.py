@@ -50,7 +50,7 @@ def run_player(args: argparse.Namespace) -> int:
         league_frames.append(league)
 
         if fg_key_str and "IDfg" in league.columns:
-            row = league[league["IDfg"].astype(str) == fg_key_str].copy()
+            row = league[pd.to_numeric(league["IDfg"], errors="coerce") == float(fg_key_str)].copy()
         else:
             row = league[league["Name"].astype(str).str.casefold() == args.name.casefold()].copy()
         if row.empty:
