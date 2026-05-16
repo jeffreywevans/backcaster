@@ -57,7 +57,7 @@ Removing a broken lockfile is safer than keeping a known-invalid one in version 
 ### Troubleshooting lockfile issues
 
 - If `uv.lock` **exists but is invalid**: regenerate it in a networked environment with `uv lock` and commit the regenerated file.
-- If `uv.lock` **does not exist**: development can still proceed by syncing from `pyproject.toml` constraints with `uv sync --extra dev`. Then generate and commit `uv.lock` when network access is available.
+- If uv.lock **does not exist**: run uv sync --extra dev to install dependencies and generate the lockfile, then commit the resulting file.
 
 ### Recommended contributor workflow
 
