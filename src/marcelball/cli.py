@@ -14,20 +14,20 @@ def _prior_years(year: int) -> tuple[int, int, int]:
     return year - 1, year - 2, year - 3
 
 
-def _render(df: pd.DataFrame, output_format: str, out: str | None) -> int:
+def _render(df: pd.DataFrame, output_format: str, out: str | None) -> None:
     if output_format == "cli":
         print(to_cli_table(df))
-        return 0
+        return
     if output_format == "csv":
         if not out:
             raise ValueError("--out is required for csv output")
         to_csv(df, out)
-        return 0
+        return
     if output_format == "html":
         if not out:
             raise ValueError("--out is required for html output")
         to_html(df, out)
-        return 0
+        return
     raise ValueError(f"Unsupported format: {output_format}")
 
 
@@ -53,7 +53,8 @@ def run_player(args: argparse.Namespace) -> int:
     prior = pd.concat(frames, ignore_index=True).sort_values("Season", ascending=False)
     league_prior = pd.concat(league_frames, ignore_index=True)
     proj = project_player(args.name, prior, args.kind, args.year, league_df=league_prior)
-    return _render(proj, args.format, args.out)
+    _render(proj, args.format, args.out)
+    return 0
 
 
 def run_team(args: argparse.Namespace) -> int:
@@ -68,7 +69,8 @@ def run_team(args: argparse.Namespace) -> int:
         frames.append(row)
     all_team = pd.concat(frames, ignore_index=True)
     proj = project_team(all_team, args.kind, args.year)
-    return _render(proj, args.format, args.out)
+    _render(proj, args.format, args.out)
+    return 0
 
 
 def run_batch(args: argparse.Namespace) -> int:
@@ -81,7 +83,8 @@ def run_batch(args: argparse.Namespace) -> int:
         frames.append(df)
     all_players = pd.concat(frames, ignore_index=True)
     proj = project_team(all_players, args.kind, args.year)
-    return _render(proj, args.format, args.out)
+    _render(proj, args.format, args.out)
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
