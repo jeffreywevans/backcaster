@@ -39,9 +39,11 @@ def _derive_pitching_rates(s: pd.Series) -> pd.Series:
 
 def _compute_baseline_rates(df: pd.DataFrame, comps: list[str]) -> tuple[float, dict[str, float]]:
     pt_col = comps[0]
-    league_pt = float(df[pt_col].sum()) if pt_col in df.columns else 0.0
+    present_cols = [c for c in comps if c in df.columns]
+    sums = df[present_cols].sum() if present_cols else pd.Series(dtype="float64")
+    league_pt = float(sums.get(pt_col, 0.0))
     league_rates = {
-        c: safe_divide(float(df[c].sum()) if c in df.columns else 0.0, league_pt)
+        c: safe_divide(float(sums.get(c, 0.0)), league_pt)
         for c in comps[1:]
     }
     return league_pt, league_rates
