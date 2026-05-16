@@ -171,10 +171,14 @@ def test_project_player_invalid_kind() -> None:
         project_player("Test", _batting_prior(), "fielding", 2026)
 
 
-def test_project_player_rejects_unsorted_input() -> None:
-    prior = _batting_prior().iloc[[1, 0, 2]].reset_index(drop=True)
-    with pytest.raises(ProjectionError, match="sorted"):
-        project_player("Test Hitter", prior, "batting", 2026)
+def test_project_player_sorts_unsorted_input_before_weighting() -> None:
+    sorted_prior = _batting_prior()
+    ascending_prior = sorted_prior.sort_values("Season", ascending=True).reset_index(drop=True)
+
+    out_sorted = project_player("Test Hitter", sorted_prior, "batting", 2026)
+    out_ascending = project_player("Test Hitter", ascending_prior, "batting", 2026)
+
+    pd.testing.assert_frame_equal(out_sorted, out_ascending)
 
 
 def test_project_player_rejects_more_than_three_prior_seasons() -> None:
