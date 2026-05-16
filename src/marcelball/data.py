@@ -24,9 +24,9 @@ def _normalize_name(value: str) -> str:
 
 def _candidate_full_names(row: pd.Series) -> set[str]:
     names: set[str] = set()
-    first = str(row.get("name_first", "") or "").strip()
-    last = str(row.get("name_last", "") or "").strip()
-    given = str(row.get("name_given", "") or "").strip()
+    first = str(row.get("name_first")).strip() if pd.notna(row.get("name_first")) else ""
+    last = str(row.get("name_last")).strip() if pd.notna(row.get("name_last")) else ""
+    given = str(row.get("name_given")).strip() if pd.notna(row.get("name_given")) else ""
     if first and last:
         names.add(_normalize_name(f"{first} {last}"))
     if given:
@@ -79,11 +79,14 @@ def resolve_player_lookup(name: str, lookup_df: pd.DataFrame, target_years: Iter
 
     details = []
     for _, row in candidates.iterrows():
-        label = str(row.get("name_given") or f"{row.get('name_first', '')} {row.get('name_last', '')}").strip()
-        fg = row.get("key_fangraphs", "?")
-        first = row.get("mlb_played_first", "?")
-        last = row.get("mlb_played_last", "?")
-        details.append(f"{label} (key_fangraphs={fg}, MLB={first}-{last})")
+        given = str(row.get("name_given")).strip() if pd.notna(row.get("name_given")) else ""
+        first_name = str(row.get("name_first")).strip() if pd.notna(row.get("name_first")) else ""
+        last_name = str(row.get("name_last")).strip() if pd.notna(row.get("name_last")) else ""
+        label = given or f"{first_name} {last_name}".strip() or "Unknown Player"
+        fg = row.get("key_fangraphs") if pd.notna(row.get("key_fangraphs")) else "?"
+        start = row.get("mlb_played_first") if pd.notna(row.get("mlb_played_first")) else "?"
+        end = row.get("mlb_played_last") if pd.notna(row.get("mlb_played_last")) else "?"
+        details.append(f"{label} (key_fangraphs={fg}, MLB={start}-{end})")
 
     raise PlayerLookupError(
         f"Duplicate player match for '{name}'. Candidates: " + "; ".join(details)
