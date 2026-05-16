@@ -20,7 +20,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Python
-        uses: actions/setup-python@42375524a9d50b6f9211033d2e7bb7b1efb3f5c2 # v5.4.0
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
