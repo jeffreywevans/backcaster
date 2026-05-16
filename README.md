@@ -26,7 +26,7 @@ pytest --junitxml=pytest.xml --cov=src --cov-report=xml:coverage.xml
 ### 3) Run SonarScanner
 
 ```bash
-sonar-scanner -Dsonar.projectVersion=${GIT_COMMIT:-local}
+sonar-scanner -Dsonar.projectVersion=$(grep -m 1 '^version =' pyproject.toml | cut -d'"' -f2)
 ```
 
 SonarQube reads:
