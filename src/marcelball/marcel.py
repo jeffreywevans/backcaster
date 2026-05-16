@@ -49,6 +49,8 @@ def project_player(
     config = config or MarcelConfig()
     if prior_three.empty:
         raise ProjectionError("Expected at least one prior season for projection.")
+    if prior_three.shape[0] > 3:
+        raise ProjectionError("Expected at most three prior seasons for projection.")
 
     if kind == "batting":
         comps = BATTING_COMPONENTS
