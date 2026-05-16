@@ -37,6 +37,16 @@ def _derive_pitching_rates(s: pd.Series) -> pd.Series:
     return pd.Series({"ERA": era, "WHIP": whip})
 
 
+def _compute_baseline_rates(df: pd.DataFrame, comps: list[str]) -> tuple[float, dict[str, float]]:
+    pt_col = comps[0]
+    league_pt = float(df[pt_col].sum()) if pt_col in df.columns else 0.0
+    league_rates = {
+        c: safe_divide(float(df[c].sum()) if c in df.columns else 0.0, league_pt)
+        for c in comps[1:]
+    }
+    return league_pt, league_rates
+
+
 def project_player(
     player_name: str,
     prior_three: pd.DataFrame,
@@ -45,6 +55,7 @@ def project_player(
     config: MarcelConfig | None = None,
     age: float = 29,
     league_df: pd.DataFrame | None = None,
+    league_rates: dict[str, float] | None = None,
 ) -> pd.DataFrame:
     config = config or MarcelConfig()
     if prior_three.empty:
@@ -71,13 +82,9 @@ def project_player(
     weighted_pt = float(weighted[pt_col])
     reliability = min(1.0, safe_divide(weighted_pt, config.reliability_scale))
 
-    baseline_df = prior_df if league_df is None else league_df.copy()
-    for c in comps:
-        if c not in baseline_df.columns:
-            baseline_df[c] = 0.0
-
-    league_pt = float(baseline_df[pt_col].sum())
-    league_rates = {c: safe_divide(float(baseline_df[c].sum()), league_pt) for c in comps[1:]}
+    if league_rates is None:
+        baseline_df = league_df if league_df is not None else prior_df
+        _, league_rates = _compute_baseline_rates(baseline_df, comps)
 
     regressed = weighted.copy()
     regressed[pt_col] = weighted_pt
@@ -105,9 +112,18 @@ def project_player(
 
 def project_team(team_df: pd.DataFrame, kind: str, year: int, config: MarcelConfig | None = None) -> pd.DataFrame:
     config = config or MarcelConfig()
+    comps = BATTING_COMPONENTS if kind == "batting" else PITCHING_COMPONENTS
+    _, baseline_rates = _compute_baseline_rates(team_df, comps)
     grouped = team_df.groupby("Name", as_index=False)
     projections = [
-        project_player(name, grp.sort_values("Season", ascending=False).head(3), kind, year, config, league_df=team_df)
+        project_player(
+            name,
+            grp.sort_values("Season", ascending=False).head(3),
+            kind,
+            year,
+            config,
+            league_rates=baseline_rates,
+        )
         for name, grp in grouped
     ]
     if not projections:
