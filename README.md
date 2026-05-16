@@ -74,3 +74,20 @@ Removing a broken lockfile is safer than keeping a known-invalid one in version 
    ```
 
 3. Commit the updated `uv.lock`.
+
+## CI/CD baseline for reliable quality gates
+
+The GitHub Actions workflows now enforce two core pipelines:
+
+1. **CI (`.github/workflows/build.yml`)**
+   - Runs tests on Python 3.10, 3.11, and 3.12.
+   - Builds coverage + JUnit reports in a dedicated job.
+
+2. **SonarCloud (`.github/workflows/sonarcloud.yml`)**
+   - Re-generates `coverage.xml` and `pytest.xml` before scanning.
+   - Ensures Sonar always has fresh report inputs instead of defaulting to 0% coverage.
+
+Recommended next quality gates to enable in SonarCloud and branch protection:
+- Coverage on new code threshold (e.g. >= 80%).
+- No new critical/blocker issues.
+- PR status checks required for CI + Sonar before merge.
