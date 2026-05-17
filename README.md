@@ -80,7 +80,7 @@ Removing a broken lockfile is safer than keeping a known-invalid one in version 
 The GitHub Actions workflows now enforce two core pipelines:
 
 1. **CI (`.github/workflows/build.yml`)**
-   - Runs tests on Python 3.10, 3.11, and 3.12.
+   - Runs tests on Python 3.12, 3.13, and 3.14.
    - Builds coverage + JUnit reports in a dedicated job.
 
 2. **SonarCloud (`.github/workflows/sonarcloud.yml`)**
