@@ -1,3 +1,5 @@
+from collections.abc import Iterable
+
 import pandas as pd
 import pytest
 
@@ -13,6 +15,38 @@ from marcelball.marcel import (
     project_team,
 )
 from marcelball.schemas import MarcelConfig
+
+
+def _batting_row(
+    season: int,
+    pa: float,
+    ab: float,
+    h: float,
+    doubles: float,
+    triples: float,
+    hr: float,
+    bb: float,
+    so: float,
+    hbp: float,
+    sf: float,
+) -> dict[str, float]:
+    return {
+        "Season": season,
+        "PA": pa,
+        "AB": ab,
+        "H": h,
+        "2B": doubles,
+        "3B": triples,
+        "HR": hr,
+        "BB": bb,
+        "SO": so,
+        "HBP": hbp,
+        "SF": sf,
+    }
+
+
+def _frame(rows: Iterable[dict[str, float]]) -> pd.DataFrame:
+    return pd.DataFrame(list(rows))
 
 
 def test_weighted_row_with_one_row() -> None:
@@ -96,47 +130,11 @@ def test_compute_baseline_rates_with_no_present_columns() -> None:
 
 
 def _batting_prior() -> pd.DataFrame:
-    return pd.DataFrame(
+    return _frame(
         [
-            {
-                "Season": 2025,
-                "PA": 700,
-                "AB": 600,
-                "H": 180,
-                "2B": 35,
-                "3B": 2,
-                "HR": 30,
-                "BB": 80,
-                "SO": 120,
-                "HBP": 5,
-                "SF": 6,
-            },
-            {
-                "Season": 2024,
-                "PA": 650,
-                "AB": 560,
-                "H": 165,
-                "2B": 30,
-                "3B": 3,
-                "HR": 28,
-                "BB": 75,
-                "SO": 110,
-                "HBP": 4,
-                "SF": 5,
-            },
-            {
-                "Season": 2023,
-                "PA": 620,
-                "AB": 540,
-                "H": 155,
-                "2B": 28,
-                "3B": 4,
-                "HR": 25,
-                "BB": 70,
-                "SO": 108,
-                "HBP": 4,
-                "SF": 4,
-            },
+            _batting_row(2025, 700, 600, 180, 35, 2, 30, 80, 120, 5, 6),
+            _batting_row(2024, 650, 560, 165, 30, 3, 28, 75, 110, 4, 5),
+            _batting_row(2023, 620, 540, 155, 28, 4, 25, 70, 108, 4, 4),
         ]
     )
 
@@ -218,13 +216,9 @@ def test_project_player_default_prior_df_baseline_branch() -> None:
     assert float(out.loc[0, "PA"]) > 0
 
 
-def test_project_player_age_le_29() -> None:
-    out = project_player("Test Hitter", _batting_prior(), "batting", 2026, age=28)
-    assert float(out.loc[0, "PA"]) > 0
-
-
-def test_project_player_age_gt_29() -> None:
-    out = project_player("Test Hitter", _batting_prior(), "batting", 2026, age=34)
+@pytest.mark.parametrize("age", [28, 34], ids=["age_le_29", "age_gt_29"])
+def test_project_player_age_adjustments(age: int) -> None:
+    out = project_player("Test Hitter", _batting_prior(), "batting", 2026, age=age)
     assert float(out.loc[0, "PA"]) > 0
 
 
@@ -256,19 +250,7 @@ def test_project_player_rejects_more_than_three_prior_seasons() -> None:
             _batting_prior(),
             pd.DataFrame(
                 [
-                    {
-                        "Season": 2022,
-                        "PA": 610,
-                        "AB": 530,
-                        "H": 150,
-                        "2B": 26,
-                        "3B": 3,
-                        "HR": 22,
-                        "BB": 68,
-                        "SO": 105,
-                        "HBP": 3,
-                        "SF": 4,
-                    }
+                    _batting_row(2022, 610, 530, 150, 26, 3, 22, 68, 105, 3, 4)
                 ]
             ),
         ],
@@ -296,47 +278,11 @@ def test_project_player_rejects_non_numeric_season_values() -> None:
 
 
 def test_project_player_uses_stable_sort_for_duplicate_seasons() -> None:
-    prior = pd.DataFrame(
+    prior = _frame(
         [
-            {
-                "Season": 2025,
-                "PA": 600,
-                "AB": 500,
-                "H": 150,
-                "2B": 30,
-                "3B": 2,
-                "HR": 20,
-                "BB": 70,
-                "SO": 110,
-                "HBP": 3,
-                "SF": 4,
-            },
-            {
-                "Season": 2025,
-                "PA": 300,
-                "AB": 250,
-                "H": 80,
-                "2B": 15,
-                "3B": 1,
-                "HR": 10,
-                "BB": 35,
-                "SO": 60,
-                "HBP": 2,
-                "SF": 2,
-            },
-            {
-                "Season": 2024,
-                "PA": 200,
-                "AB": 180,
-                "H": 50,
-                "2B": 10,
-                "3B": 1,
-                "HR": 5,
-                "BB": 20,
-                "SO": 45,
-                "HBP": 1,
-                "SF": 2,
-            },
+            _batting_row(2025, 600, 500, 150, 30, 2, 20, 70, 110, 3, 4),
+            _batting_row(2025, 300, 250, 80, 15, 1, 10, 35, 60, 2, 2),
+            _batting_row(2024, 200, 180, 50, 10, 1, 5, 20, 45, 1, 2),
         ]
     )
 
