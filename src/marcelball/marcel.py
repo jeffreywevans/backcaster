@@ -14,11 +14,17 @@ BATTING_COMPONENTS = ["PA", "AB", "H", "2B", "3B", "HR", "BB", "SO", "HBP", "SF"
 PITCHING_COMPONENTS = ["IP", "ER", "H", "HR", "BB", "SO", "BF"]
 
 
-def _weighted_row(rows: list[pd.Series], weights: tuple[float, float, float], cols: list[str]) -> pd.Series:
+def _weighted_row(
+    rows: list[pd.Series], weights: tuple[float, float, float], cols: list[str]
+) -> pd.Series:
     total_w = sum(weights[: len(rows)])
     out = {}
     for col in cols:
-        out[col] = sum(float(r.get(col, 0.0)) * w for r, w in zip(rows, weights)) / total_w if total_w else 0.0
+        out[col] = (
+            sum(float(r.get(col, 0.0)) * w for r, w in zip(rows, weights)) / total_w
+            if total_w
+            else 0.0
+        )
     return pd.Series(out)
 
 
@@ -26,7 +32,9 @@ def _derive_batting_rates(s: pd.Series) -> pd.Series:
     singles = s["H"] - s["2B"] - s["3B"] - s["HR"]
     tb = singles + 2 * s["2B"] + 3 * s["3B"] + 4 * s["HR"]
     avg = safe_divide(s["H"], s["AB"])
-    obp = safe_divide(s["H"] + s["BB"] + s.get("HBP", 0), s["AB"] + s["BB"] + s.get("HBP", 0) + s.get("SF", 0))
+    obp = safe_divide(
+        s["H"] + s["BB"] + s.get("HBP", 0), s["AB"] + s["BB"] + s.get("HBP", 0) + s.get("SF", 0)
+    )
     slg = safe_divide(tb, s["AB"])
     return pd.Series({"AVG": avg, "OBP": obp, "SLG": slg, "OPS": obp + slg})
 
@@ -42,18 +50,13 @@ def _compute_baseline_rates(df: pd.DataFrame, comps: list[str]) -> tuple[float, 
     present_cols = [c for c in comps if c in df.columns]
     sums = df[present_cols].sum() if present_cols else pd.Series(dtype="float64")
     league_pt = float(sums.get(pt_col, 0.0))
-    league_rates = {
-        c: safe_divide(float(sums.get(c, 0.0)), league_pt)
-        for c in comps[1:]
-    }
+    league_rates = {c: safe_divide(float(sums.get(c, 0.0)), league_pt) for c in comps[1:]}
     return league_pt, league_rates
 
 
 def _validate_projection_kind(kind: str) -> str:
     if kind not in {"batting", "pitching"}:
-        raise ProjectionError(
-            f"Invalid kind {kind!r}. Expected one of: 'batting', 'pitching'."
-        )
+        raise ProjectionError(f"Invalid kind {kind!r}. Expected one of: 'batting', 'pitching'.")
     return kind
 
 
@@ -118,7 +121,9 @@ def project_player(
     regressed = weighted.copy()
     regressed[pt_col] = weighted_pt
     for c in comps[1:]:
-        regressed_rate = safe_divide(float(weighted[c]) + league_rates[c] * reg_pt, weighted_pt + reg_pt)
+        regressed_rate = safe_divide(
+            float(weighted[c]) + league_rates[c] * reg_pt, weighted_pt + reg_pt
+        )
         regressed[c] = regressed_rate * weighted_pt
 
     growth = config.default_pa_growth if kind == "batting" else config.default_ip_growth

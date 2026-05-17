@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
+from numbers import Number
 from pathlib import Path
-from typing import Iterable
+from typing import SupportsInt, cast
 
 import pandas as pd
 
@@ -42,10 +44,14 @@ def _candidate_full_names(row: pd.Series) -> set[str]:
 def _to_int_or_none(value: object) -> int | None:
     if value is None or value == "":
         return None
-    try:
+    if isinstance(value, bool):
         return int(value)
-    except (TypeError, ValueError):
-        return None
+    if isinstance(value, (Number, str, bytes, bytearray)):
+        try:
+            return int(cast(SupportsInt | str | bytes | bytearray, value))
+        except (TypeError, ValueError):
+            return None
+    return None
 
 
 def _format_numeric_or_unknown(value: object) -> str:
@@ -53,9 +59,7 @@ def _format_numeric_or_unknown(value: object) -> str:
     return str(as_int) if as_int is not None else "?"
 
 
-def _filter_candidates_by_name(
-    requested_name: str, lookup_df: pd.DataFrame
-) -> pd.DataFrame:
+def _filter_candidates_by_name(requested_name: str, lookup_df: pd.DataFrame) -> pd.DataFrame:
     def _normalized_name_column(column_name: str) -> pd.Series:
         if column_name not in lookup_df.columns:
             return pd.Series("", index=lookup_df.index, dtype="object")
@@ -79,15 +83,13 @@ def _overlaps_year_window(row: pd.Series, start_year: int, end_year: int) -> boo
     if first is None and last is None:
         return True
     if first is None:
-        return start_year <= last
+        return last is not None and start_year <= last
     if last is None:
         return end_year >= first
     return not (last < start_year or first > end_year)
 
 
-def _filter_candidates_by_years(
-    candidates: pd.DataFrame, years: list[int]
-) -> pd.DataFrame:
+def _filter_candidates_by_years(candidates: pd.DataFrame, years: list[int]) -> pd.DataFrame:
     has_year_cols = {"mlb_played_first", "mlb_played_last"}.issubset(candidates.columns)
     if not years or not has_year_cols:
         return candidates
@@ -109,7 +111,9 @@ def _format_candidate_detail(row: pd.Series) -> str:
     return f"{label} (key_fangraphs={fg}, MLB={start}-{end})"
 
 
-def resolve_player_lookup(name: str, lookup_df: pd.DataFrame, target_years: Iterable[int]) -> pd.Series:
+def resolve_player_lookup(
+    name: str, lookup_df: pd.DataFrame, target_years: Iterable[int]
+) -> pd.Series:
     if lookup_df.empty:
         raise PlayerLookupError(f"No player found for '{name}'.")
 
