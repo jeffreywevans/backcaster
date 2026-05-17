@@ -167,6 +167,12 @@ def test_cache_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     assert tmp_path.exists()
 
 
+def test_cache_path_rejects_invalid_kind(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(data, "CACHE_ROOT", tmp_path)
+    with pytest.raises(ValueError, match=r"^Invalid kind"):
+        data._cache_path("batting/../../evil", 2025, "csv")  # type: ignore[arg-type]
+
+
 def test_read_cache_parquet_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(data, "CACHE_ROOT", tmp_path)
     expected = pd.DataFrame([{"a": 1}])
