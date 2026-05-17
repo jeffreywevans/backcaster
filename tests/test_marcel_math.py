@@ -260,6 +260,15 @@ def test_project_player_rejects_more_than_three_prior_seasons() -> None:
         project_player("Test Hitter", df, "batting", 2026)
 
 
+
+
+def test_project_player_rejects_missing_season_column() -> None:
+    prior = _batting_prior().drop(columns=["Season"])
+
+    with pytest.raises(ProjectionError, match="Missing required Season column"):
+        project_player("Test Hitter", prior, "batting", 2026)
+
+
 def test_project_player_rejects_missing_season_values() -> None:
     prior = _batting_prior().copy()
     prior.loc[1, "Season"] = None
