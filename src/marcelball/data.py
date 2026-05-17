@@ -10,6 +10,7 @@ import pandas as pd
 from marcelball.schemas import Kind
 
 CACHE_ROOT = Path(".cache/marcelball")
+VALID_KINDS: tuple[Kind, ...] = ("batting", "pitching")
 
 
 class DataFetchError(RuntimeError):
@@ -137,6 +138,9 @@ def resolve_player_lookup(
 
 
 def _cache_path(kind: Kind, year: int, ext: str = "csv") -> Path:
+    if kind not in VALID_KINDS:
+        expected = ", ".join(repr(value) for value in VALID_KINDS)
+        raise ValueError(f"Invalid kind {kind!r}. Expected one of: {expected}.")
     CACHE_ROOT.mkdir(parents=True, exist_ok=True)
     return CACHE_ROOT / f"{kind}_{year}.{ext}"
 
