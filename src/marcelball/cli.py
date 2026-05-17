@@ -34,6 +34,13 @@ def _render(df: pd.DataFrame, output_format: str, out: str | None) -> None:
         raise ValueError(f"Unsupported format: {output_format}")
 
 
+def _require_columns(df: pd.DataFrame, required: set[str], *, context: str, error_cls: type[Exception]) -> None:
+    missing = sorted(required - set(df.columns))
+    if missing:
+        cols = ", ".join(missing)
+        raise error_cls(f"{context} missing required column(s): {cols}.")
+
+
 def run_player(args: argparse.Namespace) -> int:
     years = _prior_years(args.year)
     pid_df = lookup_player_ids(args.name)
@@ -45,6 +52,7 @@ def run_player(args: argparse.Namespace) -> int:
     league_frames = []
     for y in years:
         df = fetch_season_stats(y, args.kind)
+        _require_columns(df, {"Name"}, context=f"Season {y} {args.kind} stats", error_cls=ProjectionError)
         league = df.copy()
         league["Season"] = y
         league_frames.append(league)
@@ -72,6 +80,7 @@ def run_team(args: argparse.Namespace) -> int:
     frames = []
     for y in years:
         df = fetch_season_stats(y, args.kind)
+        _require_columns(df, {"Team"}, context=f"Season {y} {args.kind} stats", error_cls=DataFetchError)
         row = df[df["Team"] == args.team].copy()
         if row.empty:
             raise ProjectionError(f"Missing season {y} for team '{args.team}'.")
