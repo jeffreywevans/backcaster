@@ -52,7 +52,6 @@ def run_player(args: argparse.Namespace) -> int:
     league_frames = []
     for y in years:
         df = fetch_season_stats(y, args.kind)
-        _require_columns(df, {"Name"}, context=f"Season {y} {args.kind} stats", error_cls=ProjectionError)
         league = df.copy()
         league["Season"] = y
         league_frames.append(league)
@@ -63,6 +62,12 @@ def run_player(args: argparse.Namespace) -> int:
             row = league[idfg_numeric == fg_key_numeric].copy()
 
         if row.empty and pd.isna(fg_key_numeric):
+            _require_columns(
+                league,
+                {"Name"},
+                context=f"Season {y} {args.kind} stats for name fallback",
+                error_cls=ProjectionError,
+            )
             row = league[league["Name"].astype(str).str.casefold() == args.name.casefold()].copy()
         if row.empty:
             raise ProjectionError(f"Missing season {y} for player '{args.name}'.")
