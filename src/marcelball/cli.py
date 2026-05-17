@@ -77,17 +77,23 @@ def run_player(args: argparse.Namespace) -> int:
 
 def run_team(args: argparse.Namespace) -> int:
     years = _prior_years(args.year)
-    frames = []
+    team_frames = []
+    league_frames = []
     for y in years:
         df = fetch_season_stats(y, args.kind)
         _require_columns(df, {"Team"}, context=f"Season {y} {args.kind} stats", error_cls=DataFetchError)
+        league = df.copy()
+        league["Season"] = y
+        league_frames.append(league)
+
         row = df[df["Team"] == args.team].copy()
         if row.empty:
             raise ProjectionError(f"Missing season {y} for team '{args.team}'.")
         row["Season"] = y
-        frames.append(row)
-    all_team = pd.concat(frames, ignore_index=True)
-    proj = project_team(all_team, args.kind, args.year)
+        team_frames.append(row)
+    all_team = pd.concat(team_frames, ignore_index=True)
+    all_league = pd.concat(league_frames, ignore_index=True)
+    proj = project_team(all_team, args.kind, args.year, baseline_df=all_league)
     _render(proj, args.format, args.out)
     return 0
 

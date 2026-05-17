@@ -139,7 +139,13 @@ def project_player(
     return output.to_frame().T
 
 
-def project_team(team_df: pd.DataFrame, kind: str, year: int, config: MarcelConfig | None = None) -> pd.DataFrame:
+def project_team(
+    team_df: pd.DataFrame,
+    kind: str,
+    year: int,
+    config: MarcelConfig | None = None,
+    baseline_df: pd.DataFrame | None = None,
+) -> pd.DataFrame:
     config = config or MarcelConfig()
     if "Name" not in team_df.columns:
         raise ProjectionError("Missing required Name column in team input.")
@@ -150,7 +156,8 @@ def project_team(team_df: pd.DataFrame, kind: str, year: int, config: MarcelConf
         comps = BATTING_COMPONENTS
     else:
         comps = PITCHING_COMPONENTS
-    _, baseline_rates = _compute_baseline_rates(team_df, comps)
+    baseline_source = baseline_df if baseline_df is not None else team_df
+    _, baseline_rates = _compute_baseline_rates(baseline_source, comps)
     grouped = team_df.groupby("Name", as_index=False)
     projections = [
         project_player(
