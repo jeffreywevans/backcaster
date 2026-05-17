@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 import pandas as pd
 import pytest
@@ -300,12 +300,20 @@ def test_project_player_uses_stable_sort_for_duplicate_seasons() -> None:
     assert float(out.loc[0, "PA"]) == pytest.approx(expected_weighted_pa * 1.006)
 
 
-def test_project_team_success() -> None:
-    p1 = _batting_prior().assign(Name="A")
-    p2 = _batting_prior().assign(Name="B")
-    team_df = pd.concat([p1, p2], ignore_index=True)
-    out = project_team(team_df, "batting", 2026)
-    assert sorted(out["Name"].tolist()) == ["A", "B"]
+@pytest.mark.parametrize(
+    ("kind", "prior_factory", "names", "required_cols"),
+    [
+        ("batting", _batting_prior, ["A", "B"], set()),
+        ("pitching", _pitching_prior, ["Pitcher A", "Pitcher B"], {"IP", "ERA", "WHIP"}),
+    ],
+)
+def test_project_team_success(
+    kind: str, prior_factory: Callable[[], pd.DataFrame], names: list[str], required_cols: set[str]
+) -> None:
+    team_df = pd.concat([prior_factory().assign(Name=name) for name in names], ignore_index=True)
+    out = project_team(team_df, kind, 2026)
+    assert sorted(out["Name"].tolist()) == sorted(names)
+    assert required_cols.issubset(out.columns)
 
 
 def test_project_team_empty_no_players() -> None:
