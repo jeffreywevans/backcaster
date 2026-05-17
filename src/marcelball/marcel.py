@@ -66,7 +66,9 @@ def _projection_components(kind: str, config: MarcelConfig) -> tuple[list[str], 
     return PITCHING_COMPONENTS, config.regression_ip
 
 
-def _prepare_prior_df(prior_three: pd.DataFrame, comps: list[str]) -> pd.DataFrame:
+def _prepare_prior_df(
+    prior_three: pd.DataFrame, comps: list[str], optional_comps: set[str] | None = None
+) -> pd.DataFrame:
     if "Season" not in prior_three.columns:
         raise ProjectionError("Missing required Season column in prior seasons input.")
 
@@ -86,8 +88,16 @@ def _prepare_prior_df(prior_three: pd.DataFrame, comps: list[str]) -> pd.DataFra
         .copy()
     )
 
-    for c in comps:
-        if c not in prior_df.columns:
+    optional_comps = optional_comps or set()
+    missing_required = [c for c in comps if c not in prior_df.columns and c not in optional_comps]
+    if missing_required:
+        missing_required_str = ", ".join(sorted(missing_required))
+        raise ProjectionError(
+            f"Missing required component columns in prior seasons input: {missing_required_str}."
+        )
+
+    for c in optional_comps:
+        if c in comps and c not in prior_df.columns:
             prior_df[c] = 0.0
     return prior_df
 
@@ -110,7 +120,8 @@ def project_player(
 
     kind = _validate_projection_kind(kind)
     comps, reg_pt = _projection_components(kind, config)
-    prior_df = _prepare_prior_df(prior_three, comps)
+    optional_comps = {"HBP", "SF"} if kind == "batting" else set()
+    prior_df = _prepare_prior_df(prior_three, comps, optional_comps=optional_comps)
 
     rows = [prior_df.iloc[i] for i in range(min(3, prior_df.shape[0]))]
     weighted = _weighted_row(rows, config.season_weights, comps)

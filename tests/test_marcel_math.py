@@ -269,6 +269,21 @@ def test_project_player_rejects_missing_season_column() -> None:
         project_player("Test Hitter", prior, "batting", 2026)
 
 
+
+
+def test_project_player_allows_missing_optional_batting_components() -> None:
+    prior = _batting_prior().drop(columns=["HBP", "SF"])
+
+    out = project_player("Test Hitter", prior, "batting", 2026)
+    assert float(out.loc[0, "PA"]) > 0
+
+
+def test_project_player_rejects_missing_required_component_columns() -> None:
+    prior = _batting_prior().drop(columns=["AB", "H"])
+
+    with pytest.raises(ProjectionError, match="Missing required component columns"):
+        project_player("Test Hitter", prior, "batting", 2026)
+
 def test_project_player_rejects_missing_season_values() -> None:
     prior = _batting_prior().copy()
     prior.loc[1, "Season"] = None
