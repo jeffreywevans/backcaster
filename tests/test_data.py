@@ -49,6 +49,8 @@ def test_candidate_full_names_with_missing_or_nan_names() -> None:
     [
         (None, None),
         ("", None),
+        (True, 1),
+        (False, 0),
         ("42", 42),
         (" 42 ", 42),
         ("42.0", None),
