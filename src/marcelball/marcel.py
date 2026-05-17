@@ -57,30 +57,13 @@ def _validate_projection_kind(kind: str) -> str:
     return kind
 
 
-def project_player(
-    player_name: str,
-    prior_three: pd.DataFrame,
-    kind: str,
-    year: int,
-    config: MarcelConfig | None = None,
-    age: float = 29,
-    league_df: pd.DataFrame | None = None,
-    league_rates: dict[str, float] | None = None,
-) -> pd.DataFrame:
-    config = config or MarcelConfig()
-    if prior_three.empty:
-        raise ProjectionError("Expected at least one prior season for projection.")
-    if prior_three.shape[0] > 3:
-        raise ProjectionError("Expected at most three prior seasons for projection.")
-
-    kind = _validate_projection_kind(kind)
+def _projection_components(kind: str, config: MarcelConfig) -> tuple[list[str], float]:
     if kind == "batting":
-        comps = BATTING_COMPONENTS
-        reg_pt = config.regression_pa
-    else:
-        comps = PITCHING_COMPONENTS
-        reg_pt = config.regression_ip
+        return BATTING_COMPONENTS, config.regression_pa
+    return PITCHING_COMPONENTS, config.regression_ip
 
+
+def _prepare_prior_df(prior_three: pd.DataFrame, comps: list[str]) -> pd.DataFrame:
     if "Season" not in prior_three.columns:
         raise ProjectionError("Missing required Season column in prior seasons input.")
 
@@ -103,6 +86,28 @@ def project_player(
     for c in comps:
         if c not in prior_df.columns:
             prior_df[c] = 0.0
+    return prior_df
+
+
+def project_player(
+    player_name: str,
+    prior_three: pd.DataFrame,
+    kind: str,
+    year: int,
+    config: MarcelConfig | None = None,
+    age: float = 29,
+    league_df: pd.DataFrame | None = None,
+    league_rates: dict[str, float] | None = None,
+) -> pd.DataFrame:
+    config = config or MarcelConfig()
+    if prior_three.empty:
+        raise ProjectionError("Expected at least one prior season for projection.")
+    if prior_three.shape[0] > 3:
+        raise ProjectionError("Expected at most three prior seasons for projection.")
+
+    kind = _validate_projection_kind(kind)
+    comps, reg_pt = _projection_components(kind, config)
+    prior_df = _prepare_prior_df(prior_three, comps)
 
     rows = [prior_df.iloc[i] for i in range(min(3, prior_df.shape[0]))]
     weighted = _weighted_row(rows, config.season_weights, comps)
