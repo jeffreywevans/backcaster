@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import runpy
-import sys
 from argparse import Namespace
+from typing import Any
 
 import pandas as pd
 import pytest
 
+from marcelball import cli
 from marcelball.cli import (
     _prior_years,
     _render,
@@ -44,6 +45,19 @@ def _player_args(**overrides: object) -> Namespace:
     return Namespace(**args)
 
 
+def _stub_render(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("marcelball.cli._render", lambda *_a, **_k: None)
+
+
+def _stub_player_lookup(monkeypatch: pytest.MonkeyPatch, fangraphs_id: Any = 101) -> None:
+    monkeypatch.setattr(
+        "marcelball.cli.lookup_player_ids", lambda _n: pd.DataFrame([{"name_given": "John Smith"}])
+    )
+    monkeypatch.setattr(
+        "marcelball.cli.resolve_player_lookup", lambda *_a: {"key_fangraphs": fangraphs_id}
+    )
+
+
 def test_prior_years_returns_previous_three() -> None:
     assert _prior_years(2026) == (2025, 2024, 2023)
 
@@ -57,33 +71,18 @@ def test_render_cli_prints_table(
     assert capsys.readouterr().out.strip() == "CLI TABLE"
 
 
-def test_render_csv_calls_csv_writer(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+@pytest.mark.parametrize("fmt", ["csv", "html"])
+def test_render_file_writers(monkeypatch: pytest.MonkeyPatch, tmp_path, fmt: str) -> None:
     df = pd.DataFrame([{"Name": "A"}])
-    out = tmp_path / "out.csv"
+    out = tmp_path / f"out.{fmt}"
     called: dict[str, object] = {}
 
-    def _fake_to_csv(input_df: pd.DataFrame, path: str) -> None:
+    def _fake_writer(input_df: pd.DataFrame, path: str) -> None:
         called["df"] = input_df
         called["path"] = path
 
-    monkeypatch.setitem(sys.modules["marcelball.cli"]._FILE_RENDERERS, "csv", _fake_to_csv)
-    _render(df, "csv", str(out))
-
-    assert called["path"] == str(out)
-    pd.testing.assert_frame_equal(called["df"], df)
-
-
-def test_render_html_calls_html_writer(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
-    df = pd.DataFrame([{"Name": "A"}])
-    out = tmp_path / "out.html"
-    called: dict[str, object] = {}
-
-    def _fake_to_html(input_df: pd.DataFrame, path: str) -> None:
-        called["df"] = input_df
-        called["path"] = path
-
-    monkeypatch.setitem(sys.modules["marcelball.cli"]._FILE_RENDERERS, "html", _fake_to_html)
-    _render(df, "html", str(out))
+    monkeypatch.setitem(cli._FILE_RENDERERS, fmt, _fake_writer)
+    _render(df, fmt, str(out))
 
     assert called["path"] == str(out)
     pd.testing.assert_frame_equal(called["df"], df)
@@ -108,7 +107,7 @@ def test_run_team_success(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "marcelball.cli.project_team", lambda *_a, **_k: pd.DataFrame([{"Team": "NYY"}])
     )
-    monkeypatch.setattr("marcelball.cli._render", lambda *_a, **_k: None)
+    _stub_render(monkeypatch)
 
     assert run_team(_team_args()) == 0
 
@@ -129,7 +128,7 @@ def test_run_batch_success(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "marcelball.cli.project_team", lambda *_a, **_k: pd.DataFrame([{"Name": "Projected"}])
     )
-    monkeypatch.setattr("marcelball.cli._render", lambda *_a, **_k: None)
+    _stub_render(monkeypatch)
 
     assert run_batch(Namespace(year=2026, kind="batting", format="cli", out=None)) == 0
 
@@ -174,10 +173,7 @@ def test_main_block_via_runpy_warns_and_exits() -> None:
 
 
 def test_run_player_matches_fangraphs_id_successfully(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "marcelball.cli.lookup_player_ids", lambda _n: pd.DataFrame([{"name_given": "John Smith"}])
-    )
-    monkeypatch.setattr("marcelball.cli.resolve_player_lookup", lambda *_a: {"key_fangraphs": 101})
+    _stub_player_lookup(monkeypatch, fangraphs_id=101)
     monkeypatch.setattr(
         "marcelball.cli.fetch_season_stats",
         lambda y, _k: pd.DataFrame([{"IDfg": 101, "Name": "Someone Else", "PA": 500, "Season": y}]),
@@ -185,16 +181,13 @@ def test_run_player_matches_fangraphs_id_successfully(monkeypatch: pytest.Monkey
     monkeypatch.setattr(
         "marcelball.cli.project_player", lambda *_a, **_k: pd.DataFrame([{"Name": "John Smith"}])
     )
-    monkeypatch.setattr("marcelball.cli._render", lambda *_a, **_k: None)
+    _stub_render(monkeypatch)
 
     assert run_player(_player_args()) == 0
 
 
 def test_run_player_missing_idfg_column_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "marcelball.cli.lookup_player_ids", lambda _n: pd.DataFrame([{"name_given": "John Smith"}])
-    )
-    monkeypatch.setattr("marcelball.cli.resolve_player_lookup", lambda *_a: {"key_fangraphs": 101})
+    _stub_player_lookup(monkeypatch, fangraphs_id=101)
     monkeypatch.setattr(
         "marcelball.cli.fetch_season_stats", lambda _y, _k: pd.DataFrame([{"Name": "John Smith"}])
     )
@@ -204,12 +197,7 @@ def test_run_player_missing_idfg_column_raises(monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_run_player_blank_fangraphs_id_falls_back_to_name(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "marcelball.cli.lookup_player_ids", lambda _n: pd.DataFrame([{"name_given": "John Smith"}])
-    )
-    monkeypatch.setattr(
-        "marcelball.cli.resolve_player_lookup", lambda *_a: {"key_fangraphs": float("nan")}
-    )
+    _stub_player_lookup(monkeypatch, fangraphs_id=float("nan"))
     monkeypatch.setattr(
         "marcelball.cli.fetch_season_stats",
         lambda _y, _k: pd.DataFrame([{"Name": "john smith", "PA": 500}]),
@@ -217,16 +205,13 @@ def test_run_player_blank_fangraphs_id_falls_back_to_name(monkeypatch: pytest.Mo
     monkeypatch.setattr(
         "marcelball.cli.project_player", lambda *_a, **_k: pd.DataFrame([{"Name": "John Smith"}])
     )
-    monkeypatch.setattr("marcelball.cli._render", lambda *_a, **_k: None)
+    _stub_render(monkeypatch)
 
     assert run_player(_player_args()) == 0
 
 
 def test_run_player_name_fallback_failure_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "marcelball.cli.lookup_player_ids", lambda _n: pd.DataFrame([{"name_given": "John Smith"}])
-    )
-    monkeypatch.setattr("marcelball.cli.resolve_player_lookup", lambda *_a: {"key_fangraphs": None})
+    _stub_player_lookup(monkeypatch, fangraphs_id=None)
     monkeypatch.setattr(
         "marcelball.cli.fetch_season_stats", lambda _y, _k: pd.DataFrame([{"Name": "Not Him"}])
     )
@@ -236,10 +221,7 @@ def test_run_player_name_fallback_failure_raises(monkeypatch: pytest.MonkeyPatch
 
 
 def test_run_player_duplicate_id_rows_are_handled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "marcelball.cli.lookup_player_ids", lambda _n: pd.DataFrame([{"name_given": "John Smith"}])
-    )
-    monkeypatch.setattr("marcelball.cli.resolve_player_lookup", lambda *_a: {"key_fangraphs": 101})
+    _stub_player_lookup(monkeypatch, fangraphs_id=101)
     monkeypatch.setattr(
         "marcelball.cli.fetch_season_stats",
         lambda _y, _k: pd.DataFrame(
@@ -252,6 +234,6 @@ def test_run_player_duplicate_id_rows_are_handled(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(
         "marcelball.cli.project_player", lambda *_a, **_k: pd.DataFrame([{"Name": "John Smith"}])
     )
-    monkeypatch.setattr("marcelball.cli._render", lambda *_a, **_k: None)
+    _stub_render(monkeypatch)
 
     assert run_player(_player_args()) == 0
