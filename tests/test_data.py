@@ -1,11 +1,32 @@
+import sys
 import types
 from pathlib import Path
+from typing import Callable
 
 import pandas as pd
 import pytest
 
 from marcelball import data
 from marcelball.data import DataFetchError, PlayerLookupError
+
+
+@pytest.fixture
+def disable_cache_io(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(data, "_read_cache", lambda kind, year: None)
+    monkeypatch.setattr(data, "_write_cache", lambda kind, year, frame: None)
+
+
+def _install_fake_pybaseball(monkeypatch: pytest.MonkeyPatch, **attrs: object) -> types.SimpleNamespace:
+    fake_pyb = types.SimpleNamespace(**attrs)
+    monkeypatch.setitem(sys.modules, "pybaseball", fake_pyb)
+    return fake_pyb
+
+
+@pytest.fixture
+def install_fake_pybaseball(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Callable[..., types.SimpleNamespace]:
+    return lambda **attrs: _install_fake_pybaseball(monkeypatch, **attrs)
 
 
 def test_candidate_full_names_with_first_last() -> None:
@@ -29,6 +50,10 @@ def test_candidate_full_names_with_missing_or_nan_names() -> None:
         (None, None),
         ("", None),
         ("42", 42),
+        (" 42 ", 42),
+        ("42.0", None),
+        (42, 42),
+        (42.5, 42),
         ("nope", None),
         (object(), None),
     ],
@@ -96,7 +121,7 @@ def test_filter_candidates_by_years_with_no_matching_window_returns_empty() -> N
 
 
 def test_resolve_player_lookup_with_empty_lookup() -> None:
-    with pytest.raises(PlayerLookupError, match="No player found"):
+    with pytest.raises(PlayerLookupError, match=r"^No player found"):
         data.resolve_player_lookup("Any Name", pd.DataFrame(), [2020])
 
 
@@ -113,7 +138,7 @@ def test_resolve_player_lookup_with_duplicates() -> None:
             {"name_first": "Mike", "name_last": "Trout", "key_fangraphs": 102},
         ]
     )
-    with pytest.raises(PlayerLookupError, match="Duplicate player match"):
+    with pytest.raises(PlayerLookupError, match=r"^Duplicate player match"):
         data.resolve_player_lookup("Mike Trout", lookup, [2020])
 
 
@@ -129,7 +154,7 @@ def test_resolve_player_lookup_with_no_candidate_in_target_seasons() -> None:
             }
         ]
     )
-    with pytest.raises(PlayerLookupError, match="No player found.*in seasons"):
+    with pytest.raises(PlayerLookupError, match=r"^No player found.*in seasons"):
         data.resolve_player_lookup("Mike Trout", lookup, [2020, 2021])
 
 
@@ -184,19 +209,50 @@ def test_write_cache_parquet_success(monkeypatch: pytest.MonkeyPatch, tmp_path: 
 
 def test_write_cache_csv_fallback(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(data, "CACHE_ROOT", tmp_path)
-    called = {"csv": False}
+    call_log: list[tuple[str, Path, bool]] = []
 
     def fail_to_parquet(self: pd.DataFrame, path: Path, index: bool = False) -> None:
+        call_log.append(("parquet", path, index))
         raise RuntimeError("boom")
 
     def fake_to_csv(self: pd.DataFrame, path: Path, index: bool = False) -> None:
-        called["csv"] = True
+        call_log.append(("csv", path, index))
 
     monkeypatch.setattr(pd.DataFrame, "to_parquet", fail_to_parquet)
     monkeypatch.setattr(pd.DataFrame, "to_csv", fake_to_csv)
 
     data._write_cache("pitching", 2025, pd.DataFrame([{"a": 1}]))
-    assert called["csv"] is True
+
+    assert len(call_log) == 2
+    assert call_log[0][0] == "parquet"
+    assert call_log[0][2] is False
+    assert call_log[1][0] == "csv"
+    assert call_log[1][2] is False
+
+
+@pytest.mark.parametrize(
+    ("kind", "stats_attr", "expected"),
+    [
+        ("batting", "batting_stats", pd.DataFrame([{"a": 1}])),
+        ("pitching", "pitching_stats", pd.DataFrame([{"a": 2}])),
+    ],
+)
+def test_fetch_season_stats_fetch_success(
+    disable_cache_io: None,
+    install_fake_pybaseball: Callable[..., types.SimpleNamespace],
+    kind: str,
+    stats_attr: str,
+    expected: pd.DataFrame,
+) -> None:
+    install_fake_pybaseball(
+        batting_stats=(lambda year: expected if stats_attr == "batting_stats" else pd.DataFrame([{"a": 9}])),
+        pitching_stats=(
+            lambda year: expected if stats_attr == "pitching_stats" else pd.DataFrame([{"a": 9}])
+        ),
+    )
+
+    got = data.fetch_season_stats(2025, kind, use_cache=False)
+    pd.testing.assert_frame_equal(got, expected)
 
 
 def test_fetch_season_stats_cache_hit(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -206,85 +262,62 @@ def test_fetch_season_stats_cache_hit(monkeypatch: pytest.MonkeyPatch) -> None:
     pd.testing.assert_frame_equal(got, cached)
 
 
-def test_fetch_season_stats_batting_fetch_success(monkeypatch: pytest.MonkeyPatch) -> None:
-    df = pd.DataFrame([{"a": 1}])
+def test_fetch_season_stats_pybaseball_exception(
+    monkeypatch: pytest.MonkeyPatch, install_fake_pybaseball: Callable[..., types.SimpleNamespace]
+) -> None:
     monkeypatch.setattr(data, "_read_cache", lambda kind, year: None)
-    monkeypatch.setattr(data, "_write_cache", lambda kind, year, frame: None)
-    fake_pyb = types.SimpleNamespace(
-        batting_stats=lambda year: df,
-        pitching_stats=lambda year: pd.DataFrame([{"a": 9}]),
-    )
-    monkeypatch.setitem(__import__("sys").modules, "pybaseball", fake_pyb)
-
-    got = data.fetch_season_stats(2025, "batting", use_cache=False)
-    pd.testing.assert_frame_equal(got, df)
-
-
-def test_fetch_season_stats_pitching_fetch_success(monkeypatch: pytest.MonkeyPatch) -> None:
-    df = pd.DataFrame([{"a": 2}])
-    monkeypatch.setattr(data, "_read_cache", lambda kind, year: None)
-    monkeypatch.setattr(data, "_write_cache", lambda kind, year, frame: None)
-    fake_pyb = types.SimpleNamespace(
-        batting_stats=lambda year: pd.DataFrame([{"a": 9}]),
-        pitching_stats=lambda year: df,
-    )
-    monkeypatch.setitem(__import__("sys").modules, "pybaseball", fake_pyb)
-
-    got = data.fetch_season_stats(2025, "pitching", use_cache=False)
-    pd.testing.assert_frame_equal(got, df)
-
-
-def test_fetch_season_stats_pybaseball_exception(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(data, "_read_cache", lambda kind, year: None)
-    fake_pyb = types.SimpleNamespace(
+    install_fake_pybaseball(
         batting_stats=lambda year: (_ for _ in ()).throw(RuntimeError("down")),
         pitching_stats=lambda year: pd.DataFrame([{"a": 9}]),
     )
-    monkeypatch.setitem(__import__("sys").modules, "pybaseball", fake_pyb)
 
-    with pytest.raises(DataFetchError, match="Unable to fetch batting stats"):
+    with pytest.raises(DataFetchError, match=r"^Unable to fetch batting stats"):
         data.fetch_season_stats(2025, "batting", use_cache=False)
 
 
-def test_fetch_season_stats_empty_dataframe(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_fetch_season_stats_empty_dataframe(
+    monkeypatch: pytest.MonkeyPatch, install_fake_pybaseball: Callable[..., types.SimpleNamespace]
+) -> None:
     monkeypatch.setattr(data, "_read_cache", lambda kind, year: None)
-    fake_pyb = types.SimpleNamespace(
+    install_fake_pybaseball(
         batting_stats=lambda year: pd.DataFrame(),
         pitching_stats=lambda year: pd.DataFrame([{"a": 9}]),
     )
-    monkeypatch.setitem(__import__("sys").modules, "pybaseball", fake_pyb)
 
-    with pytest.raises(DataFetchError, match="No batting stats returned"):
+    with pytest.raises(DataFetchError, match=r"^No batting stats returned"):
         data.fetch_season_stats(2025, "batting", use_cache=False)
 
 
 def test_lookup_player_ids_first_last_validation() -> None:
-    with pytest.raises(PlayerLookupError, match="Provide both first and last name"):
+    with pytest.raises(PlayerLookupError, match=r"^Provide both first and last name\."):
         data.lookup_player_ids("Madonna")
 
 
-def test_lookup_player_ids_success(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_lookup_player_ids_success(
+    install_fake_pybaseball: Callable[..., types.SimpleNamespace],
+) -> None:
     expected = pd.DataFrame([{"key_fangraphs": 123}])
-    fake_pyb = types.SimpleNamespace(playerid_lookup=lambda last, first: expected)
-    monkeypatch.setitem(__import__("sys").modules, "pybaseball", fake_pyb)
+    install_fake_pybaseball(playerid_lookup=lambda last, first: expected)
 
     got = data.lookup_player_ids("Mike Trout")
     pd.testing.assert_frame_equal(got, expected)
 
 
-def test_lookup_player_ids_pybaseball_exception(monkeypatch: pytest.MonkeyPatch) -> None:
-    fake_pyb = types.SimpleNamespace(
+def test_lookup_player_ids_pybaseball_exception(
+    install_fake_pybaseball: Callable[..., types.SimpleNamespace],
+) -> None:
+    install_fake_pybaseball(
         playerid_lookup=lambda last, first: (_ for _ in ()).throw(RuntimeError("network"))
     )
-    monkeypatch.setitem(__import__("sys").modules, "pybaseball", fake_pyb)
 
-    with pytest.raises(PlayerLookupError, match="Failed player lookup"):
+    with pytest.raises(PlayerLookupError, match=r"^Failed player lookup"):
         data.lookup_player_ids("Mike Trout")
 
 
-def test_lookup_player_ids_empty_result(monkeypatch: pytest.MonkeyPatch) -> None:
-    fake_pyb = types.SimpleNamespace(playerid_lookup=lambda last, first: pd.DataFrame())
-    monkeypatch.setitem(__import__("sys").modules, "pybaseball", fake_pyb)
+def test_lookup_player_ids_empty_result(
+    install_fake_pybaseball: Callable[..., types.SimpleNamespace],
+) -> None:
+    install_fake_pybaseball(playerid_lookup=lambda last, first: pd.DataFrame())
 
-    with pytest.raises(PlayerLookupError, match="No player found"):
+    with pytest.raises(PlayerLookupError, match=r"^No player found"):
         data.lookup_player_ids("Mike Trout")
