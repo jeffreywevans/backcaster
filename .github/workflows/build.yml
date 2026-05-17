@@ -52,7 +52,14 @@ jobs:
           python -m pip install -e '.[dev]'
 
       - name: Generate coverage + xunit reports
-        run: pytest --junitxml=pytest.xml --cov=src --cov-report=xml:coverage.xml
+        run: |
+          pytest \
+            --junitxml=pytest.xml \
+            --cov=src \
+            --cov-branch \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-fail-under=100
 
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
