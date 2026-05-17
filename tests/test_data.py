@@ -198,44 +198,78 @@ def test_read_cache_no_cache(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) ->
     assert data._read_cache("batting", 2030) is None
 
 
+def test_atomic_write_frame_replaces_target_and_cleans_temp(tmp_path: Path) -> None:
+    target_path = tmp_path / "cache.parquet"
+    target_path.write_text("old", encoding="utf-8")
+    frame = pd.DataFrame([{"a": 1}])
+    temp_paths: list[Path] = []
+
+    def writer(_: pd.DataFrame, path: Path) -> None:
+        temp_paths.append(path)
+        path.write_text("new", encoding="utf-8")
+
+    data._atomic_write_frame(frame, target_path, writer)
+
+    assert target_path.read_text(encoding="utf-8") == "new"
+    assert len(temp_paths) == 1
+    assert not temp_paths[0].exists()
+
+
+def test_atomic_write_frame_cleans_temp_when_writer_raises(tmp_path: Path) -> None:
+    target_path = tmp_path / "cache.csv"
+    frame = pd.DataFrame([{"a": 1}])
+    temp_paths: list[Path] = []
+
+    def failing_writer(_: pd.DataFrame, path: Path) -> None:
+        temp_paths.append(path)
+        path.write_text("partial", encoding="utf-8")
+        raise RuntimeError("write failed")
+
+    with pytest.raises(RuntimeError, match="write failed"):
+        data._atomic_write_frame(frame, target_path, failing_writer)
+
+    assert len(temp_paths) == 1
+    assert not temp_paths[0].exists()
+    assert not target_path.exists()
+
+
 def test_write_cache_parquet_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(data, "CACHE_ROOT", tmp_path)
-    called = {"parquet": False, "csv": False}
+    calls: list[Path] = []
 
-    def fake_to_parquet(self: pd.DataFrame, path: Path, index: bool = False) -> None:
-        called["parquet"] = True
+    def fake_atomic_write(
+        frame: pd.DataFrame, target_path: Path, writer: Callable[[pd.DataFrame, Path], None]
+    ) -> None:
+        calls.append(target_path)
 
-    def fake_to_csv(self: pd.DataFrame, path: Path, index: bool = False) -> None:
-        called["csv"] = True
-
-    monkeypatch.setattr(pd.DataFrame, "to_parquet", fake_to_parquet)
-    monkeypatch.setattr(pd.DataFrame, "to_csv", fake_to_csv)
+    monkeypatch.setattr(data, "_atomic_write_frame", fake_atomic_write)
 
     data._write_cache("batting", 2025, pd.DataFrame([{"a": 1}]))
-    assert called == {"parquet": True, "csv": False}
+    assert calls == [data._cache_path("batting", 2025, "parquet")]
 
 
-def test_write_cache_csv_fallback(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_write_cache_csv_fallback(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     monkeypatch.setattr(data, "CACHE_ROOT", tmp_path)
-    call_log: list[tuple[str, Path, bool]] = []
+    calls: list[Path] = []
 
-    def fail_to_parquet(self: pd.DataFrame, path: Path, index: bool = False) -> None:
-        call_log.append(("parquet", path, index))
-        raise RuntimeError("boom")
+    def fake_atomic_write(
+        frame: pd.DataFrame, target_path: Path, writer: Callable[[pd.DataFrame, Path], None]
+    ) -> None:
+        calls.append(target_path)
+        if target_path.suffix == ".parquet":
+            raise RuntimeError("boom")
 
-    def fake_to_csv(self: pd.DataFrame, path: Path, index: bool = False) -> None:
-        call_log.append(("csv", path, index))
-
-    monkeypatch.setattr(pd.DataFrame, "to_parquet", fail_to_parquet)
-    monkeypatch.setattr(pd.DataFrame, "to_csv", fake_to_csv)
+    monkeypatch.setattr(data, "_atomic_write_frame", fake_atomic_write)
 
     data._write_cache("pitching", 2025, pd.DataFrame([{"a": 1}]))
 
-    assert len(call_log) == 2
-    assert call_log[0][0] == "parquet"
-    assert call_log[0][2] is False
-    assert call_log[1][0] == "csv"
-    assert call_log[1][2] is False
+    assert calls == [
+        data._cache_path("pitching", 2025, "parquet"),
+        data._cache_path("pitching", 2025, "csv"),
+    ]
+    assert "Parquet cache write failed" in caplog.text
 
 
 @pytest.mark.parametrize(

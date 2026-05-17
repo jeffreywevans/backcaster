@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+import logging
+import uuid
 from numbers import Number
 from pathlib import Path
-from typing import SupportsInt, cast
+from typing import Callable, SupportsInt, cast
 
 import pandas as pd
 
@@ -11,6 +13,8 @@ from marcelball.schemas import Kind
 
 CACHE_ROOT = Path(".cache/marcelball")
 VALID_KINDS: tuple[Kind, ...] = ("batting", "pitching")
+
+LOGGER = logging.getLogger(__name__)
 
 
 class DataFetchError(RuntimeError):
@@ -155,13 +159,35 @@ def _read_cache(kind: Kind, year: int) -> pd.DataFrame | None:
     return None
 
 
+def _atomic_write_frame(
+    df: pd.DataFrame,
+    target_path: Path,
+    writer: Callable[[pd.DataFrame, Path], None],
+) -> None:
+    tmp_path = target_path.with_suffix(f"{target_path.suffix}.{uuid.uuid4().hex}.tmp")
+    try:
+        writer(df, tmp_path)
+        tmp_path.replace(target_path)
+    finally:
+        if tmp_path.exists():
+            tmp_path.unlink()
+
+
 def _write_cache(kind: Kind, year: int, df: pd.DataFrame) -> None:
     parquet_path = _cache_path(kind, year, "parquet")
     csv_path = _cache_path(kind, year, "csv")
+
     try:
-        df.to_parquet(parquet_path, index=False)
-    except Exception:
-        df.to_csv(csv_path, index=False)
+        _atomic_write_frame(df, parquet_path, lambda frame, path: frame.to_parquet(path, index=False))
+    except Exception as exc:
+        LOGGER.warning(
+            "Parquet cache write failed for %s %s at %s; falling back to CSV: %s",
+            kind,
+            year,
+            parquet_path,
+            exc,
+        )
+        _atomic_write_frame(df, csv_path, lambda frame, path: frame.to_csv(path, index=False))
 
 
 def fetch_season_stats(year: int, kind: Kind, use_cache: bool = True) -> pd.DataFrame:
