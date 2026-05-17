@@ -264,9 +264,10 @@ def test_fetch_season_stats_cache_hit(monkeypatch: pytest.MonkeyPatch) -> None:
     pd.testing.assert_frame_equal(got, cached)
 
 
-def test_fetch_season_stats_invalid_kind() -> None:
-    with pytest.raises(DataFetchError, match=r"^Invalid kind 'fielding'\. Expected one of: 'batting', 'pitching'\."):
-        data.fetch_season_stats(2025, "fielding", use_cache=False)  # type: ignore[arg-type]
+@pytest.mark.parametrize("kind", ["fielding", ["batting"], {"kind": "pitching"}])
+def test_fetch_season_stats_invalid_kind(kind: object) -> None:
+    with pytest.raises(DataFetchError, match=r"^Invalid kind"):
+        data.fetch_season_stats(2025, kind, use_cache=False)  # type: ignore[arg-type]
 
 
 def test_fetch_season_stats_pybaseball_exception(
