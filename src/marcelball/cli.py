@@ -34,7 +34,9 @@ def _render(df: pd.DataFrame, output_format: str, out: str | None) -> None:
         raise ValueError(f"Unsupported format: {output_format}")
 
 
-def _require_columns(df: pd.DataFrame, required: set[str], *, context: str, error_cls: type[Exception]) -> None:
+def _require_columns(
+    df: pd.DataFrame, required: set[str], *, context: str, error_cls: type[Exception]
+) -> None:
     missing = sorted(required - set(df.columns))
     if missing:
         cols = ", ".join(missing)
@@ -86,7 +88,9 @@ def run_team(args: argparse.Namespace) -> int:
     league_frames = []
     for y in years:
         df = fetch_season_stats(y, args.kind)
-        _require_columns(df, {"Team"}, context=f"Season {y} {args.kind} stats", error_cls=DataFetchError)
+        _require_columns(
+            df, {"Team"}, context=f"Season {y} {args.kind} stats", error_cls=DataFetchError
+        )
         league = df.copy()
         league["Season"] = y
         league_frames.append(league)

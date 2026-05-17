@@ -48,7 +48,9 @@ def test_prior_years_returns_previous_three() -> None:
     assert _prior_years(2026) == (2025, 2024, 2023)
 
 
-def test_render_cli_prints_table(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_render_cli_prints_table(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     df = pd.DataFrame([{"Name": "A"}])
     monkeypatch.setattr("marcelball.cli.to_cli_table", lambda _df: "CLI TABLE")
     _render(df, "cli", None)
@@ -103,22 +105,30 @@ def test_run_team_success(monkeypatch: pytest.MonkeyPatch) -> None:
         "marcelball.cli.fetch_season_stats",
         lambda y, _k: pd.DataFrame([{"Team": "NYY", "WAR": y}]),
     )
-    monkeypatch.setattr("marcelball.cli.project_team", lambda *_a, **_k: pd.DataFrame([{"Team": "NYY"}]))
+    monkeypatch.setattr(
+        "marcelball.cli.project_team", lambda *_a, **_k: pd.DataFrame([{"Team": "NYY"}])
+    )
     monkeypatch.setattr("marcelball.cli._render", lambda *_a, **_k: None)
 
     assert run_team(_team_args()) == 0
 
 
 def test_run_team_raises_when_missing_season(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("marcelball.cli.fetch_season_stats", lambda _y, _k: pd.DataFrame([{"Team": "BOS"}]))
+    monkeypatch.setattr(
+        "marcelball.cli.fetch_season_stats", lambda _y, _k: pd.DataFrame([{"Team": "BOS"}])
+    )
 
     with pytest.raises(ProjectionError, match="Missing season 2025 for team 'NYY'"):
         run_team(_team_args())
 
 
 def test_run_batch_success(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("marcelball.cli.fetch_season_stats", lambda y, _k: pd.DataFrame([{"Name": f"P{y}"}]))
-    monkeypatch.setattr("marcelball.cli.project_team", lambda *_a, **_k: pd.DataFrame([{"Name": "Projected"}]))
+    monkeypatch.setattr(
+        "marcelball.cli.fetch_season_stats", lambda y, _k: pd.DataFrame([{"Name": f"P{y}"}])
+    )
+    monkeypatch.setattr(
+        "marcelball.cli.project_team", lambda *_a, **_k: pd.DataFrame([{"Name": "Projected"}])
+    )
     monkeypatch.setattr("marcelball.cli._render", lambda *_a, **_k: None)
 
     assert run_batch(Namespace(year=2026, kind="batting", format="cli", out=None)) == 0
@@ -164,57 +174,84 @@ def test_main_block_via_runpy_warns_and_exits() -> None:
 
 
 def test_run_player_matches_fangraphs_id_successfully(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("marcelball.cli.lookup_player_ids", lambda _n: pd.DataFrame([{"name_given": "John Smith"}]))
+    monkeypatch.setattr(
+        "marcelball.cli.lookup_player_ids", lambda _n: pd.DataFrame([{"name_given": "John Smith"}])
+    )
     monkeypatch.setattr("marcelball.cli.resolve_player_lookup", lambda *_a: {"key_fangraphs": 101})
     monkeypatch.setattr(
         "marcelball.cli.fetch_season_stats",
         lambda y, _k: pd.DataFrame([{"IDfg": 101, "Name": "Someone Else", "PA": 500, "Season": y}]),
     )
-    monkeypatch.setattr("marcelball.cli.project_player", lambda *_a, **_k: pd.DataFrame([{"Name": "John Smith"}]))
+    monkeypatch.setattr(
+        "marcelball.cli.project_player", lambda *_a, **_k: pd.DataFrame([{"Name": "John Smith"}])
+    )
     monkeypatch.setattr("marcelball.cli._render", lambda *_a, **_k: None)
 
     assert run_player(_player_args()) == 0
 
 
 def test_run_player_missing_idfg_column_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("marcelball.cli.lookup_player_ids", lambda _n: pd.DataFrame([{"name_given": "John Smith"}]))
+    monkeypatch.setattr(
+        "marcelball.cli.lookup_player_ids", lambda _n: pd.DataFrame([{"name_given": "John Smith"}])
+    )
     monkeypatch.setattr("marcelball.cli.resolve_player_lookup", lambda *_a: {"key_fangraphs": 101})
-    monkeypatch.setattr("marcelball.cli.fetch_season_stats", lambda _y, _k: pd.DataFrame([{"Name": "John Smith"}]))
+    monkeypatch.setattr(
+        "marcelball.cli.fetch_season_stats", lambda _y, _k: pd.DataFrame([{"Name": "John Smith"}])
+    )
 
     with pytest.raises(ProjectionError, match="Missing season 2025"):
         run_player(_player_args())
 
 
 def test_run_player_blank_fangraphs_id_falls_back_to_name(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("marcelball.cli.lookup_player_ids", lambda _n: pd.DataFrame([{"name_given": "John Smith"}]))
-    monkeypatch.setattr("marcelball.cli.resolve_player_lookup", lambda *_a: {"key_fangraphs": float("nan")})
-    monkeypatch.setattr("marcelball.cli.fetch_season_stats", lambda _y, _k: pd.DataFrame([{"Name": "john smith", "PA": 500}]))
-    monkeypatch.setattr("marcelball.cli.project_player", lambda *_a, **_k: pd.DataFrame([{"Name": "John Smith"}]))
+    monkeypatch.setattr(
+        "marcelball.cli.lookup_player_ids", lambda _n: pd.DataFrame([{"name_given": "John Smith"}])
+    )
+    monkeypatch.setattr(
+        "marcelball.cli.resolve_player_lookup", lambda *_a: {"key_fangraphs": float("nan")}
+    )
+    monkeypatch.setattr(
+        "marcelball.cli.fetch_season_stats",
+        lambda _y, _k: pd.DataFrame([{"Name": "john smith", "PA": 500}]),
+    )
+    monkeypatch.setattr(
+        "marcelball.cli.project_player", lambda *_a, **_k: pd.DataFrame([{"Name": "John Smith"}])
+    )
     monkeypatch.setattr("marcelball.cli._render", lambda *_a, **_k: None)
 
     assert run_player(_player_args()) == 0
 
 
 def test_run_player_name_fallback_failure_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("marcelball.cli.lookup_player_ids", lambda _n: pd.DataFrame([{"name_given": "John Smith"}]))
+    monkeypatch.setattr(
+        "marcelball.cli.lookup_player_ids", lambda _n: pd.DataFrame([{"name_given": "John Smith"}])
+    )
     monkeypatch.setattr("marcelball.cli.resolve_player_lookup", lambda *_a: {"key_fangraphs": None})
-    monkeypatch.setattr("marcelball.cli.fetch_season_stats", lambda _y, _k: pd.DataFrame([{"Name": "Not Him"}]))
+    monkeypatch.setattr(
+        "marcelball.cli.fetch_season_stats", lambda _y, _k: pd.DataFrame([{"Name": "Not Him"}])
+    )
 
     with pytest.raises(ProjectionError, match="Missing season 2025"):
         run_player(_player_args())
 
 
 def test_run_player_duplicate_id_rows_are_handled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("marcelball.cli.lookup_player_ids", lambda _n: pd.DataFrame([{"name_given": "John Smith"}]))
+    monkeypatch.setattr(
+        "marcelball.cli.lookup_player_ids", lambda _n: pd.DataFrame([{"name_given": "John Smith"}])
+    )
     monkeypatch.setattr("marcelball.cli.resolve_player_lookup", lambda *_a: {"key_fangraphs": 101})
     monkeypatch.setattr(
         "marcelball.cli.fetch_season_stats",
-        lambda _y, _k: pd.DataFrame([
-            {"IDfg": 101, "Name": "John Smith", "PA": 500},
-            {"IDfg": 101, "Name": "John Smith", "PA": 510},
-        ]),
+        lambda _y, _k: pd.DataFrame(
+            [
+                {"IDfg": 101, "Name": "John Smith", "PA": 500},
+                {"IDfg": 101, "Name": "John Smith", "PA": 510},
+            ]
+        ),
     )
-    monkeypatch.setattr("marcelball.cli.project_player", lambda *_a, **_k: pd.DataFrame([{"Name": "John Smith"}]))
+    monkeypatch.setattr(
+        "marcelball.cli.project_player", lambda *_a, **_k: pd.DataFrame([{"Name": "John Smith"}])
+    )
     monkeypatch.setattr("marcelball.cli._render", lambda *_a, **_k: None)
 
     assert run_player(_player_args()) == 0

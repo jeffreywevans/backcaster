@@ -62,10 +62,12 @@ def test_derive_pitching_rates_with_zero_ip() -> None:
 
 
 def test_compute_baseline_rates_with_full_columns() -> None:
-    df = pd.DataFrame([
-        {"PA": 100, "AB": 80, "H": 20},
-        {"PA": 200, "AB": 160, "H": 40},
-    ])
+    df = pd.DataFrame(
+        [
+            {"PA": 100, "AB": 80, "H": 20},
+            {"PA": 200, "AB": 160, "H": 40},
+        ]
+    )
     league_pt, rates = _compute_baseline_rates(df, ["PA", "AB", "H"])
     assert league_pt == 300.0
     assert rates["AB"] == pytest.approx(240 / 300)
@@ -73,10 +75,12 @@ def test_compute_baseline_rates_with_full_columns() -> None:
 
 
 def test_compute_baseline_rates_with_missing_columns() -> None:
-    df = pd.DataFrame([
-        {"PA": 100, "AB": 80},
-        {"PA": 200, "AB": 160},
-    ])
+    df = pd.DataFrame(
+        [
+            {"PA": 100, "AB": 80},
+            {"PA": 200, "AB": 160},
+        ]
+    )
     league_pt, rates = _compute_baseline_rates(df, ["PA", "AB", "H"])
     assert league_pt == 300.0
     assert rates["AB"] == pytest.approx(240 / 300)
@@ -94,9 +98,45 @@ def test_compute_baseline_rates_with_no_present_columns() -> None:
 def _batting_prior() -> pd.DataFrame:
     return pd.DataFrame(
         [
-            {"Season": 2025, "PA": 700, "AB": 600, "H": 180, "2B": 35, "3B": 2, "HR": 30, "BB": 80, "SO": 120, "HBP": 5, "SF": 6},
-            {"Season": 2024, "PA": 650, "AB": 560, "H": 165, "2B": 30, "3B": 3, "HR": 28, "BB": 75, "SO": 110, "HBP": 4, "SF": 5},
-            {"Season": 2023, "PA": 620, "AB": 540, "H": 155, "2B": 28, "3B": 4, "HR": 25, "BB": 70, "SO": 108, "HBP": 4, "SF": 4},
+            {
+                "Season": 2025,
+                "PA": 700,
+                "AB": 600,
+                "H": 180,
+                "2B": 35,
+                "3B": 2,
+                "HR": 30,
+                "BB": 80,
+                "SO": 120,
+                "HBP": 5,
+                "SF": 6,
+            },
+            {
+                "Season": 2024,
+                "PA": 650,
+                "AB": 560,
+                "H": 165,
+                "2B": 30,
+                "3B": 3,
+                "HR": 28,
+                "BB": 75,
+                "SO": 110,
+                "HBP": 4,
+                "SF": 5,
+            },
+            {
+                "Season": 2023,
+                "PA": 620,
+                "AB": 540,
+                "H": 155,
+                "2B": 28,
+                "3B": 4,
+                "HR": 25,
+                "BB": 70,
+                "SO": 108,
+                "HBP": 4,
+                "SF": 4,
+            },
         ]
     )
 
@@ -104,9 +144,36 @@ def _batting_prior() -> pd.DataFrame:
 def _pitching_prior() -> pd.DataFrame:
     return pd.DataFrame(
         [
-            {"Season": 2025, "IP": 200, "ER": 65, "H": 170, "HR": 24, "BB": 50, "SO": 220, "BF": 800},
-            {"Season": 2024, "IP": 180, "ER": 70, "H": 160, "HR": 25, "BB": 55, "SO": 200, "BF": 760},
-            {"Season": 2023, "IP": 210, "ER": 75, "H": 180, "HR": 28, "BB": 60, "SO": 215, "BF": 840},
+            {
+                "Season": 2025,
+                "IP": 200,
+                "ER": 65,
+                "H": 170,
+                "HR": 24,
+                "BB": 50,
+                "SO": 220,
+                "BF": 800,
+            },
+            {
+                "Season": 2024,
+                "IP": 180,
+                "ER": 70,
+                "H": 160,
+                "HR": 25,
+                "BB": 55,
+                "SO": 200,
+                "BF": 760,
+            },
+            {
+                "Season": 2023,
+                "IP": 210,
+                "ER": 75,
+                "H": 180,
+                "HR": 28,
+                "BB": 60,
+                "SO": 215,
+                "BF": 840,
+            },
         ]
     )
 
@@ -124,7 +191,9 @@ def test_project_player_batting_with_missing_optional_columns() -> None:
 
 
 def test_project_player_pitching() -> None:
-    result = project_player("Test Pitcher", _pitching_prior(), "pitching", 2026, MarcelConfig(regression_ip=100.0))
+    result = project_player(
+        "Test Pitcher", _pitching_prior(), "pitching", 2026, MarcelConfig(regression_ip=100.0)
+    )
     assert float(result.loc[0, "ERA"]) > 0
     assert float(result.loc[0, "WHIP"]) > 0
 
@@ -182,11 +251,31 @@ def test_project_player_sorts_unsorted_input_before_weighting() -> None:
 
 
 def test_project_player_rejects_more_than_three_prior_seasons() -> None:
-    df = pd.concat([_batting_prior(), pd.DataFrame([{"Season": 2022, "PA": 610, "AB": 530, "H": 150, "2B": 26, "3B": 3, "HR": 22, "BB": 68, "SO": 105, "HBP": 3, "SF": 4}])], ignore_index=True)
+    df = pd.concat(
+        [
+            _batting_prior(),
+            pd.DataFrame(
+                [
+                    {
+                        "Season": 2022,
+                        "PA": 610,
+                        "AB": 530,
+                        "H": 150,
+                        "2B": 26,
+                        "3B": 3,
+                        "HR": 22,
+                        "BB": 68,
+                        "SO": 105,
+                        "HBP": 3,
+                        "SF": 4,
+                    }
+                ]
+            ),
+        ],
+        ignore_index=True,
+    )
     with pytest.raises(ProjectionError, match="at most three"):
         project_player("Test Hitter", df, "batting", 2026)
-
-
 
 
 def test_project_player_rejects_missing_season_values() -> None:
@@ -209,15 +298,52 @@ def test_project_player_rejects_non_numeric_season_values() -> None:
 def test_project_player_uses_stable_sort_for_duplicate_seasons() -> None:
     prior = pd.DataFrame(
         [
-            {"Season": 2025, "PA": 600, "AB": 500, "H": 150, "2B": 30, "3B": 2, "HR": 20, "BB": 70, "SO": 110, "HBP": 3, "SF": 4},
-            {"Season": 2025, "PA": 300, "AB": 250, "H": 80, "2B": 15, "3B": 1, "HR": 10, "BB": 35, "SO": 60, "HBP": 2, "SF": 2},
-            {"Season": 2024, "PA": 200, "AB": 180, "H": 50, "2B": 10, "3B": 1, "HR": 5, "BB": 20, "SO": 45, "HBP": 1, "SF": 2},
+            {
+                "Season": 2025,
+                "PA": 600,
+                "AB": 500,
+                "H": 150,
+                "2B": 30,
+                "3B": 2,
+                "HR": 20,
+                "BB": 70,
+                "SO": 110,
+                "HBP": 3,
+                "SF": 4,
+            },
+            {
+                "Season": 2025,
+                "PA": 300,
+                "AB": 250,
+                "H": 80,
+                "2B": 15,
+                "3B": 1,
+                "HR": 10,
+                "BB": 35,
+                "SO": 60,
+                "HBP": 2,
+                "SF": 2,
+            },
+            {
+                "Season": 2024,
+                "PA": 200,
+                "AB": 180,
+                "H": 50,
+                "2B": 10,
+                "3B": 1,
+                "HR": 5,
+                "BB": 20,
+                "SO": 45,
+                "HBP": 1,
+                "SF": 2,
+            },
         ]
     )
 
     out = project_player("Test Hitter", prior, "batting", 2026)
     expected_weighted_pa = (600 * 5 + 300 * 4 + 200 * 3) / 12
     assert float(out.loc[0, "PA"]) == pytest.approx(expected_weighted_pa * 1.006)
+
 
 def test_project_team_success() -> None:
     p1 = _batting_prior().assign(Name="A")
