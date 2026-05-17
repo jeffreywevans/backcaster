@@ -198,6 +198,41 @@ def test_read_cache_no_cache(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) ->
     assert data._read_cache("batting", 2030) is None
 
 
+def test_atomic_write_frame_replaces_target_and_cleans_temp(tmp_path: Path) -> None:
+    target_path = tmp_path / "cache.parquet"
+    target_path.write_text("old", encoding="utf-8")
+    frame = pd.DataFrame([{"a": 1}])
+    temp_paths: list[Path] = []
+
+    def writer(_: pd.DataFrame, path: Path) -> None:
+        temp_paths.append(path)
+        path.write_text("new", encoding="utf-8")
+
+    data._atomic_write_frame(frame, target_path, writer)
+
+    assert target_path.read_text(encoding="utf-8") == "new"
+    assert len(temp_paths) == 1
+    assert not temp_paths[0].exists()
+
+
+def test_atomic_write_frame_cleans_temp_when_writer_raises(tmp_path: Path) -> None:
+    target_path = tmp_path / "cache.csv"
+    frame = pd.DataFrame([{"a": 1}])
+    temp_paths: list[Path] = []
+
+    def failing_writer(_: pd.DataFrame, path: Path) -> None:
+        temp_paths.append(path)
+        path.write_text("partial", encoding="utf-8")
+        raise RuntimeError("write failed")
+
+    with pytest.raises(RuntimeError, match="write failed"):
+        data._atomic_write_frame(frame, target_path, failing_writer)
+
+    assert len(temp_paths) == 1
+    assert not temp_paths[0].exists()
+    assert not target_path.exists()
+
+
 def test_write_cache_parquet_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(data, "CACHE_ROOT", tmp_path)
     calls: list[Path] = []
