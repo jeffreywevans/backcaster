@@ -161,6 +161,9 @@ def _write_cache(kind: Kind, year: int, df: pd.DataFrame) -> None:
 
 
 def fetch_season_stats(year: int, kind: Kind, use_cache: bool = True) -> pd.DataFrame:
+    if kind not in {"batting", "pitching"}:
+        raise DataFetchError(f"Invalid kind {kind!r}. Expected one of: 'batting', 'pitching'.")
+
     cached = _read_cache(kind, year) if use_cache else None
     if cached is not None:
         return cached
