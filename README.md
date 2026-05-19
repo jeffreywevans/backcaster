@@ -1,20 +1,6 @@
 # Backcaster
 A tool to generate a Marcel projection from historical data.
 
-## Dashboard
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=jeffreywevans_backcaster&metric=alert_status&token=359f97ac0af656a39d22c306e113642adcd2d968)](https://sonarcloud.io/summary/new_code?id=jeffreywevans_backcaster)
-[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=jeffreywevans_backcaster&metric=bugs&token=359f97ac0af656a39d22c306e113642adcd2d968)](https://sonarcloud.io/summary/new_code?id=jeffreywevans_backcaster)
-[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=jeffreywevans_backcaster&metric=code_smells&token=359f97ac0af656a39d22c306e113642adcd2d968)](https://sonarcloud.io/summary/new_code?id=jeffreywevans_backcaster)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=jeffreywevans_backcaster&metric=coverage&token=359f97ac0af656a39d22c306e113642adcd2d968)](https://sonarcloud.io/summary/new_code?id=jeffreywevans_backcaster)
-[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=jeffreywevans_backcaster&metric=duplicated_lines_density&token=359f97ac0af656a39d22c306e113642adcd2d968)](https://sonarcloud.io/summary/new_code?id=jeffreywevans_backcaster)
-[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=jeffreywevans_backcaster&metric=ncloc&token=359f97ac0af656a39d22c306e113642adcd2d968)](https://sonarcloud.io/summary/new_code?id=jeffreywevans_backcaster)
-[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=jeffreywevans_backcaster&metric=reliability_rating&token=359f97ac0af656a39d22c306e113642adcd2d968)](https://sonarcloud.io/summary/new_code?id=jeffreywevans_backcaster)
-[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=jeffreywevans_backcaster&metric=security_rating&token=359f97ac0af656a39d22c306e113642adcd2d968)](https://sonarcloud.io/summary/new_code?id=jeffreywevans_backcaster)
-[![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=jeffreywevans_backcaster&metric=sqale_index&token=359f97ac0af656a39d22c306e113642adcd2d968)](https://sonarcloud.io/summary/new_code?id=jeffreywevans_backcaster)
-[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=jeffreywevans_backcaster&metric=sqale_rating&token=359f97ac0af656a39d22c306e113642adcd2d968)](https://sonarcloud.io/summary/new_code?id=jeffreywevans_backcaster)
-[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=jeffreywevans_backcaster&metric=vulnerabilities&token=359f97ac0af656a39d22c306e113642adcd2d968)](https://sonarcloud.io/summary/new_code?id=jeffreywevans_backcaster)
-
-
 ## Running tests
 
 ```bash
