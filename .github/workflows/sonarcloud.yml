@@ -33,6 +33,13 @@ jobs:
         run: pytest --junitxml=pytest.xml --cov=src --cov-report=xml:coverage.xml
 
       - name: SonarQube Scan
+        if: ${{ secrets.SONAR_TOKEN != '' }}
         uses: SonarSource/sonarqube-scan-action@59db25f34e16620e48ab4bb9e4a5dce155cb5432 # v8.0.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: SonarQube Scan skipped (missing SONAR_TOKEN)
+        if: ${{ secrets.SONAR_TOKEN == '' }}
+        run: |
+          echo "Skipping SonarCloud scan because SONAR_TOKEN is not configured for this workflow run."
+          echo "This is expected for pull requests from forks or repositories without the SONAR_TOKEN secret."
