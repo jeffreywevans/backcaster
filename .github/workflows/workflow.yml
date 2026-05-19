@@ -40,7 +40,7 @@ jobs:
     needs: build
     environment:
       name: pypi
-      url: https://pypi.org/p/marcelball
+      url: https://pypi.org/p/backcaster
     permissions:
       id-token: write
 
