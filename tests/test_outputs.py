@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from marcelball.outputs import to_cli_table, to_csv, to_html
+from backcaster.outputs import to_cli_table, to_csv, to_html
 
 
 def test_csv_output_creation(tmp_path: Path) -> None:

@@ -1,6 +1,6 @@
 import pandas as pd
 
-from marcelball.normalize import numeric_columns, safe_divide
+from backcaster.normalize import numeric_columns, safe_divide
 
 
 def test_numeric_columns_includes_only_numeric_dtypes() -> None:

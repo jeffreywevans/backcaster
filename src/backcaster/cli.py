@@ -5,15 +5,15 @@ import sys
 
 import pandas as pd
 
-from marcelball.data import (
+from backcaster.data import (
     DataFetchError,
     PlayerLookupError,
     fetch_season_stats,
     lookup_player_ids,
     resolve_player_lookup,
 )
-from marcelball.marcel import ProjectionError, project_player, project_team
-from marcelball.outputs import to_cli_table, to_csv, to_html
+from backcaster.marcel import ProjectionError, project_player, project_team
+from backcaster.outputs import to_cli_table, to_csv, to_html
 
 _FILE_RENDERERS = {"csv": to_csv, "html": to_html}
 _OUTPUT_FORMAT_CHOICES = ("cli", *_FILE_RENDERERS.keys())
@@ -122,7 +122,7 @@ def run_batch(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="marcelball")
+    p = argparse.ArgumentParser(prog="backcaster")
     sub = p.add_subparsers(dest="command", required=True)
 
     def add_common(sp: argparse.ArgumentParser) -> None:

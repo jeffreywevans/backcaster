@@ -6,8 +6,8 @@ from typing import Callable
 import pandas as pd
 import pytest
 
-from marcelball import data
-from marcelball.data import DataFetchError, PlayerLookupError
+from backcaster import data
+from backcaster.data import DataFetchError, PlayerLookupError
 
 
 @pytest.fixture
