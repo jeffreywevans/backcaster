@@ -3,7 +3,7 @@ from collections.abc import Callable, Iterable
 import pandas as pd
 import pytest
 
-from marcelball.marcel import (
+from backcaster.marcel import (
     BATTING_COMPONENTS,
     PITCHING_COMPONENTS,
     ProjectionError,
@@ -14,7 +14,7 @@ from marcelball.marcel import (
     project_player,
     project_team,
 )
-from marcelball.schemas import MarcelConfig
+from backcaster.schemas import MarcelConfig
 
 
 def _batting_row(

@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from marcelball.data import (
+from backcaster.data import (
     PlayerLookupError,
     _filter_candidates_by_name,
     resolve_player_lookup,

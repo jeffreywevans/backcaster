@@ -9,9 +9,9 @@ from typing import Callable, SupportsInt, cast
 
 import pandas as pd
 
-from marcelball.schemas import Kind
+from backcaster.schemas import Kind
 
-CACHE_ROOT = Path(".cache/marcelball")
+CACHE_ROOT = Path(".cache/backcaster")
 VALID_KINDS: tuple[Kind, ...] = ("batting", "pitching")
 
 LOGGER = logging.getLogger(__name__)

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from marcelball.normalize import safe_divide
-from marcelball.schemas import MarcelConfig
+from backcaster.normalize import safe_divide
+from backcaster.schemas import MarcelConfig
 
 
 class ProjectionError(RuntimeError):
