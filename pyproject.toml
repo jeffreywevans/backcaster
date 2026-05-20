@@ -8,6 +8,10 @@ dynamic = ["version"]
 description = "Marcel-style MLB projection CLI built on pybaseball"
 readme = "README.md"
 license = {file = "LICENSE"}
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+]
 requires-python = ">=3.13"
 dependencies = [
   "pandas>=2.0",
