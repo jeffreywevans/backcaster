@@ -195,8 +195,6 @@ def test_read_cache_csv_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) ->
     pd.testing.assert_frame_equal(got, expected)
 
 
-
-
 def test_read_cache_parquet_read_error_falls_back_to_csv(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -231,6 +229,7 @@ def test_read_cache_parquet_read_error_without_csv_returns_none(
     monkeypatch.setattr(pd, "read_parquet", raise_parquet_error)
 
     assert data._read_cache("pitching", 2025) is None
+
 
 def test_read_cache_no_cache(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(data, "CACHE_ROOT", tmp_path)
