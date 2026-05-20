@@ -179,15 +179,18 @@ def project_team(
         comps = PITCHING_COMPONENTS
     baseline_source = baseline_df if baseline_df is not None else team_df
     _, baseline_rates = _compute_baseline_rates(baseline_source, comps)
-    grouped = team_df.groupby("Name", as_index=False)
+    group_column = team_df["IDfg"].fillna(team_df["Name"]) if "IDfg" in team_df.columns else "Name"
+    grouped = team_df.groupby(group_column, dropna=False, sort=False)
     projections: list[pd.DataFrame] = []
-    for name, grp in grouped:
-        if not isinstance(name, str):
+    for _, grp in grouped:
+        sorted_grp = grp.sort_values("Season", ascending=False, kind="mergesort")
+        display_name = sorted_grp["Name"].iloc[0]
+        if not isinstance(display_name, str):
             raise ProjectionError("Encountered non-string player name in team input.")
         projections.append(
             project_player(
-                name,
-                grp.sort_values("Season", ascending=False).head(3),
+                display_name,
+                sorted_grp.head(3),
                 kind,
                 year,
                 config,

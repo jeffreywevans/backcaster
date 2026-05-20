@@ -324,6 +324,18 @@ def test_project_team_success(
     assert required_cols.issubset(out.columns)
 
 
+def test_project_team_groups_by_idfg_when_available() -> None:
+    base = _batting_prior().assign(Name="Same Name")
+    player_a = base.assign(IDfg=101)
+    player_b = base.assign(IDfg=202)
+    team_df = pd.concat([player_a, player_b], ignore_index=True)
+
+    out = project_team(team_df, "batting", 2026)
+
+    assert out.shape[0] == 2
+    assert out["Name"].tolist() == ["Same Name", "Same Name"]
+
+
 def test_project_team_empty_no_players() -> None:
     empty = pd.DataFrame(columns=["Name", "Season", *BATTING_COMPONENTS])
     with pytest.raises(ProjectionError, match="No players"):
