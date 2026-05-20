@@ -11,7 +11,7 @@ import pandas as pd
 
 from backcaster.schemas import Kind
 
-CACHE_ROOT = Path(".cache/backcaster")
+CACHE_ROOT = Path.home() / ".cache" / "backcaster"
 VALID_KINDS: tuple[Kind, ...] = ("batting", "pitching")
 
 LOGGER = logging.getLogger(__name__)
