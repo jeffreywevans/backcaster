@@ -31,7 +31,7 @@ This installs runtime dependencies and the `backcaster` CLI entrypoint defined i
 uv sync --extra dev
 ```
 
-This adds test/lint/type-check tooling (`pytest`, `pytest-cov`, `ruff`, `mypy`, `pandas-stubs`).
+This adds test/lint/type-check/build tooling (`pytest`, `pytest-cov`, `ruff`, `mypy`, `pandas-stubs`, `build`).
 
 ### Build/install as a package
 
@@ -48,8 +48,13 @@ All commands require:
 - `--year` target projection year
 - `--kind` one of `batting` or `pitching`
 
+Subcommand-specific required options:
+- `player` requires `--name`
+- `team` requires `--team`
+- `batch` requires no additional required option
+
 ```bash
-backcaster <player|team|batch> --year <YEAR> --kind <batting|pitching> [--format cli|csv|html] [--out PATH]
+backcaster <player|team|batch> [subcommand-options] --year <YEAR> --kind <batting|pitching> [--format cli|csv|html] [--out PATH]
 ```
 
 ### 1) Player projection
