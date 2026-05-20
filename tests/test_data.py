@@ -195,6 +195,44 @@ def test_read_cache_csv_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) ->
     pd.testing.assert_frame_equal(got, expected)
 
 
+def test_read_cache_parquet_read_error_falls_back_to_csv(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(data, "CACHE_ROOT", tmp_path)
+    parquet_path = data._cache_path("batting", 2025, "parquet")
+    parquet_path.write_text("placeholder", encoding="utf-8")
+    csv_path = data._cache_path("batting", 2025, "csv")
+    csv_path.write_text("a\n3\n", encoding="utf-8")
+
+    expected = pd.DataFrame([{"a": 3}])
+
+    def raise_parquet_error(_: Path) -> pd.DataFrame:
+        raise ImportError("missing optional dependency 'pyarrow'")
+
+    monkeypatch.setattr(pd, "read_parquet", raise_parquet_error)
+    monkeypatch.setattr(pd, "read_csv", lambda _: expected)
+
+    got = data._read_cache("batting", 2025)
+    pd.testing.assert_frame_equal(got, expected)
+
+
+def test_read_cache_parquet_read_error_without_csv_returns_none(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(data, "CACHE_ROOT", tmp_path)
+    parquet_path = data._cache_path("pitching", 2025, "parquet")
+    parquet_path.write_text("placeholder", encoding="utf-8")
+
+    def raise_parquet_error(_: Path) -> pd.DataFrame:
+        raise ValueError("corrupt parquet")
+
+    monkeypatch.setattr(pd, "read_parquet", raise_parquet_error)
+
+    assert data._read_cache("pitching", 2025) is None
+
+
+
+
 def test_read_cache_no_cache(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(data, "CACHE_ROOT", tmp_path)
     assert data._read_cache("batting", 2030) is None
