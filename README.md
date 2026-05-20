@@ -13,7 +13,7 @@ It supports:
 ## Installation
 
 ### Requirements
-- Python **3.13 or 3.14**
+- Python **3.13+**
 - Internet access for first-time stat fetches (data is cached locally afterward)
 
 ### Install from source (recommended for contributors)
