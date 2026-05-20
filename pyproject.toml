@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "backcaster"
-version = "0.2.0"
+dynamic = ["version"]
 description = "Marcel-style MLB projection CLI built on pybaseball"
 readme = "README.md"
 requires-python = ">=3.12,<3.15"
@@ -30,6 +30,9 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.dynamic]
+version = {attr = "backcaster.__version__"}
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
