@@ -1,7 +1,7 @@
 import sys
 import types
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 import pandas as pd
 import pytest
@@ -16,7 +16,9 @@ def disable_cache_io(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(data, "_write_cache", lambda kind, year, frame: None)
 
 
-def _install_fake_pybaseball(monkeypatch: pytest.MonkeyPatch, **attrs: object) -> types.SimpleNamespace:
+def _install_fake_pybaseball(
+    monkeypatch: pytest.MonkeyPatch, **attrs: object
+) -> types.SimpleNamespace:
     fake_pyb = types.SimpleNamespace(**attrs)
     monkeypatch.setitem(sys.modules, "pybaseball", fake_pyb)
     return fake_pyb
@@ -287,7 +289,9 @@ def test_fetch_season_stats_fetch_success(
     expected: pd.DataFrame,
 ) -> None:
     install_fake_pybaseball(
-        batting_stats=(lambda year: expected if stats_attr == "batting_stats" else pd.DataFrame([{"a": 9}])),
+        batting_stats=(
+            lambda year: expected if stats_attr == "batting_stats" else pd.DataFrame([{"a": 9}])
+        ),
         pitching_stats=(
             lambda year: expected if stats_attr == "pitching_stats" else pd.DataFrame([{"a": 9}])
         ),

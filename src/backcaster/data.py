@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
 import logging
 import uuid
+from collections.abc import Callable, Iterable
 from numbers import Number
 from pathlib import Path
-from typing import Callable, SupportsInt, cast
+from typing import SupportsInt, cast
 
 import pandas as pd
 
@@ -88,6 +88,7 @@ def _overlaps_year_window(row: pd.Series, start_year: int, end_year: int) -> boo
     if first is None and last is None:
         return True
     if first is None:
+        assert last is not None
         return start_year <= last
     if last is None:
         return end_year >= first
@@ -178,7 +179,9 @@ def _write_cache(kind: Kind, year: int, df: pd.DataFrame) -> None:
     csv_path = _cache_path(kind, year, "csv")
 
     try:
-        _atomic_write_frame(df, parquet_path, lambda frame, path: frame.to_parquet(path, index=False))
+        _atomic_write_frame(
+            df, parquet_path, lambda frame, path: frame.to_parquet(path, index=False)
+        )
     except Exception as exc:
         LOGGER.warning(
             "Parquet cache write failed for %s %s at %s; falling back to CSV: %s",
