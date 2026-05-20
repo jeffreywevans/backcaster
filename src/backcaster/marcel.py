@@ -180,17 +180,20 @@ def project_team(
     baseline_source = baseline_df if baseline_df is not None else team_df
     _, baseline_rates = _compute_baseline_rates(baseline_source, comps)
     grouped = team_df.groupby("Name", as_index=False)
-    projections = [
-        project_player(
-            name,
-            grp.sort_values("Season", ascending=False).head(3),
-            kind,
-            year,
-            config,
-            league_rates=baseline_rates,
+    projections: list[pd.DataFrame] = []
+    for name, grp in grouped:
+        if not isinstance(name, str):
+            raise ProjectionError("Encountered non-string player name in team input.")
+        projections.append(
+            project_player(
+                name,
+                grp.sort_values("Season", ascending=False).head(3),
+                kind,
+                year,
+                config,
+                league_rates=baseline_rates,
+            )
         )
-        for name, grp in grouped
-    ]
     if not projections:
         raise ProjectionError("No players available to project for this team.")
     return pd.concat(projections, ignore_index=True)
