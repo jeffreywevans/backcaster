@@ -152,8 +152,19 @@ def _cache_path(kind: Kind, year: int, ext: str = "csv") -> Path:
 def _read_cache(kind: Kind, year: int) -> pd.DataFrame | None:
     parquet_path = _cache_path(kind, year, "parquet")
     csv_path = _cache_path(kind, year, "csv")
+
     if parquet_path.exists():
-        return pd.read_parquet(parquet_path)
+        try:
+            return pd.read_parquet(parquet_path)
+        except Exception as exc:
+            LOGGER.warning(
+                "Parquet cache read failed for %s %s at %s; falling back to CSV if available: %s",
+                kind,
+                year,
+                parquet_path,
+                exc,
+            )
+
     if csv_path.exists():
         return pd.read_csv(csv_path)
     return None
