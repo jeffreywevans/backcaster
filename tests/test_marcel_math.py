@@ -338,3 +338,9 @@ def test_project_team_missing_name_season_validation() -> None:
     no_season = _batting_prior().assign(Name="A").drop(columns=["Season"])
     with pytest.raises(ProjectionError, match="Season"):
         project_team(no_season, "batting", 2026)
+
+
+def test_project_team_rejects_non_string_name() -> None:
+    invalid_name_df = _batting_prior().assign(Name=101)
+    with pytest.raises(ProjectionError, match="non-string player name"):
+        project_team(invalid_name_df, "batting", 2026)
