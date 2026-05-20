@@ -190,7 +190,7 @@ mypy
 ### SonarScanner
 
 ```bash
-sonar-scanner -Dsonar.projectVersion=$(python -c "from backcaster import __version__; print(__version__)")
+sonar-scanner -Dsonar.projectVersion=$(PYTHONPATH=src python -c "from backcaster import __version__; print(__version__)")
 ```
 
 Sonar consumes:
