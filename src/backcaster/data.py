@@ -88,6 +88,8 @@ def _overlaps_year_window(row: pd.Series, start_year: int, end_year: int) -> boo
     if first is None and last is None:
         return True
     if first is None:
+        # `last` cannot be None here because the both-None case returns above.
+        assert last is not None
         return start_year <= last
     if last is None:
         return end_year >= first
