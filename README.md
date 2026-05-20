@@ -139,7 +139,9 @@ Development dependencies (`--extra dev`) include:
 
 ### Lockfile policy (`uv.lock`)
 
-`uv.lock` pins transitive versions for reproducible environments.
+`uv.lock` pins transitive versions for reproducible environments when working from a Git checkout.
+
+Release/source ZIP archives may not include `uv.lock`. If it is missing in your environment, regenerate it locally:
 
 ```bash
 uv lock
@@ -188,7 +190,7 @@ mypy
 ### SonarScanner
 
 ```bash
-sonar-scanner -Dsonar.projectVersion=$(grep -m 1 '^version =' pyproject.toml | cut -d'"' -f2)
+sonar-scanner -Dsonar.projectVersion=$(PYTHONPATH=src python -c "from backcaster import __version__; print(__version__)")
 ```
 
 Sonar consumes:
