@@ -124,9 +124,13 @@ def test_run_team_raises_when_missing_season(monkeypatch: pytest.MonkeyPatch) ->
 def test_run_team_missing_team_column_raises_data_fetch_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr("backcaster.cli.fetch_season_stats", lambda _y, _k: pd.DataFrame([{"WAR": 5.1}]))
+    monkeypatch.setattr(
+        "backcaster.cli.fetch_season_stats", lambda _y, _k: pd.DataFrame([{"WAR": 5.1}])
+    )
 
-    with pytest.raises(DataFetchError, match=r"Season 2025 batting stats missing required column\(s\): Team\."):
+    with pytest.raises(
+        DataFetchError, match=r"Season 2025 batting stats missing required column\(s\): Team\."
+    ):
         run_team(_team_args())
 
 
