@@ -7,6 +7,7 @@ name = "backcaster"
 dynamic = ["version"]
 description = "Marcel-style MLB projection CLI built on pybaseball"
 readme = "README.md"
+license = {file = "LICENSE"}
 requires-python = ">=3.13"
 dependencies = [
   "pandas>=2.0",
