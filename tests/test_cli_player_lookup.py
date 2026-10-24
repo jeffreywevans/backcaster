@@ -31,8 +31,9 @@ def test_run_player_does_not_fallback_to_name_after_fangraphs_id_resolution(
     )
     monkeypatch.setattr("backcaster.cli.fetch_season_stats", lambda _year, _kind: league_df)
 
+    args = _args()
     with pytest.raises(ProjectionError, match="Missing season 2025"):
-        run_player(_args())
+        run_player(args)
 
 
 def test_run_player_uses_name_fallback_when_no_fangraphs_id(

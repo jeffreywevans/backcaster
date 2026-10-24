@@ -184,9 +184,10 @@ def test_main_error_handling(
 
 
 def test_main_block_via_runpy_warns_and_exits() -> None:
-    with pytest.warns(RuntimeWarning, match="backcaster.cli"):
-        with pytest.raises(SystemExit, match="2"):
-            runpy.run_module("backcaster.cli", run_name="__main__")
+    expected_exit = pytest.raises(SystemExit, match="2")
+    expected_warning = pytest.warns(RuntimeWarning, match="backcaster.cli")
+    with expected_exit, expected_warning:
+        runpy.run_module("backcaster.cli", run_name="__main__")
 
 
 def test_run_player_matches_fangraphs_id_successfully(monkeypatch: pytest.MonkeyPatch) -> None:

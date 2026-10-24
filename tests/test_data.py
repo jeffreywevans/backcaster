@@ -125,8 +125,9 @@ def test_filter_candidates_by_years_with_no_matching_window_returns_empty() -> N
 
 
 def test_resolve_player_lookup_with_empty_lookup() -> None:
+    lookup = pd.DataFrame()
     with pytest.raises(PlayerLookupError, match=r"^No player found"):
-        data.resolve_player_lookup("Any Name", pd.DataFrame(), [2020])
+        data.resolve_player_lookup("Any Name", lookup, [2020])
 
 
 def test_resolve_player_lookup_with_one_candidate() -> None:

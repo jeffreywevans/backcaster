@@ -177,8 +177,9 @@ def _pitching_prior() -> pd.DataFrame:
 
 
 def test_project_player_empty_input() -> None:
+    prior = pd.DataFrame()
     with pytest.raises(ProjectionError, match="at least one"):
-        project_player("Nobody", pd.DataFrame(), "batting", 2026)
+        project_player("Nobody", prior, "batting", 2026)
 
 
 def test_project_player_batting_with_missing_optional_columns() -> None:
@@ -230,8 +231,9 @@ def test_project_player_zero_playing_time() -> None:
 
 
 def test_project_player_invalid_kind() -> None:
+    prior = _batting_prior()
     with pytest.raises(ProjectionError, match="kind"):
-        project_player("Test", _batting_prior(), "fielding", 2026)
+        project_player("Test", prior, "fielding", 2026)
 
 
 def test_project_player_sorts_unsorted_input_before_weighting() -> None:
