@@ -1,0 +1,68 @@
+# Batter projection method
+
+The local Lahman CLI uses the population-level pipeline in `backcaster.batters`.
+It implements the six stages in the user-supplied Tango 2004 batter recipe, with
+explicit choices where that summary does not specify mechanics. Baseball Reference
+remains the validation target; this implementation does not claim exact parity.
+Pitching continues to use the existing model and regression settings.
+
+## Inputs and eligibility
+
+Batting now requires `Appearances.csv` (`playerID`, `yearID`, `G_all`, `G_p`) and
+`People.csv.birthYear`, in addition to the existing tables. Files must be from the
+same edition. Read only the three completed seasons preceding the projection year.
+Unknown or implausible birth years produce an error instead of silently assuming 29.
+
+Aggregate trade stints first. Define a primary pitcher as someone pitching in more
+than half of their appearances that season; exclude that player-season from batting
+league context and projections. This is a documented classification choice rather
+than a claim about Baseball Reference's exact classification. It retains hitters
+with occasional pitching appearances and most two-way hitters.
+
+Use all other positive-PA player-seasons for regression and rebaselining, including
+unqualified players. Apply the existing qualification filter only when selecting
+outputs: single players must qualify in all three years; team/batch selection uses
+available qualified seasons. Team IDs and last-stint membership rules are unchanged.
+The rebaselining population is independent of the command and requested team.
+
+## Calculation
+
+1. Weight the actual calendar seasons 5/4/3. Missing seasons contribute zero rather
+   than shifting an older season into a more recent weight slot.
+2. Compute each season's non-pitcher league event rates. Weight those rates by each
+   player's own `season PA × season weight` to obtain their league-average exposure.
+3. Add 1,200 PA at those player-specific league rates to the weighted evidence.
+   Reliability is `weighted PA / (weighted PA + 1200)`.
+4. Set projected PA to `0.5 × latest PA + 0.1 × preceding PA + 200`. Missing-year PA
+   is zero. Do not use actual statistics from the projected year.
+5. Compute age as `projection year − birthYear`. Set the signed adjustment to
+   `(age − 29) × .003` above 29, or `(age − 29) × .006` otherwise. Multiply singles,
+   doubles, triples, HR, BB, and HBP rates by `1 − adjustment`, and strikeout/other
+   AB-out rates by `1 + adjustment`. Leave sacrifice rates neutral, then normalize
+   to preserve each player's PA. This choice applies aging to skill rather than
+   multiplying every count and denominator by the same factor, which would leave
+   all rates unchanged. The exact event-specific treatment is not specified in
+   the supplied recipe and may differ from Baseball Reference.
+6. Rebaseline the entire projected non-pitcher population to the latest completed
+   season's league event rates. Iterative proportional fitting adjusts the event
+   matrix until league totals match at fixed player PA. This is our explicit
+   interpretation of rebaselining; it avoids incompatible AB, hits, and PA totals.
+   Fail if it does not converge. Select the requested qualified players afterward.
+
+The mutually exclusive events are singles, doubles, triples, HR, BB, HBP, SO, SH,
+SF, and remaining AB outs. Reconstruct H and AB and recompute AVG/OBP/SLG/OPS after
+rebaselining. All counts retain decimal precision; no rounding enters the formulas.
+
+## Validation
+
+Hand-calculated fixtures exercise player-specific regression, PA, age direction,
+calendar-year gaps, future-data exclusion, and conservation of league rates/player
+PA. Integration tests check qualification, primary-pitcher exclusion, the effect
+of unqualified players on league context, command consistency, and file errors.
+
+A manual 2025 check against Lahman CSVs distributed by Rdatasets produced Betts:
+527.3 PA, 24.27 HR, .278 AVG, .362 OBP, .507 SLG, .869 OPS, .8583 reliability.
+The supplied Baseball Reference table has 527 PA, 24 HR, .281/.365/.512/.877 and
+86% reliability. Tango age is 33 for Betts (born 1992), while the reference displays
+32. These results are close but not equal; do not tune constants to a single player.
+The check uses an independently obtained Lahman edition, not the user's local copy.
