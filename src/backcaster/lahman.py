@@ -124,6 +124,7 @@ class LahmanSource:
         if kind == "batting":
             seasons, batting = self._batting_population(year)
         else:
+            self.read("People", {"playerID", "nameFirst", "nameLast", "birthYear"})
             seasons = pd.concat(
                 [self.season(y, kind) for y in (year - 1, year - 2, year - 3)], ignore_index=True
             )

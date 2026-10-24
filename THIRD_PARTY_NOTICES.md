@@ -12,11 +12,13 @@ Reference revision: `13a1c7943f5a7317c9c812a28e299c2184060046` (March 1, 2020).
 See [reference and adaptation notes](docs/MARCELR_REFERENCE.md) for the files
 reviewed, formulas examined, current differences, and attribution practices.
 
-At the time this notice was added, marcelR source had been inspected, but no R
-source had been copied or translated into Backcaster, and its datasets had not
-been bundled. Backcaster does not depend on R or marcelR. The notice is retained
-for acknowledgment and to accompany future attributed adaptations. Neither the
-review nor the acknowledgment implies endorsement or verified numerical parity.
+Backcaster's pitcher-aging equations in `src/backcaster/marcel.py` are adapted
+from the age-adjustment formulas in marcelR's `R/utilities.R` and their stat-specific
+application in `inst/scripts/marcel_data_exporter.R` at the revision above.
+The implementation is Python, with local birth-year validation and unchanged
+pitching opportunities; it is not a complete port of marcelR. No marcelR datasets
+are bundled. Backcaster does not depend on R or marcelR. Attribution does not
+imply endorsement or verified numerical parity.
 
 The following is marcelR's MIT license notice, reproduced without changes:
 

@@ -337,3 +337,24 @@ def test_missing_birth_year_column(lahman: Path) -> None:
     source = LahmanSource(str(lahman))
     with pytest.raises(DataFetchError, match="birthYear"):
         source.project("batch", 2022, "batting")
+
+
+def test_pitcher_aging_consistent_across_commands(lahman: Path) -> None:
+    source = LahmanSource(str(lahman))
+    player = source.project("player", 2022, "pitching", name="Test Star").iloc[0]
+    team = source.project("team", 2022, "pitching", team="BOS")
+    batch = source.project("batch", 2022, "pitching")
+    assert player["Age"] == 32
+    assert player["IP"] == pytest.approx(487 / 3)
+    for result in [team, batch]:
+        row = result[result.Name == "Test Star"].iloc[0]
+        for stat in ["IP", "SO", "ERA", "WHIP", "Age"]:
+            assert row[stat] == pytest.approx(player[stat])
+
+
+def test_pitcher_requires_birth_year(lahman: Path) -> None:
+    path = lahman / "People.csv"
+    pd.read_csv(path).drop(columns="birthYear").to_csv(path, index=False)
+    source = LahmanSource(str(lahman))
+    with pytest.raises(DataFetchError, match="birthYear"):
+        source.project("batch", 2022, "pitching")

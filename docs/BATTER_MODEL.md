@@ -4,7 +4,8 @@ The local Lahman CLI uses the population-level pipeline in `backcaster.batters`.
 It implements the six stages in the user-supplied Tango 2004 batter recipe, with
 explicit choices where that summary does not specify mechanics. Baseball Reference
 remains the validation target; this implementation does not claim exact parity.
-Pitching continues to use the existing model and regression settings.
+Pitching retains its existing weights and regression settings, with separate
+[real-age performance adjustments](PITCHER_MODEL.md).
 
 We subsequently reviewed Ben Dilday's marcelR implementation as a reference.
 See [source and adaptation notes](MARCELR_REFERENCE.md) for provenance, thanks,

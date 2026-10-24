@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Apply birth-year-based pitcher aging to earned runs, hits, HR, walks, and strikeouts, recomputing ERA and WHIP without changing projected IP or BF.
+- Require pitcher birth years and document the marcelR-derived equations and attribution. Pitcher season weights and regression constants are unchanged.
+
 ## 0.3.4
 
 - Acknowledge Ben Dilday's marcelR as a methodological reference, document the

@@ -92,8 +92,8 @@ All projections use local Lahman CSVs. On Windows, the default directory is
 Set the `LAHMAN_DATA_DIR` environment variable to change the default, or pass
 `--data-dir` to override it for one command. No network requests or online
 fallbacks are made. The directory must contain `People.csv`, `Teams.csv`, and
-`Batting.csv` or `Pitching.csv` for the selected kind. Batter projections also
-require `Appearances.csv` and a valid `birthYear` in `People.csv`. Filenames are matched
+`Batting.csv` or `Pitching.csv` for the selected kind. Both kinds require valid
+`birthYear` values in `People.csv`; batters additionally require `Appearances.csv`. Filenames are matched
 without regard to case. The database is not bundled with Backcaster.
 
 For the default Windows directory, no additional flag is needed:
@@ -135,7 +135,8 @@ ambiguous name lookups report the matching IDs.
 
 Batter league regression and rebaselining use all non-pitcher player-seasons;
 qualification selects the displayed players. Pitching retains its qualified-only
-baseline. See [the batter model](docs/BATTER_MODEL.md) for the six-stage calculation,
+baseline, with real-age performance adjustments documented in
+[the pitcher model](docs/PITCHER_MODEL.md). See [the batter model](docs/BATTER_MODEL.md) for the six-stage calculation,
 real-age adjustment, PA formula, and explicit rebaselining choices.
 Single-player projections require qualification in all three preceding seasons.
 Team and batch projections use each player's available qualified seasons within

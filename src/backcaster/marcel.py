@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 import pandas as pd
 
 from backcaster.normalize import safe_divide
@@ -12,6 +14,26 @@ class ProjectionError(RuntimeError):
 
 BATTING_COMPONENTS = ["PA", "AB", "H", "2B", "3B", "HR", "BB", "SO", "HBP", "SF"]
 PITCHING_COMPONENTS = ["IP", "ER", "H", "HR", "BB", "SO", "BF"]
+
+
+def _pitcher_age(prior: pd.DataFrame, year: int, fallback: float) -> float:
+    age = fallback
+    if "birthYear" in prior:
+        age = year - float(pd.to_numeric(prior["birthYear"].iloc[0], errors="coerce"))
+    if not math.isfinite(age) or not 15 <= age <= 70:
+        raise ProjectionError("A valid birthYear or explicit age is required for pitcher aging.")
+    return age
+
+
+def _age_pitching(counts: pd.Series, age: float) -> pd.Series:
+    # Equations adapted from Ben Dilday's marcelR, utilities.R and
+    # inst/scripts/marcel_data_exporter.R, revision 13a1c7943f5a7317c9c812a28e299c2184060046.
+    # Copyright (c) 2017 Ben Dilday, MIT; see THIRD_PARTY_NOTICES.md.
+    benefit = 1 / (1 + 0.003 * (age - 29)) if age > 29 else 1 + 0.006 * (29 - age)
+    result = counts.copy()
+    result[["ER", "H", "HR", "BB"]] /= benefit
+    result["SO"] *= benefit
+    return result
 
 
 def _weighted_row(
@@ -148,7 +170,7 @@ def project_player(
         regressed[c] = regressed_rate * weighted_pt
 
     growth = config.default_pa_growth if kind == "batting" else config.default_ip_growth
-    age_adj = config.age_adjustment_fn(age)
+    age_adj = config.age_adjustment_fn(age) if kind == "batting" else 1.0
     projected_pt = weighted_pt * growth * age_adj
     pt_scale = safe_divide(projected_pt, weighted_pt)
     regressed *= pt_scale
@@ -156,12 +178,16 @@ def project_player(
     if kind == "batting":
         rates = _derive_batting_rates(regressed)
     else:
+        age = _pitcher_age(prior_df, year, age)
+        regressed = _age_pitching(regressed, age)
         rates = _derive_pitching_rates(regressed)
 
     output = pd.concat([regressed, rates])
     output["Reliability"] = reliability
     output["Name"] = player_name
     output["Year"] = year
+    if kind == "pitching":
+        output["Age"] = age
     return output.to_frame().T
 
 
