@@ -1,12 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.3.3
 
 - Correct regression to use weighted evidence totals and derive reliability from
   the observed-evidence fraction; document the math audit and remaining model differences.
-
 - Use local Lahman CSVs for all projections; remove online FanGraphs retrieval, player-register downloads, and the pybaseball dependency.
 - Default to `C:\Baseball\lahman` on Windows or `~/Baseball/lahman` elsewhere, with `LAHMAN_DATA_DIR` and `--data-dir` overrides.
+
+This release requires local Lahman data. Baseball Reference is the validation target,
+but playing-time, age, and pitching-model differences remain; see
+[the projection math audit](docs/PROJECTION_MATH.md). The obsolete
+`MarcelConfig.reliability_scale` setting has been removed. Python 3.13+ is required.
 
 ## 0.3.2
 
