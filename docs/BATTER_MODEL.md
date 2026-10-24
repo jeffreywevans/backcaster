@@ -6,6 +6,10 @@ explicit choices where that summary does not specify mechanics. Baseball Referen
 remains the validation target; this implementation does not claim exact parity.
 Pitching continues to use the existing model and regression settings.
 
+We subsequently reviewed Ben Dilday's marcelR implementation as a reference.
+See [source and adaptation notes](MARCELR_REFERENCE.md) for provenance, thanks,
+license attribution, and differences from this implementation.
+
 ## Inputs and eligibility
 
 Batting now requires `Appearances.csv` (`playerID`, `yearID`, `G_all`, `G_p`) and
