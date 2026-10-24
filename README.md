@@ -267,6 +267,20 @@ Sonar consumes:
 
 ---
 
+## Acknowledgments
+
+Thank you to **Tom Tango** for developing and publishing the Marcel system, and
+to **Ben Dilday** for [marcelR](https://github.com/bdilday/marcelR), whose open R
+implementation provides a valuable methodological reference for our Python work.
+We document the reviewed formulas, source revision, and implementation differences
+in [our reference notes](docs/MARCELR_REFERENCE.md). The complete marcelR MIT
+notice is preserved in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and shipped
+with our distributions.
+
+Thanks also to SABR, Sean Lahman, and the database contributors. See
+[Lahman attribution and licensing](docs/LAHMAN.md). These acknowledgments do not
+imply endorsement or exact agreement with another implementation's projections.
+
 ## Security and responsible use
 
 Please review `SECURITY.md` for reporting guidance. Backcaster is an analytical utility and should be validated independently before use in production pipelines.

@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "Marcel-style MLB projection CLI using local Lahman CSV data"
 readme = "README.md"
 license = "MIT"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.13",
