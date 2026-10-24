@@ -7,8 +7,10 @@ from typing import Any
 import pandas as pd
 
 from backcaster.html_report import render_report
+from backcaster.stat_columns import BATTING_STAT_COLUMNS, IDENTITY_COLUMNS, PITCHING_STAT_COLUMNS
 
 COUNT_COLUMNS = {
+    "TB",
     "PA",
     "AB",
     "H",
@@ -41,7 +43,21 @@ COUNT_COLUMNS = {
     "Age",
     "Year",
 }
-RATE_PLACES = {"AVG": 3, "OBP": 3, "SLG": 3, "OPS": 3, "ERA": 2, "WHIP": 2}
+RATE_PLACES = {
+    "BA": 3,
+    "AVG": 3,
+    "OBP": 3,
+    "SLG": 3,
+    "OPS": 3,
+    "ERA": 2,
+    "WHIP": 3,
+    "W-L%": 3,
+    "H9": 1,
+    "HR9": 1,
+    "BB9": 1,
+    "SO9": 1,
+    "SO/W": 2,
+}
 
 
 def _format_number(value: Any, places: int) -> str:
@@ -71,7 +87,10 @@ def _display_frame(df: pd.DataFrame) -> pd.DataFrame:
         elif column in COUNT_COLUMNS or column in RATE_PLACES:
             places = RATE_PLACES.get(column, 0)
             display[column] = display[column].map(lambda value: _format_number(value, places))
-    return display
+    stats = PITCHING_STAT_COLUMNS if "IP" in display else BATTING_STAT_COLUMNS
+    ordered = [c for c in (*IDENTITY_COLUMNS, *stats, "Reliability") if c in display]
+    ordered += [c for c in display if c not in ordered]
+    return display.loc[:, ordered]
 
 
 def to_cli_table(df: pd.DataFrame) -> str:

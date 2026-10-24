@@ -1,0 +1,55 @@
+"""Canonical output schemas shared by calculations and reports."""
+
+IDENTITY_COLUMNS = ("Name", "Year", "PlayerID", "Age")
+BATTING_STAT_COLUMNS = (
+    "PA",
+    "AB",
+    "R",
+    "H",
+    "2B",
+    "3B",
+    "HR",
+    "RBI",
+    "SB",
+    "CS",
+    "BB",
+    "SO",
+    "BA",
+    "OBP",
+    "SLG",
+    "OPS",
+    "TB",
+    "GDP",
+    "HBP",
+    "SH",
+    "SF",
+    "IBB",
+)
+CONTEXT_STATS = ("R", "RBI", "SB", "CS", "GDP", "IBB")
+
+PITCHING_STAT_COLUMNS = (
+    "W",
+    "L",
+    "W-L%",
+    "ERA",
+    "SV",
+    "IP",
+    "H",
+    "R",
+    "ER",
+    "HR",
+    "BB",
+    "IBB",
+    "SO",
+    "HBP",
+    "BK",
+    "WP",
+    "BF",
+    "WHIP",
+    "H9",
+    "HR9",
+    "BB9",
+    "SO9",
+    "SO/W",
+)
+PITCHING_EXTRA_COUNTS = ("W", "L", "SV", "R", "IBB", "HBP", "BK", "WP")

@@ -207,8 +207,8 @@ Selected columns from a 2025 Mookie Betts projection (actual output includes
 additional counting statistics, reliability, and age):
 
 ```text
- PlayerID  PA  AB   H HR   AVG   OBP   SLG   OPS
-bettsmo01 527 461 128 24 0.278 0.362 0.507 0.869
+        Name Year  PlayerID Age  PA  AB   H HR    BA   OBP   SLG   OPS
+Mookie Betts 2025 bettsmo01  33 527 461 128 24 0.278 0.362 0.507 0.869
 ```
 
 ### Number formatting and baseball innings
@@ -217,8 +217,11 @@ Terminal, CSV, and HTML outputs use the same display rules:
 
 - Counting statistics are rounded to the nearest whole number, with halves rounded
   up. Age and year are displayed as whole numbers too.
-- AVG, OBP, SLG, and OPS always show three decimal places, including `1.048` OPS.
-- ERA and WHIP always show two decimal places, such as `3.46` and `1.23`.
+- BA, OBP, SLG, and OPS always show three decimal places, including `1.048` OPS.
+  BA is the canonical batter output label (previously AVG).
+- ERA shows two decimals; WHIP shows three. W-L% shows a three-decimal
+  fraction, such as `0.524`. H9, HR9, BB9, and SO9 show one decimal; SO/W shows two.
+  W-L% without any decisions and SO/W without walks are undefined and display blank.
 - IP is rounded to the nearest out and displayed in baseball notation:
   `161.0` is 161 innings, `161.1` is 161 innings plus one out, and `161.2` is
   161 innings plus two outs. Three outs carry into the next whole inning.
@@ -232,6 +235,27 @@ exactly. Reliability formatting is unchanged.
 arithmetic; treating it as 161.1 decimal innings gives incorrect results. Internally,
 Backcaster uses decimal innings (`IPouts / 3`), so ERA and WHIP calculations use
 true innings rather than the displayed notation.
+
+### Tracked statistics and order
+
+All outputs put available Name, Year, Player ID, and Age metadata first, followed
+by these statistics in order and then Reliability:
+
+```text
+Batters:  PA,AB,R,H,2B,3B,HR,RBI,SB,CS,BB,SO,BA,OBP,SLG,OPS,TB,GDP,HBP,SH,SF,IBB
+Pitchers: W,L,W-L%,ERA,SV,IP,H,R,ER,HR,BB,IBB,SO,HBP,BK,WP,BF,WHIP,H9,HR9,BB9,SO9,SO/W
+```
+
+Lahman's batting `GIDP` is exported as `GDP`. The expanded counting-stat columns
+must be present in the appropriate local CSVs; missing columns produce an error.
+TB is derived as `H + 2B + 2×3B + 3×HR`; stolen bases do not add total bases.
+BA is H/AB, SLG is TB/AB, OBP is `(H+BB+HBP)/(AB+BB+HBP+SF)`, and OPS is OBP+SLG.
+IBB is already part of BB and is never added again to OBP or PA. Runs, RBI, SB,
+CS, and GDP are contextual counts rather than additional PA outcomes.
+
+Pitcher per-nine rates use unrounded counts and decimal IP: `9 × count / IP`.
+SO/W is SO/BB; W-L% is W/(W+L). Runs allowed (`R`) and earned runs (`ER`) are
+separate projections; ERA uses ER, while WHIP uses H+BB without adding IBB again.
 
 ### CSV output (`--format csv`)
 A single-row CSV for `player`; multi-row CSV for `team`, `batch`, `hitters`, and `pitchers`.

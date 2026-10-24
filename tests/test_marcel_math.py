@@ -450,3 +450,24 @@ def test_pitcher_future_season_has_no_evidence() -> None:
     result = project_player("Pitcher", prior, "pitching", 2026, age=29).iloc[0]
     assert result["IP"] == 0
     assert result["Reliability"] == 0
+
+
+def test_expanded_pitching_rates_use_true_innings_and_unrounded_counts() -> None:
+    row = pd.Series(
+        dict(IP=161 + 1 / 3, W=11.0, L=10.0, ER=69.0, H=158.0, HR=18.0, BB=50.0, SO=175.0)
+    )
+    rates = _derive_pitching_rates(row)
+    assert rates["W-L%"] == pytest.approx(11 / 21)
+    assert rates["ERA"] == pytest.approx(69 * 27 / 484)
+    assert rates["WHIP"] == pytest.approx(208 * 3 / 484)
+    for stat, count in [("H9", 158), ("HR9", 18), ("BB9", 50), ("SO9", 175)]:
+        assert rates[stat] == pytest.approx(count * 27 / 484)
+    assert rates["SO/W"] == 3.5
+
+
+def test_undefined_pitching_decisions_and_walk_ratio() -> None:
+    row = pd.Series(dict(IP=1.0, ER=0.0, H=0.0, BB=0.0, SO=3.0, W=0.0, L=0.0))
+    rates = _derive_pitching_rates(row)
+    assert pd.isna(rates["W-L%"])
+    assert pd.isna(rates["SO/W"])
+    assert rates["SO9"] == 27

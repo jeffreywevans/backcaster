@@ -43,9 +43,25 @@ class LahmanSource:
             raise DataFetchError(f"Invalid kind {kind!r}.")
         name = "Batting" if kind == "batting" else "Pitching"
         components = (
-            ["AB", "H", "2B", "3B", "HR", "BB", "SO"]
+            ["AB", "H", "2B", "3B", "HR", "BB", "SO", "R", "RBI", "SB", "CS", "IBB", "GIDP"]
             if kind == "batting"
-            else ["IPouts", "ER", "H", "HR", "BB", "SO", "BFP"]
+            else [
+                "IPouts",
+                "ER",
+                "H",
+                "HR",
+                "BB",
+                "SO",
+                "BFP",
+                "W",
+                "L",
+                "SV",
+                "R",
+                "IBB",
+                "HBP",
+                "BK",
+                "WP",
+            ]
         )
         stats = self.read(name, {"playerID", "yearID", "stint", "teamID", *components})
         stats = stats[stats["yearID"] == year].copy()
@@ -85,6 +101,7 @@ class LahmanSource:
             totals = totals[totals["Qualified"]]
         if totals.empty:
             raise DataFetchError(f"No qualified {kind} players in Lahman for {year}.")
+        totals = totals.rename(columns={"GIDP": "GDP"})
         totals = self._attach_names(totals)
         totals["PlayerID"] = totals["playerID"]
         totals["Season"] = year

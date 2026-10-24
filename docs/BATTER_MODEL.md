@@ -55,7 +55,7 @@ The rebaselining population is independent of the command and requested team.
    Fail if it does not converge. Select the requested qualified players afterward.
 
 The mutually exclusive events are singles, doubles, triples, HR, BB, HBP, SO, SH,
-SF, and remaining AB outs. Reconstruct H and AB and recompute AVG/OBP/SLG/OPS after
+SF, and remaining AB outs. Reconstruct H and AB and derive TB and recompute BA/OBP/SLG/OPS after
 rebaselining. All counts retain decimal precision; no rounding enters the formulas.
 
 ## Validation
@@ -71,3 +71,36 @@ The supplied Baseball Reference table has 527 PA, 24 HR, .281/.365/.512/.877 and
 86% reliability. Tango age is 33 for Betts (born 1992), while the reference displays
 32. These results are close but not equal; do not tune constants to a single player.
 The check uses an independently obtained Lahman edition, not the user's local copy.
+
+
+## Expanded counting statistics
+
+Batting.csv must include R, RBI, SB, CS, IBB, and GIDP alongside the original
+components. Trade aggregation sums them before projection. GIDP is mapped to GDP.
+The shared schema in `stat_columns.py` controls model and report ordering.
+
+Project R/RBI/SB/CS/GDP/IBB using the same calendar weights, exposure-specific
+league regression, projected PA, and age model as the batter pipeline. They are
+separate overlapping counts: never include them in the mutually exclusive PA
+event matrix or its normalization. R/RBI/SB/IBB use the beneficial age direction;
+CS/GDP use the harmful direction. The GDP age direction is an explicit modeling
+choice, not a verified marcelR formula. These projections do not model lineup
+position, baserunning opportunities, teammates, or managerial intent separately.
+
+Rebaseline R/RBI/SB/CS independently to their latest-season league rate per PA.
+IBB and GDP use bounded proportional scaling: preserve each league target while
+keeping IBB <= BB and GDP <= non-strikeout AB outs for every player. Historical
+counts must be finite/nonnegative and respect those subset relationships. Blank
+historical numeric cells still follow the existing zero-fill policy.
+
+Derive H and AB from the projected PA events, and TB from the projected base-hit
+components. BA replaces AVG in canonical batter output. The formulas are:
+
+- TB = H + 2B + 2*3B + 3*HR (equivalently 1B + 2*2B + 3*3B + 4*HR).
+- BA = H/AB; SLG = TB/AB.
+- OBP = (H+BB+HBP)/(AB+BB+HBP+SF), with IBB counted within BB once.
+- OPS = OBP+SLG.
+
+The new contextual projections do not change existing H/AB/BB/HBP/SF outcomes
+or batting rates; they do not create additional hits or PA. Compute all derived
+values before output rounding, including TB.

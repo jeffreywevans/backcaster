@@ -96,7 +96,7 @@ def test_display_precision_and_no_mutation() -> None:
         "BF": "700",
         "IP": "161.1",
         "ERA": "3.46",
-        "WHIP": "1.23",
+        "WHIP": "1.234",
         "Age": "33",
         "Year": "2025",
     }.items():
@@ -116,7 +116,7 @@ def test_missing_numbers_and_fixed_trailing_zeros() -> None:
     assert result.OBP == "0.000"
     assert result.OPS == "1.000"
     assert result.ERA == "4.00"
-    assert result.WHIP == "1.10"
+    assert result.WHIP == "1.100"
 
 
 @pytest.mark.parametrize("output", ["cli", "csv", "html"])
@@ -126,7 +126,7 @@ def test_all_outputs_share_display_format(tmp_path: Path, output: str) -> None:
     )
     if output == "cli":
         text = to_cli_table(frame)
-        for value in ["25", "1.048", "161.2", "3.46", "1.23"]:
+        for value in ["25", "1.048", "161.2", "3.46", "1.234"]:
             assert value in text
     elif output == "csv":
         path = to_csv(frame, tmp_path / "out.csv")
@@ -135,8 +135,53 @@ def test_all_outputs_share_display_format(tmp_path: Path, output: str) -> None:
         assert row.OPS == "1.048"
         assert row.IP == "161.2"
         assert row.ERA == "3.46"
-        assert row.WHIP == "1.23"
+        assert row.WHIP == "1.234"
     else:
         text = to_html(frame, tmp_path / "out.html").read_text()
-        for value in ["25", "1.048", "161.2", "3.46", "1.23"]:
+        for value in ["25", "1.048", "161.2", "3.46", "1.234"]:
             assert re.search(r"<td(?: [^>]*)?>" + re.escape(value) + r"</td>", text)
+
+
+def test_new_batter_stats_format_as_requested() -> None:
+    frame = pd.DataFrame(
+        [dict(R=100.4, RBI=106.5, SB=10.2, CS=1.1, TB=309.5, GDP=13.4, IBB=15.6, BA=0.2934)]
+    )
+    row = _display_frame(frame).iloc[0]
+    assert row.to_dict() == dict(
+        R="100", RBI="107", SB="10", CS="1", TB="310", GDP="13", IBB="16", BA="0.293"
+    )
+
+
+def test_expanded_pitching_display_order_and_precision() -> None:
+    stats = "W,L,W-L%,ERA,SV,IP,H,R,ER,HR,BB,IBB,SO,HBP,BK,WP,BF,WHIP,H9,HR9,BB9,SO9,SO/W".split(
+        ","
+    )
+    row = {column: 1.0 for column in reversed(stats)}
+    row.update(Name="Pitcher", Year=2025, PlayerID="test01", Age=30)
+    row.update(
+        {
+            "W-L%": 11 / 21,
+            "WHIP": 1.2346,
+            "H9": 8.84,
+            "HR9": 1.25,
+            "BB9": 2.94,
+            "SO9": 9.35,
+            "SO/W": 3.456,
+            "IP": 161 + 2 / 3,
+        }
+    )
+    result = _display_frame(pd.DataFrame([row]))
+    assert result.columns.tolist() == ["Name", "Year", "PlayerID", "Age", *stats]
+    actual = result.iloc[0]
+    for stat, expected in {
+        "W-L%": "0.524",
+        "ERA": "1.00",
+        "WHIP": "1.235",
+        "H9": "8.8",
+        "HR9": "1.3",
+        "BB9": "2.9",
+        "SO9": "9.4",
+        "SO/W": "3.46",
+        "IP": "161.2",
+    }.items():
+        assert actual[stat] == expected
