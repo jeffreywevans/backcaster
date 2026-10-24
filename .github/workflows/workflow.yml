@@ -56,6 +56,8 @@ jobs:
           cd /tmp
           /tmp/backcaster-wheel/bin/python -c 'from backcaster import __version__; print(__version__)'
           /tmp/backcaster-wheel/bin/backcaster --help
+          /tmp/backcaster-wheel/bin/backcaster hitters --help
+          /tmp/backcaster-wheel/bin/backcaster pitchers --help
 
       - name: Upload package artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

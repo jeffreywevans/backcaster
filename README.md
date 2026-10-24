@@ -25,10 +25,10 @@ Upgrade to the latest release available on PyPI:
 python -m pip install --upgrade backcaster
 ```
 
-To install a specific release, such as 0.3.5:
+To install a specific release, such as 0.3.6:
 
 ```powershell
-python -m pip install --upgrade backcaster==0.3.5
+python -m pip install --upgrade backcaster==0.3.6
 ```
 
 Run the command using the same Python environment where you run Backcaster.
@@ -73,16 +73,24 @@ The `hitters` and `pitchers` commands choose their kind automatically.
 Subcommand-specific required options:
 - `player` requires `--name`
 - `team` requires `--team`
-- `batch` requires no additional required option
+- `batch`, `hitters`, and `pitchers` require no player or team option
 
 ```bash
 backcaster <player|team|batch> [subcommand-options] --year <YEAR> --kind <batting|pitching> [--format cli|csv|html] [--out PATH]
+backcaster <hitters|pitchers> --year <YEAR> [--data-dir PATH] [--format cli|csv|html] [--out PATH]
 ```
 
 ### Pre-offseason league projections
 
 Once the latest regular season is present in your local Lahman files, generate
-both populations without roster updates or team filters:
+both populations without roster updates or team filters. For terminal output:
+
+```powershell
+backcaster hitters --year 2026
+backcaster pitchers --year 2026
+```
+
+To save files for comparison with Baseball Reference:
 
 ```powershell
 backcaster hitters --year 2026 --format csv --out hitters_2026.csv
@@ -92,6 +100,9 @@ backcaster pitchers --year 2026 --format csv --out pitchers_2026.csv
 `--year 2026` projects 2026 from 2023–2025; it never reads 2026 statistics.
 Both commands support `--data-dir`, `--format cli|csv|html`, and `--out`.
 They are shortcuts for `batch --kind batting` and `batch --kind pitching`.
+For a different data directory, add `--data-dir "C:\Baseball\lahman"`.
+For HTML, use `--format html --out hitters_2026.html` (or a pitcher output filename).
+File formats require `--out`; the CLI format prints to the terminal.
 
 Players qualify for selection by meeting the existing PA/IP threshold in at least
 one of those three seasons. This is a historical eligibility list, not an active
@@ -171,7 +182,7 @@ to the team in their latest stint for that season; this is not a current-roster 
 backcaster team --team LAN --year 2026 --kind pitching
 ```
 
-### 3) Batch projection (all players returned by source data)
+### 3) Batch projection (all eligible players)
 
 ```bash
 backcaster batch --year 2026 --kind batting
@@ -200,7 +211,8 @@ Example shape (columns vary by batting vs pitching):
 ```
 
 ### CSV output (`--format csv`)
-A single-row CSV for `player`; multi-row CSV for `team` and `batch`.
+A single-row CSV for `player`; multi-row CSV for `team`, `batch`, `hitters`, and `pitchers`.
+Both populations include `PlayerID` for matching records across files.
 
 ### HTML output (`--format html`)
 A basic HTML table (no custom CSS) suitable for quick sharing or embedding.
@@ -219,6 +231,7 @@ Lahman distribution from the same edition. Existing online caches are ignored.
 
 Runtime dependencies are intentionally minimal:
 - `pandas` for tabular data processing and projection output
+- `numpy` for numerical operations and rebaselining convergence checks
 
 Development dependencies (`--extra dev`) include:
 - `pytest`, `pytest-cov`
