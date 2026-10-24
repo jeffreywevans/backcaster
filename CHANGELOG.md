@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.2
+
+- Document pip upgrades, installing a specific release, and checking the installed version.
+- Add Lahman 1871–2025 database setup, coverage, attribution, licensing, and historical-data notes, with the supplied source README.
+- Clarify that Lahman NULLs represent unknown values, while Backcaster currently treats blank numeric counts as zero.
+
+This release updates documentation; projection behavior and Python 3.13+ requirements are unchanged.
+
 ## 0.3.1
 
 - Add offline Lahman CSV projections through `--data-dir` for player, team, and
