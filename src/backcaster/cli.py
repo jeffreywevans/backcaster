@@ -40,9 +40,12 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="backcaster")
     sub = p.add_subparsers(dest="command", required=True)
 
-    def add_common(sp: argparse.ArgumentParser) -> None:
+    def add_common(sp: argparse.ArgumentParser, kind: str | None = None) -> None:
         sp.add_argument("--year", type=int, required=True)
-        sp.add_argument("--kind", choices=["batting", "pitching"], required=True)
+        if kind is None:
+            sp.add_argument("--kind", choices=["batting", "pitching"], required=True)
+        else:
+            sp.set_defaults(kind=kind)
         sp.add_argument("--format", choices=_OUTPUT_FORMAT_CHOICES, default="cli")
         sp.add_argument("--out")
         sp.add_argument(
@@ -61,6 +64,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     bp = sub.add_parser("batch")
     add_common(bp)
+    for command, kind in [("hitters", "batting"), ("pitchers", "pitching")]:
+        league = sub.add_parser(command, help=f"Project all eligible {command} across all teams")
+        add_common(league, kind)
+        league.set_defaults(command="batch")
     return p
 
 

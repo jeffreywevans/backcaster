@@ -36,9 +36,7 @@ def _age_pitching(counts: pd.Series, age: float) -> pd.Series:
     return result
 
 
-def _weighted_row(
-    rows: list[pd.Series], weights: tuple[float, float, float], cols: list[str]
-) -> pd.Series:
+def _weighted_row(rows: list[pd.Series], weights: tuple[float, ...], cols: list[str]) -> pd.Series:
     total_w = sum(weights[: len(rows)])
     out = {}
     for col in cols:
@@ -146,14 +144,20 @@ def project_player(
     prior_df = _prepare_prior_df(prior_three, comps, optional_comps=optional_comps)
 
     rows = [prior_df.iloc[i] for i in range(min(3, prior_df.shape[0]))]
-    weighted = _weighted_row(rows, config.season_weights, comps)
+    weights: tuple[float, ...] = config.season_weights[: len(rows)]
+    if kind == "pitching":
+        calendar_weights: dict[float, float] = dict(
+            zip((year - 1, year - 2, year - 3), config.season_weights)
+        )
+        weights = tuple(calendar_weights.get(float(row["Season"]), 0.0) for row in rows)
+    weighted = _weighted_row(rows, weights, comps)
 
     pt_col = comps[0]
     weighted_pt = float(weighted[pt_col])
     # Regression uses weighted evidence, not the per-season average used for
     # playing time. Averaging first would multiply regression strength by the
     # sum of the season weights (12 for three seasons with weights 5/4/3).
-    evidence = weighted * sum(config.season_weights[: len(rows)])
+    evidence = weighted * sum(weights)
     evidence_pt = float(evidence[pt_col])
     reliability = safe_divide(evidence_pt, evidence_pt + reg_pt)
 
@@ -221,16 +225,17 @@ def project_team(
         display_name = sorted_grp["Name"].iloc[0]
         if not isinstance(display_name, str):
             raise ProjectionError("Encountered non-string player name in team input.")
-        projections.append(
-            project_player(
-                display_name,
-                sorted_grp.head(3),
-                kind,
-                year,
-                config,
-                league_rates=baseline_rates,
-            )
+        projection = project_player(
+            display_name,
+            sorted_grp.head(3),
+            kind,
+            year,
+            config,
+            league_rates=baseline_rates,
         )
+        if "PlayerID" in sorted_grp:
+            projection["PlayerID"] = sorted_grp["PlayerID"].iloc[0]
+        projections.append(projection)
     if not projections:
         raise ProjectionError("No players available to project for this team.")
     return pd.concat(projections, ignore_index=True)

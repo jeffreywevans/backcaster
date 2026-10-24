@@ -435,3 +435,18 @@ def test_pitcher_invalid_birth_year(birth: object) -> None:
     prior = _pitching_prior().assign(birthYear=birth)
     with pytest.raises(ProjectionError, match="valid birthYear"):
         project_player("Pitcher", prior, "pitching", 2026)
+
+
+def test_pitcher_missing_year_keeps_calendar_weights() -> None:
+    prior = _pitching_prior()
+    prior = prior[prior.Season != 2024]
+    result = project_player("Pitcher", prior, "pitching", 2026, age=29).iloc[0]
+    assert result["IP"] == pytest.approx((5 * 200 + 3 * 210) / 8)
+    assert result["Reliability"] == pytest.approx(1630 / 1830)
+
+
+def test_pitcher_future_season_has_no_evidence() -> None:
+    prior = _pitching_prior().iloc[[0]].assign(Season=2026)
+    result = project_player("Pitcher", prior, "pitching", 2026, age=29).iloc[0]
+    assert result["IP"] == 0
+    assert result["Reliability"] == 0

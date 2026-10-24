@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Add `hitters` and `pitchers` shortcuts for pre-offseason league projections without team filters or `--kind`.
+- Select players qualifying in at least one prior season, then retain all available history across teams and nonqualified seasons.
+- Keep pitcher season weights attached to calendar years when a player has missing seasons, and export pitcher PlayerID for comparisons.
+- Fix pitching team projections discarding seasons spent on other teams; verify traded players are combined before qualification and projected once.
+
 ## 0.3.5
 
 - Apply birth-year-based pitcher aging to earned runs, hits, HR, walks, and strikeouts, recomputing ERA and WHIP without changing projected IP or BF.

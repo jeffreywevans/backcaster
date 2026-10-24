@@ -26,8 +26,12 @@ from the adjusted components. The former uniform age multiplier on innings and
 all counts is removed for pitchers; it canceled out of ERA and WHIP.
 
 This is an aging change, not full marcelR pitching equivalence. Existing 5/4/3
-weights, 200-IP regression, qualified-player baselines, and weighted-average
-innings estimates remain. The reviewed marcelR 3/2/1 weights, 804 weighted
+weights, 200-IP regression, qualified-player league baselines, and weighted-average
+innings estimates remain. Eligibility is qualification in at least one prior
+season, but each selected pitcher's full available three-year history is used
+regardless of qualification or team. Trade stints are combined first. Weights remain attached to calendar years
+when a pitcher misses a season; a missing year does not promote an older
+season into the latest-year slot. Pitcher exports include PlayerID for matching. The reviewed marcelR 3/2/1 weights, 804 weighted
 regression outs, role-based playing time, and population rebaselining are not yet
 implemented. Historical published forecasts are therefore comparison targets,
 not exact expected matches.
