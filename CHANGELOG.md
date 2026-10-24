@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Project batter R, RBI, SB, CS, GDP, and IBB; derive TB and BA from full-precision hit components. Use the requested complete stat order and BA label.
+- Expand pitcher counts to W/L/SV/R/IBB/HBP/BK/WP and derive W-L%, per-nine rates, and SO/W. Format WHIP to three decimals, per-nine rates to one, and SO/W to two.
+- Share column-order constants across all exports, preserve identity metadata first, and document required CSV fields and formulas.
+
 ## 0.4.0
 
 - Add standalone styled HTML reports with Name/Year/Player ID/Age first, summary cards, search, numeric sorting, sticky headers/names, and print/mobile layouts.

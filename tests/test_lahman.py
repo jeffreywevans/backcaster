@@ -34,6 +34,12 @@ def lahman(tmp_path: Path) -> Path:
                     HR=20 if player != "minor" else 0,
                     BB=bb,
                     SO=100 if player != "minor" else 5,
+                    R=80 if player != "minor" else 2,
+                    RBI=75 if player != "minor" else 2,
+                    SB=10 if player != "minor" else 1,
+                    CS=3 if player != "minor" else 0,
+                    IBB=4 if player != "minor" else 0,
+                    GIDP=10 if player != "minor" else 1,
                     HBP=5,
                     SF=5,
                     SH=1,
@@ -46,6 +52,14 @@ def lahman(tmp_path: Path) -> Path:
                     stint=1,
                     teamID="BOS",
                     IPouts=487 if player != "minor" else 10,
+                    W=10,
+                    L=8,
+                    SV=0,
+                    R=65,
+                    IBB=3,
+                    HBP=4,
+                    BK=1,
+                    WP=2,
                     ER=60,
                     H=150,
                     HR=20,
@@ -82,7 +96,24 @@ def test_traded_player_combined_before_qualification(lahman: Path) -> None:
     frame = pd.read_csv(path)
     row = frame[(frame.playerID == "star") & (frame.yearID == 2021)].copy()
     frame = frame.drop(row.index)
-    for column in ["AB", "H", "2B", "3B", "HR", "BB", "SO", "HBP", "SF", "SH"]:
+    for column in [
+        "AB",
+        "H",
+        "2B",
+        "3B",
+        "HR",
+        "BB",
+        "SO",
+        "HBP",
+        "SF",
+        "SH",
+        "R",
+        "RBI",
+        "SB",
+        "CS",
+        "IBB",
+        "GIDP",
+    ]:
         row[column] = row[column] / 2
     second = row.assign(stint=2, teamID="LAN")
     pd.concat([frame, row, second]).to_csv(path, index=False)
@@ -90,6 +121,12 @@ def test_traded_player_combined_before_qualification(lahman: Path) -> None:
     star = season[season.PlayerID == "star"]
     assert len(star) == 1
     assert star.iloc[0]["PA"] == 571
+    assert star.iloc[0]["R"] == 80
+    assert star.iloc[0]["RBI"] == 75
+    assert star.iloc[0]["SB"] == 10
+    assert star.iloc[0]["CS"] == 3
+    assert star.iloc[0]["IBB"] == 4
+    assert star.iloc[0]["GDP"] == 10
     assert star.iloc[0]["Team"] == "LAN"
 
 
@@ -97,7 +134,7 @@ def test_short_season_threshold(lahman: Path) -> None:
     path = lahman / "Batting.csv"
     frame = pd.read_csv(path)
     frame.loc[frame.playerID == "star", ["AB", "BB", "HBP", "SF", "SH"]] = [190, 0, 0, 0, 0]
-    frame.loc[frame.playerID == "star", ["H", "SO"]] = [60, 20]
+    frame.loc[frame.playerID == "star", ["H", "SO", "IBB"]] = [60, 20, 0]
     frame.to_csv(path, index=False)
     source = LahmanSource(str(lahman))
     assert "star" in set(source.season(2020, "batting").PlayerID)
@@ -396,7 +433,23 @@ def test_pitcher_trade_stints_count_once_and_qualify_together(lahman: Path) -> N
     mask = (frame.playerID == "star") & (frame.yearID == 2021)
     row = frame[mask].copy()
     frame = frame[~mask]
-    for column in ["IPouts", "ER", "H", "HR", "BB", "SO", "BFP"]:
+    for column in [
+        "IPouts",
+        "ER",
+        "H",
+        "HR",
+        "BB",
+        "SO",
+        "BFP",
+        "W",
+        "L",
+        "SV",
+        "R",
+        "IBB",
+        "HBP",
+        "BK",
+        "WP",
+    ]:
         row[column] = row[column] / 2
     second = row.assign(stint=2, teamID="LAN")
     pd.concat([frame, row, second]).to_csv(path, index=False)
@@ -418,3 +471,23 @@ def test_pitcher_without_three_qualifying_seasons_can_be_selected(lahman: Path) 
     result = LahmanSource(str(lahman)).project("player", 2022, "pitching", name="Test Star")
     assert len(result) == 1
     assert result.loc[0, "IP"] == pytest.approx((5 * 487 / 3 + 4 * 30 + 3 * 30) / 12)
+
+
+@pytest.mark.parametrize(
+    "kind, schema",
+    [
+        ("batting", "PA,AB,R,H,2B,3B,HR,RBI,SB,CS,BB,SO,BA,OBP,SLG,OPS,TB,GDP,HBP,SH,SF,IBB"),
+        (
+            "pitching",
+            "W,L,W-L%,ERA,SV,IP,H,R,ER,HR,BB,IBB,SO,HBP,BK,WP,BF,WHIP,H9,HR9,BB9,SO9,SO/W",
+        ),
+    ],
+)
+def test_full_schema_in_cli_and_csv(lahman: Path, kind: str, schema: str) -> None:
+    from backcaster.outputs import to_cli_table, to_csv
+
+    frame = LahmanSource(str(lahman)).project("batch", 2022, kind)
+    expected = ["Name", "Year", "PlayerID", "Age", *schema.split(","), "Reliability"]
+    out = to_csv(frame, lahman / "schema.csv")
+    assert pd.read_csv(out).columns.tolist() == expected
+    assert to_cli_table(frame).splitlines()[0].split() == expected

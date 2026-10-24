@@ -7,30 +7,10 @@ from typing import Any
 
 import pandas as pd
 
-IDENTITY_COLUMNS = ("Name", "Year", "PlayerID", "Age")
-BATTING_COLUMNS = (
-    "PA",
-    "AB",
-    "H",
-    "2B",
-    "3B",
-    "HR",
-    "R",
-    "RBI",
-    "BB",
-    "SO",
-    "HBP",
-    "SF",
-    "SH",
-    "SB",
-    "CS",
-    "AVG",
-    "OBP",
-    "SLG",
-    "OPS",
-    "Reliability",
-)
-PITCHING_COLUMNS = ("IP", "ER", "H", "HR", "BB", "SO", "BF", "ERA", "WHIP", "Reliability")
+from backcaster.stat_columns import BATTING_STAT_COLUMNS, IDENTITY_COLUMNS, PITCHING_STAT_COLUMNS
+
+BATTING_COLUMNS = (*BATTING_STAT_COLUMNS, "Reliability")
+PITCHING_COLUMNS = (*PITCHING_STAT_COLUMNS, "Reliability")
 COLUMN_LABELS = {"PlayerID": "Player ID"}
 COLUMN_HELP = {
     "IP": "Innings in baseball notation: .1 = one out, .2 = two outs",
@@ -160,7 +140,26 @@ def _table(frame: pd.DataFrame, columns: list[str]) -> str:
     for row in frame.itertuples(index=False, name=None):
         cells = []
         for column, value in zip(columns, row):
-            style = ' class="rate"' if column in {"AVG", "OBP", "SLG", "OPS", "ERA", "WHIP"} else ""
+            style = (
+                ' class="rate"'
+                if column
+                in {
+                    "BA",
+                    "AVG",
+                    "OBP",
+                    "SLG",
+                    "OPS",
+                    "W-L%",
+                    "ERA",
+                    "WHIP",
+                    "H9",
+                    "HR9",
+                    "BB9",
+                    "SO9",
+                    "SO/W",
+                }
+                else ""
+            )
             cells.append(f"<td{style}>{escape(_cell(value))}</td>")
         rows.append('<tr data-player="true">' + "".join(cells) + "</tr>")
     return (
@@ -183,9 +182,9 @@ def render_report(display: pd.DataFrame) -> str:
     title = f"{kind} projections"
     count = len(frame)
     notes = (
-        "IP uses baseball notation: .1 is one out; .2 is two outs. ERA and WHIP use true innings before rounding."
+        "IP uses baseball notation: .1 is one out; .2 is two outs. ERA and per-nine rates use true innings before rounding. WHIP uses three decimals."
         if pitching
-        else "AVG, OBP, SLG, and OPS use three decimal places. Counting statistics are rounded to whole numbers."
+        else "BA, OBP, SLG, and OPS use three decimal places. Counting statistics are rounded to whole numbers."
     )
     return f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">

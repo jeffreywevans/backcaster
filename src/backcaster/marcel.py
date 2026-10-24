@@ -6,6 +6,7 @@ import pandas as pd
 
 from backcaster.normalize import safe_divide
 from backcaster.schemas import MarcelConfig
+from backcaster.stat_columns import PITCHING_EXTRA_COUNTS
 
 
 class ProjectionError(RuntimeError):
@@ -13,7 +14,7 @@ class ProjectionError(RuntimeError):
 
 
 BATTING_COMPONENTS = ["PA", "AB", "H", "2B", "3B", "HR", "BB", "SO", "HBP", "SF"]
-PITCHING_COMPONENTS = ["IP", "ER", "H", "HR", "BB", "SO", "BF"]
+PITCHING_COMPONENTS = ["IP", "ER", "H", "HR", "BB", "SO", "BF", *PITCHING_EXTRA_COUNTS]
 
 
 def _pitcher_age(prior: pd.DataFrame, year: int, fallback: float) -> float:
@@ -31,7 +32,7 @@ def _age_pitching(counts: pd.Series, age: float) -> pd.Series:
     # Copyright (c) 2017 Ben Dilday, MIT; see THIRD_PARTY_NOTICES.md.
     benefit = 1 / (1 + 0.003 * (age - 29)) if age > 29 else 1 + 0.006 * (29 - age)
     result = counts.copy()
-    result[["ER", "H", "HR", "BB"]] /= benefit
+    result[["ER", "H", "HR", "BB", "R", "IBB", "HBP", "BK", "WP"]] /= benefit
     result["SO"] *= benefit
     return result
 
@@ -62,7 +63,19 @@ def _derive_batting_rates(s: pd.Series) -> pd.Series:
 def _derive_pitching_rates(s: pd.Series) -> pd.Series:
     era = safe_divide(s["ER"] * 9, s["IP"])
     whip = safe_divide(s["H"] + s["BB"], s["IP"])
-    return pd.Series({"ERA": era, "WHIP": whip})
+    decisions = s.get("W", 0) + s.get("L", 0)
+    return pd.Series(
+        {
+            "W-L%": s.get("W", 0) / decisions if decisions else float("nan"),
+            "ERA": era,
+            "WHIP": whip,
+            "H9": safe_divide(s["H"] * 9, s["IP"]),
+            "HR9": safe_divide(s.get("HR", 0) * 9, s["IP"]),
+            "BB9": safe_divide(s["BB"] * 9, s["IP"]),
+            "SO9": safe_divide(s.get("SO", 0) * 9, s["IP"]),
+            "SO/W": s.get("SO", 0) / s["BB"] if s["BB"] else float("nan"),
+        }
+    )
 
 
 def _compute_baseline_rates(df: pd.DataFrame, comps: list[str]) -> tuple[float, dict[str, float]]:
@@ -140,7 +153,7 @@ def project_player(
 
     kind = _validate_projection_kind(kind)
     comps, reg_pt = _projection_components(kind, config)
-    optional_comps = {"HBP", "SF"} if kind == "batting" else set()
+    optional_comps = {"HBP", "SF"} if kind == "batting" else set(PITCHING_EXTRA_COUNTS)
     prior_df = _prepare_prior_df(prior_three, comps, optional_comps=optional_comps)
 
     rows = [prior_df.iloc[i] for i in range(min(3, prior_df.shape[0]))]

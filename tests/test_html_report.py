@@ -48,7 +48,7 @@ def test_identity_first_and_batting_order(tmp_path: Path) -> None:
                 PlayerID="judgeaa01",
                 Year=2025,
                 Name="Aaron Judge",
-                AVG=0.293,
+                BA=0.293,
                 Reliability=0.86,
             )
         ]
@@ -64,7 +64,7 @@ def test_identity_first_and_batting_order(tmp_path: Path) -> None:
         "Age",
         "PA",
         "HR",
-        "AVG",
+        "BA",
         "OPS",
         "Reliability",
     ]
@@ -115,17 +115,17 @@ def test_pitching_order_precision_and_notes(tmp_path: Path) -> None:
         "Year",
         "Player ID",
         "Age",
+        "ERA",
         "IP",
-        "ER",
         "H",
+        "ER",
         "HR",
         "BB",
         "SO",
         "BF",
-        "ERA",
         "WHIP",
     ]
-    assert parser.cells[4:] == ["161.1", "61", "130", "20", "50", "201", "700", "3.46", "1.23"]
+    assert parser.cells[4:] == ["3.46", "161.1", "130", "61", "20", "50", "201", "700", "1.234"]
     assert "Pitching projections" in text
     assert ".1 is one out" in text
 

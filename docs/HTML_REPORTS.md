@@ -15,11 +15,13 @@ and compact striped tables, with no third-party branding or copied assets.
 
 ## Layout and constants
 
+`src/backcaster/stat_columns.py` defines the canonical batter/pitcher schemas
+and identity columns shared by calculations and every output format.
 `src/backcaster/html_report.py` contains the report renderer and these constants:
 
-- `IDENTITY_COLUMNS`: Name, Year, PlayerID, Age. They are always the first four
+- `IDENTITY_COLUMNS` (imported): Name, Year, PlayerID, Age. They are always the first four
   columns; unavailable metadata displays as blank.
-- `BATTING_COLUMNS` and `PITCHING_COLUMNS`: preferred counting-stat/rate order.
+- `BATTING_COLUMNS` and `PITCHING_COLUMNS`: the shared canonical stat order.
   Additional fields are preserved after known statistics.
 - `COLUMN_LABELS` and `COLUMN_HELP`: display labels and column tooltips.
 - `REPORT_CSS`: theme, responsive layout, and print rules. Change the CSS custom

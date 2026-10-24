@@ -17,7 +17,7 @@ For age `a`, define a beneficial-performance factor:
 - Above 29: `1 / (1 + .003 * (a - 29))`.
 - At or below 29: `1 + .006 * (29 - a)`.
 
-After regression, multiply SO by this factor. Divide ER, H, HR, and BB by it,
+After regression, multiply SO by this factor. Divide ER, H, HR, BB, R, IBB, HBP, BK, and WP by it,
 then recompute ERA and WHIP. At 29 the factor is 1. Age 34 means 1.5% more earned
 runs/hits/walks/HR and SO divided by 1.015. At 25, SO increases 2.4% and the harmful
 counts are divided by 1.024. Age adjustments do not change reliability, projected
@@ -35,3 +35,25 @@ season into the latest-year slot. Pitcher exports include PlayerID for matching.
 regression outs, role-based playing time, and population rebaselining are not yet
 implemented. Historical published forecasts are therefore comparison targets,
 not exact expected matches.
+
+
+## Expanded pitcher statistics
+
+Pitching.csv must now include W, L, SV, R, IBB, HBP, BK, and WP. Aggregate all
+stints and project those counts using the existing per-IP weighting/regression
+and playing-time scale. W/L/SV retain that contextual projection without a
+separate age multiplier. The additional harmful-event counts R/IBB/HBP/BK/WP
+use the reciprocal age factor. This is an extension of the existing model, not
+an assertion that wins, saves, or balks follow a validated marcelR forecast.
+
+Rates use full-precision totals and true decimal innings:
+
+- W-L% = W/(W+L), displayed as a fraction with three decimals.
+- ERA = 9*ER/IP; WHIP = (H+BB)/IP.
+- H9, HR9, BB9, SO9 = 9 times the respective count divided by IP.
+- SO/W = SO/BB, including intentional walks within BB once.
+
+ERA has two display decimals, WHIP three, per-nine rates one, and SO/W two.
+Undefined W-L% (no decisions) and SO/W (no walks) are NaN internally and blank in
+exports. Existing zero-IP ERA/WHIP/per-nine behavior remains zero. R is total
+runs allowed, not a substitute for ER. All counts remain unrounded internally.
