@@ -49,10 +49,7 @@ class LahmanSource:
             raise DataFetchError(
                 f"Lahman {name}.csv has no data for {year}; choose a covered year or update the dataset."
             )
-        teams = self.read("Teams", {"yearID", "teamID", "G"})
-        games = pd.to_numeric(teams.loc[teams["yearID"] == year, "G"], errors="coerce").max()
-        if pd.isna(games) or games <= 0:
-            raise DataFetchError(f"Lahman Teams.csv has no valid game counts for {year}.")
+        games = self._season_games(year)
         if kind == "batting":
             for column in ["HBP", "SF", "SH"]:
                 if column not in stats:
@@ -82,6 +79,19 @@ class LahmanSource:
             totals = totals[totals["IPouts"] >= 3 * games]
         if totals.empty:
             raise DataFetchError(f"No qualified {kind} players in Lahman for {year}.")
+        totals = self._attach_names(totals)
+        totals["PlayerID"] = totals["playerID"]
+        totals["Season"] = year
+        return totals
+
+    def _season_games(self, year: int) -> float:
+        teams = self.read("Teams", {"yearID", "teamID", "G"})
+        games = pd.to_numeric(teams.loc[teams["yearID"] == year, "G"], errors="coerce").max()
+        if pd.isna(games) or games <= 0:
+            raise DataFetchError(f"Lahman Teams.csv has no valid game counts for {year}.")
+        return float(games)
+
+    def _attach_names(self, totals: pd.DataFrame) -> pd.DataFrame:
         people = self.read("People", {"playerID", "nameFirst", "nameLast"}).copy()
         people["Name"] = (
             people["nameFirst"].fillna("") + " " + people["nameLast"].fillna("")
@@ -96,8 +106,6 @@ class LahmanSource:
             raise DataFetchError(
                 "Lahman People.csv is missing players present in season statistics."
             )
-        totals["PlayerID"] = totals["playerID"]
-        totals["Season"] = year
         return totals
 
     def project(
