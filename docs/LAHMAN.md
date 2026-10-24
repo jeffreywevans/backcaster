@@ -13,8 +13,8 @@ This is the default directory on Windows. Elsewhere the default is
 `~/Baseball/lahman`. Use `LAHMAN_DATA_DIR` or `--data-dir` to select another
 location. All commands run offline, including when no `--data-dir` is supplied.
 Backcaster needs `People.csv`, `Teams.csv`, and `Batting.csv` or `Pitching.csv`,
-depending on the projection kind. Batters also require `Appearances.csv` and
-`People.csv.birthYear` for pitcher classification and age adjustment; see
+depending on the projection kind. Both kinds require `People.csv.birthYear`
+for age adjustment. Batters also require `Appearances.csv` for pitcher classification; see
 [the batter model](BATTER_MODEL.md). Keep those files from the same database edition.
 
 ```powershell

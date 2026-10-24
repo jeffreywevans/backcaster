@@ -43,8 +43,14 @@ They must not be described as equivalent without comparison tests.
 
 ## Attribution when adapting code
 
-No marcelR R source was copied or translated for this documentation change, and
-none of its data files are distributed here. Future adaptations should identify
+The initial review copied no R implementation. The subsequent pitcher-aging
+change adapts the equations from `R/utilities.R` and the stat-direction choices
+from `inst/scripts/marcel_data_exporter.R` into `_age_pitching` in
+`src/backcaster/marcel.py`, with the source revision and MIT attribution beside
+the function. Python-specific additions validate birth years and preserve
+projected IP and BF. This adaptation does not implement the rest of marcelR
+pitching or bundle any upstream data. See [pitcher aging](PITCHER_MODEL.md).
+Further adaptations should identify
 the source file and pinned revision alongside the Python implementation, describe
 substantive changes, and update these notes to distinguish reference-only work
 from actual adaptations. Preserve Ben Dilday's copyright and the complete MIT

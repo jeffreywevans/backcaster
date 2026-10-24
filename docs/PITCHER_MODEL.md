@@ -1,0 +1,33 @@
+# Pitcher aging
+
+Pitcher projections now use `projection year - People.csv.birthYear` for player,
+team, and batch commands. Missing, nonnumeric, nonfinite, or implausible birth
+years produce errors rather than silently assuming age 29. The low-level Python
+`project_player` function also accepts an explicit age for callers without birth
+years; its existing default remains 29 for those callers only.
+
+The aging equations and direction choices are adapted from Ben Dilday's marcelR,
+revision `13a1c7943f5a7317c9c812a28e299c2184060046`, `R/utilities.R` and
+`inst/scripts/marcel_data_exporter.R`. Copyright (c) 2017 Ben Dilday, MIT.
+See [the complete notice](../THIRD_PARTY_NOTICES.md) and
+[adaptation notes](MARCELR_REFERENCE.md).
+
+For age `a`, define a beneficial-performance factor:
+
+- Above 29: `1 / (1 + .003 * (a - 29))`.
+- At or below 29: `1 + .006 * (29 - a)`.
+
+After regression, multiply SO by this factor. Divide ER, H, HR, and BB by it,
+then recompute ERA and WHIP. At 29 the factor is 1. Age 34 means 1.5% more earned
+runs/hits/walks/HR and SO divided by 1.015. At 25, SO increases 2.4% and the harmful
+counts are divided by 1.024. Age adjustments do not change reliability, projected
+IP, or BF. BF is retained as the existing opportunity estimate, not rederived
+from the adjusted components. The former uniform age multiplier on innings and
+all counts is removed for pitchers; it canceled out of ERA and WHIP.
+
+This is an aging change, not full marcelR pitching equivalence. Existing 5/4/3
+weights, 200-IP regression, qualified-player baselines, and weighted-average
+innings estimates remain. The reviewed marcelR 3/2/1 weights, 804 weighted
+regression outs, role-based playing time, and population rebaselining are not yet
+implemented. Historical published forecasts are therefore comparison targets,
+not exact expected matches.

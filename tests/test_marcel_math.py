@@ -408,3 +408,30 @@ def test_one_season_regression_uses_only_available_weights() -> None:
     result = project_player("One Season", prior, "batting", 2025, league_rates=rates)
     assert float(result.loc[0, "HR"]) / float(result.loc[0, "PA"]) == pytest.approx(324 / 4200)
     assert float(result.loc[0, "Reliability"]) == pytest.approx(3000 / 4200)
+
+
+@pytest.mark.parametrize("age, factor", [(25, 1.024), (29, 1.0), (34, 1 / 1.015)])
+def test_pitcher_age_curve_changes_rates_not_opportunities(age: int, factor: float) -> None:
+    neutral = project_player("Pitcher", _pitching_prior(), "pitching", 2026, age=29).iloc[0]
+    result = project_player("Pitcher", _pitching_prior(), "pitching", 2026, age=age).iloc[0]
+    assert result["IP"] == pytest.approx(neutral["IP"])
+    assert result["BF"] == pytest.approx(neutral["BF"])
+    assert result["Reliability"] == pytest.approx(neutral["Reliability"])
+    for stat in ["ER", "H", "HR", "BB", "ERA", "WHIP"]:
+        assert result[stat] == pytest.approx(neutral[stat] / factor)
+    assert result["SO"] == pytest.approx(neutral["SO"] * factor)
+    assert result["Age"] == age
+
+
+def test_pitcher_birth_year_overrides_default_age() -> None:
+    prior = _pitching_prior().assign(birthYear=1992)
+    actual = project_player("Pitcher", prior, "pitching", 2026)
+    expected = project_player("Pitcher", _pitching_prior(), "pitching", 2026, age=34)
+    pd.testing.assert_frame_equal(actual, expected)
+
+
+@pytest.mark.parametrize("birth", [float("nan"), float("inf"), "unknown", 1800, 2025])
+def test_pitcher_invalid_birth_year(birth: object) -> None:
+    prior = _pitching_prior().assign(birthYear=birth)
+    with pytest.raises(ProjectionError, match="valid birthYear"):
+        project_player("Pitcher", prior, "pitching", 2026)
