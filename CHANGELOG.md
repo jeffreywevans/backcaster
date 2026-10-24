@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Add offline Lahman CSV projections through `--data-dir` for player, team, and
+  batch commands, with qualified-player filtering, season-length thresholds,
+  combined trade stints, and Lahman player identities.
+
 ## 0.3.0
 
 - Refactor CLI, player lookup, data, and projection exception tests so each assertion

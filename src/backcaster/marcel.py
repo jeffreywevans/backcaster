@@ -179,7 +179,10 @@ def project_team(
         comps = PITCHING_COMPONENTS
     baseline_source = baseline_df if baseline_df is not None else team_df
     _, baseline_rates = _compute_baseline_rates(baseline_source, comps)
-    group_column = team_df["IDfg"].fillna(team_df["Name"]) if "IDfg" in team_df.columns else "Name"
+    identity = "PlayerID" if "PlayerID" in team_df.columns else "IDfg"
+    group_column = (
+        team_df[identity].fillna(team_df["Name"]) if identity in team_df.columns else "Name"
+    )
     grouped = team_df.groupby(group_column, dropna=False, sort=False)
     projections: list[pd.DataFrame] = []
     for _, grp in grouped:
