@@ -25,10 +25,10 @@ Upgrade to the latest release available on PyPI:
 python -m pip install --upgrade backcaster
 ```
 
-To install a specific release, such as 0.3.2:
+To install a specific release, such as 0.3.3:
 
 ```powershell
-python -m pip install --upgrade backcaster==0.3.2
+python -m pip install --upgrade backcaster==0.3.3
 ```
 
 Run the command using the same Python environment where you run Backcaster.
