@@ -18,7 +18,6 @@ class MarcelConfig:
     regression_pa: float = 1200.0
     regression_ip: float = 200.0
     age_adjustment_fn: Callable[[float], float] = lambda age: 1.0 + (0.006 if age <= 29 else -0.003)
-    reliability_scale: float = 1200.0
     default_pa_growth: float = 1.0
     default_ip_growth: float = 1.0
 

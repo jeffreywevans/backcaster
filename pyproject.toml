@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "backcaster"
 dynamic = ["version"]
-description = "Marcel-style MLB projection CLI built on pybaseball"
+description = "Marcel-style MLB projection CLI using local Lahman CSV data"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -22,7 +22,6 @@ classifiers = [
 requires-python = ">=3.13"
 dependencies = [
   "pandas>=2.0",
-  "pybaseball>=2.2",
 ]
 
 [project.urls]
@@ -85,5 +84,5 @@ no_implicit_optional = true
 check_untyped_defs = true
 
 [[tool.mypy.overrides]]
-module = ["pandas", "pandas.*", "pybaseball", "pybaseball.*"]
+module = ["pandas", "pandas.*"]
 ignore_missing_imports = true

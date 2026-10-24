@@ -1,27 +1,28 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
+from pathlib import Path
 
 import pandas as pd
 
-from backcaster.data import (
-    DataFetchError,
-    PlayerLookupError,
-    fetch_season_stats,
-    lookup_player_ids,
-    resolve_player_lookup,
-)
+from backcaster.data import DataFetchError, PlayerLookupError
 from backcaster.lahman import LahmanSource
-from backcaster.marcel import ProjectionError, project_player, project_team
+from backcaster.marcel import ProjectionError
 from backcaster.outputs import to_cli_table, to_csv, to_html
 
 _FILE_RENDERERS = {"csv": to_csv, "html": to_html}
 _OUTPUT_FORMAT_CHOICES = ("cli", *_FILE_RENDERERS.keys())
 
 
-def _prior_years(year: int) -> tuple[int, int, int]:
-    return year - 1, year - 2, year - 3
+def _default_data_dir() -> str:
+    default = (
+        "C:/Baseball/lahman"
+        if sys.platform == "win32"
+        else str(Path.home() / "Baseball" / "lahman")
+    )
+    return os.environ.get("LAHMAN_DATA_DIR", default)
 
 
 def _render(df: pd.DataFrame, output_format: str, out: str | None) -> None:
@@ -35,93 +36,6 @@ def _render(df: pd.DataFrame, output_format: str, out: str | None) -> None:
         raise ValueError(f"Unsupported format: {output_format}")
 
 
-def _require_columns(
-    df: pd.DataFrame, required: set[str], *, context: str, error_cls: type[Exception]
-) -> None:
-    missing = sorted(required - set(df.columns))
-    if missing:
-        cols = ", ".join(missing)
-        raise error_cls(f"{context} missing required column(s): {cols}.")
-
-
-def run_player(args: argparse.Namespace) -> int:
-    years = _prior_years(args.year)
-    pid_df = lookup_player_ids(args.name)
-    resolved = resolve_player_lookup(args.name, pid_df, years)
-    fg_key = resolved.get("key_fangraphs")
-    fg_key_numeric = pd.to_numeric(fg_key, errors="coerce") if pd.notna(fg_key) else None
-
-    frames = []
-    league_frames = []
-    for y in years:
-        df = fetch_season_stats(y, args.kind)
-        league = df.copy()
-        league["Season"] = y
-        league_frames.append(league)
-
-        row = pd.DataFrame()
-        if pd.notna(fg_key_numeric) and "IDfg" in league.columns:
-            idfg_numeric = pd.to_numeric(league["IDfg"], errors="coerce")
-            row = league[idfg_numeric == fg_key_numeric].copy()
-
-        if row.empty and pd.isna(fg_key_numeric):
-            _require_columns(
-                league,
-                {"Name"},
-                context=f"Season {y} {args.kind} stats for name fallback",
-                error_cls=ProjectionError,
-            )
-            row = league[league["Name"].astype(str).str.casefold() == args.name.casefold()].copy()
-        if row.empty:
-            raise ProjectionError(f"Missing season {y} for player '{args.name}'.")
-        frames.append(row)
-
-    prior = pd.concat(frames, ignore_index=True).sort_values("Season", ascending=False)
-    league_prior = pd.concat(league_frames, ignore_index=True)
-    proj = project_player(args.name, prior, args.kind, args.year, league_df=league_prior)
-    _render(proj, args.format, args.out)
-    return 0
-
-
-def run_team(args: argparse.Namespace) -> int:
-    years = _prior_years(args.year)
-    team_frames = []
-    league_frames = []
-    for y in years:
-        df = fetch_season_stats(y, args.kind)
-        _require_columns(
-            df, {"Team"}, context=f"Season {y} {args.kind} stats", error_cls=DataFetchError
-        )
-        league = df.copy()
-        league["Season"] = y
-        league_frames.append(league)
-
-        row = df[df["Team"] == args.team].copy()
-        if row.empty:
-            raise ProjectionError(f"Missing season {y} for team '{args.team}'.")
-        row["Season"] = y
-        team_frames.append(row)
-    all_team = pd.concat(team_frames, ignore_index=True)
-    all_league = pd.concat(league_frames, ignore_index=True)
-    proj = project_team(all_team, args.kind, args.year, baseline_df=all_league)
-    _render(proj, args.format, args.out)
-    return 0
-
-
-def run_batch(args: argparse.Namespace) -> int:
-    years = _prior_years(args.year)
-    frames = []
-    for y in years:
-        df = fetch_season_stats(y, args.kind)
-        df = df.copy()
-        df["Season"] = y
-        frames.append(df)
-    all_players = pd.concat(frames, ignore_index=True)
-    proj = project_team(all_players, args.kind, args.year)
-    _render(proj, args.format, args.out)
-    return 0
-
-
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="backcaster")
     sub = p.add_subparsers(dest="command", required=True)
@@ -133,22 +47,20 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--out")
         sp.add_argument(
             "--data-dir",
-            help="Directory containing extracted Lahman CSVs (offline, qualified players only)",
+            default=_default_data_dir(),
+            help="Lahman CSV directory (default: LAHMAN_DATA_DIR, C:/Baseball/lahman on Windows, or ~/Baseball/lahman)",
         )
 
     pp = sub.add_parser("player")
     add_common(pp)
     pp.add_argument("--name", required=True)
-    pp.set_defaults(func=run_player)
 
     tp = sub.add_parser("team")
     add_common(tp)
     tp.add_argument("--team", required=True)
-    tp.set_defaults(func=run_team)
 
     bp = sub.add_parser("batch")
     add_common(bp)
-    bp.set_defaults(func=run_batch)
     return p
 
 
@@ -156,17 +68,15 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        if args.data_dir:
-            result = LahmanSource(args.data_dir).project(
-                args.command,
-                args.year,
-                args.kind,
-                name=getattr(args, "name", None),
-                team=getattr(args, "team", None),
-            )
-            _render(result, args.format, args.out)
-            return 0
-        return args.func(args)
+        result = LahmanSource(args.data_dir).project(
+            args.command,
+            args.year,
+            args.kind,
+            name=getattr(args, "name", None),
+            team=getattr(args, "team", None),
+        )
+        _render(result, args.format, args.out)
+        return 0
     except (DataFetchError, PlayerLookupError, ProjectionError, ValueError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 2

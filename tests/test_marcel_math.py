@@ -359,3 +359,52 @@ def test_project_team_rejects_non_string_name() -> None:
     invalid_name_df = _batting_prior().assign(Name=101)
     with pytest.raises(ProjectionError, match="non-string player name"):
         project_team(invalid_name_df, "batting", 2026)
+
+
+def test_batting_regression_uses_weighted_evidence_not_average() -> None:
+    # 7,200 weighted PA and 720 weighted HR, plus 1,200 PA at a 2% HR rate.
+    prior = pd.DataFrame(
+        [
+            _batting_row(season, 600, 500, 150, 25, 2, 60, 80, 100, 10, 10)
+            for season in [2024, 2023, 2022]
+        ]
+    )
+    rates = {column: 0.0 for column in BATTING_COMPONENTS[1:]}
+    rates["HR"] = 0.02
+    result = project_player("Power Hitter", prior, "batting", 2025, league_rates=rates)
+    expected_rate = (720 + 24) / (7200 + 1200)
+    assert float(result.loc[0, "HR"]) / float(result.loc[0, "PA"]) == pytest.approx(expected_rate)
+    assert float(result.loc[0, "Reliability"]) == pytest.approx(7200 / 8400)
+
+
+def test_pitching_regression_and_reliability_use_innings_evidence() -> None:
+    prior = pd.DataFrame(
+        [
+            {
+                "Season": season,
+                "IP": 180,
+                "ER": 60,
+                "H": 150,
+                "HR": 20,
+                "BB": 50,
+                "SO": 200,
+                "BF": 750,
+            }
+            for season in [2024, 2023, 2022]
+        ]
+    )
+    rates = {column: 0.0 for column in PITCHING_COMPONENTS[1:]}
+    rates["ER"] = 0.5  # League ERA 4.50, observed player ERA 3.00.
+    result = project_player("Starter", prior, "pitching", 2025, league_rates=rates)
+    # 2,160 weighted IP, 720 weighted ER, plus 200 IP at 0.5 ER/IP.
+    assert float(result.loc[0, "ERA"]) == pytest.approx(9 * (720 + 100) / (2160 + 200))
+    assert float(result.loc[0, "Reliability"]) == pytest.approx(2160 / 2360)
+
+
+def test_one_season_regression_uses_only_available_weights() -> None:
+    prior = pd.DataFrame([_batting_row(2024, 600, 500, 150, 25, 2, 60, 80, 100, 10, 10)])
+    rates = {column: 0.0 for column in BATTING_COMPONENTS[1:]}
+    rates["HR"] = 0.02
+    result = project_player("One Season", prior, "batting", 2025, league_rates=rates)
+    assert float(result.loc[0, "HR"]) / float(result.loc[0, "PA"]) == pytest.approx(324 / 4200)
+    assert float(result.loc[0, "Reliability"]) == pytest.approx(3000 / 4200)

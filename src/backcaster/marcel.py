@@ -128,7 +128,12 @@ def project_player(
 
     pt_col = comps[0]
     weighted_pt = float(weighted[pt_col])
-    reliability = min(1.0, safe_divide(weighted_pt, config.reliability_scale))
+    # Regression uses weighted evidence, not the per-season average used for
+    # playing time. Averaging first would multiply regression strength by the
+    # sum of the season weights (12 for three seasons with weights 5/4/3).
+    evidence = weighted * sum(config.season_weights[: len(rows)])
+    evidence_pt = float(evidence[pt_col])
+    reliability = safe_divide(evidence_pt, evidence_pt + reg_pt)
 
     if league_rates is None:
         baseline_df = league_df if league_df is not None else prior_df
@@ -138,7 +143,7 @@ def project_player(
     regressed[pt_col] = weighted_pt
     for c in comps[1:]:
         regressed_rate = safe_divide(
-            float(weighted[c]) + league_rates[c] * reg_pt, weighted_pt + reg_pt
+            float(evidence[c]) + league_rates[c] * reg_pt, evidence_pt + reg_pt
         )
         regressed[c] = regressed_rate * weighted_pt
 

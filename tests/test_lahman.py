@@ -106,8 +106,8 @@ def test_offline_cli(
     def forbidden(*args, **kwargs):
         raise AssertionError("offline mode attempted network access")
 
-    monkeypatch.setattr("backcaster.cli.lookup_player_ids", forbidden)
-    monkeypatch.setattr("backcaster.cli.fetch_season_stats", forbidden)
+    monkeypatch.setattr("socket.create_connection", forbidden)
+    monkeypatch.setattr("socket.socket.connect", forbidden)
     out = lahman / "projection.csv"
     args = [
         command,
@@ -237,3 +237,28 @@ def test_qualification_boundary(lahman: Path) -> None:
     frame.loc[frame.playerID == "other", "IPouts"] = 485
     frame.to_csv(path, index=False)
     assert set(LahmanSource(str(lahman)).season(2021, "pitching").PlayerID) == {"star"}
+
+
+def test_default_command_uses_local_files(
+    lahman: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def forbidden(*args, **kwargs):
+        raise AssertionError("local command attempted network access")
+
+    monkeypatch.setattr("socket.create_connection", forbidden)
+    monkeypatch.setattr("socket.socket.connect", forbidden)
+    monkeypatch.setenv("LAHMAN_DATA_DIR", str(lahman))
+    assert main(["player", "--name", "Test Star", "--year", "2022", "--kind", "batting"]) == 0
+    assert "Test Star" in capsys.readouterr().out
+
+
+def test_missing_default_files_never_fall_back_to_network(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def forbidden(*args, **kwargs):
+        raise AssertionError("missing data triggered network fallback")
+
+    monkeypatch.setattr("socket.socket.connect", forbidden)
+    monkeypatch.setenv("LAHMAN_DATA_DIR", str(tmp_path))
+    assert main(["player", "--name", "Test Star", "--year", "2022", "--kind", "batting"]) == 2
+    assert "Expected Batting.csv" in capsys.readouterr().err
