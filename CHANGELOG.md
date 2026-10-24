@@ -1,10 +1,17 @@
 # Changelog
 
-## Unreleased
+## 0.4.1
 
 - Project batter R, RBI, SB, CS, GDP, and IBB; derive TB and BA from full-precision hit components. Use the requested complete stat order and BA label.
 - Expand pitcher counts to W/L/SV/R/IBB/HBP/BK/WP and derive W-L%, per-nine rates, and SO/W. Format WHIP to three decimals, per-nine rates to one, and SO/W to two.
 - Share column-order constants across all exports, preserve identity metadata first, and document required CSV fields and formulas.
+
+Export compatibility: batter exports now label batting average `BA` instead of
+`AVG` and include the expanded stat columns in the documented order. WHIP now
+has three decimal places. Local Lahman batting files must include R, RBI, SB,
+CS, IBB, and GIDP; pitching files must include W, L, SV, R, IBB, HBP, BK, and WP.
+Rates are calculated from unrounded projections; IBB remains part of BB and is
+not counted again in PA or OBP. Python 3.13+ remains required.
 
 ## 0.4.0
 
