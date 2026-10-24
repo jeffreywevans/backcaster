@@ -6,6 +6,9 @@ on:
       - published
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build distribution
@@ -23,10 +26,36 @@ jobs:
           python-version: "3.13"
 
       - name: Install build backend
-        run: python -m pip install --upgrade build
+        run: python -m pip install --upgrade build twine
+
+      - name: Verify release tag matches package version
+        if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          python - <<'PY'
+          import os
+          import runpy
+
+          version = runpy.run_path("src/backcaster/__init__.py")["__version__"]
+          tag = os.environ["RELEASE_TAG"]
+          if tag not in (version, f"v{version}"):
+              raise SystemExit(f"Release tag {tag!r} does not match package version {version!r}")
+          PY
 
       - name: Build sdist and wheel
         run: python -m build
+
+      - name: Validate distribution metadata
+        run: python -m twine check --strict dist/*
+
+      - name: Smoke test installed wheel
+        run: |
+          python -m venv /tmp/backcaster-wheel
+          /tmp/backcaster-wheel/bin/python -m pip install dist/*.whl
+          cd /tmp
+          /tmp/backcaster-wheel/bin/python -c 'from backcaster import __version__; print(__version__)'
+          /tmp/backcaster-wheel/bin/backcaster --help
 
       - name: Upload package artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -38,6 +67,7 @@ jobs:
     name: Publish distribution to PyPI
     runs-on: ubuntu-latest
     needs: build
+    if: github.event_name == 'release' && !github.event.release.prerelease
     environment:
       name: pypi
       url: https://pypi.org/p/backcaster

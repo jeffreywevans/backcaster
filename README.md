@@ -168,6 +168,9 @@ Do not hand-edit `uv.lock`; regenerate it when dependencies change.
 
 ## Development and quality checks
 
+For release preparation and PyPI Trusted Publishing, see [RELEASING.md](RELEASING.md).
+Changes for the next release are recorded in [CHANGELOG.md](CHANGELOG.md).
+
 ### Run tests
 
 ```bash
