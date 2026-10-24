@@ -1,65 +1,14 @@
 from __future__ import annotations
 
 import runpy
-from argparse import Namespace
-from typing import Any
 
 import pandas as pd
 import pytest
 
 from backcaster import cli
-from backcaster.cli import (
-    _prior_years,
-    _render,
-    build_parser,
-    main,
-    run_batch,
-    run_player,
-    run_team,
-)
+from backcaster.cli import _default_data_dir, _render, build_parser, main
 from backcaster.data import DataFetchError, PlayerLookupError
 from backcaster.marcel import ProjectionError
-
-
-def _team_args(**overrides: object) -> Namespace:
-    args = {
-        "team": "NYY",
-        "year": 2026,
-        "kind": "batting",
-        "format": "cli",
-        "out": None,
-    }
-    args.update(overrides)
-    return Namespace(**args)
-
-
-def _player_args(**overrides: object) -> Namespace:
-    args = {
-        "name": "John Smith",
-        "year": 2026,
-        "kind": "batting",
-        "format": "cli",
-        "out": None,
-    }
-    args.update(overrides)
-    return Namespace(**args)
-
-
-def _stub_render(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("backcaster.cli._render", lambda *_a, **_k: None)
-
-
-def _stub_player_lookup(monkeypatch: pytest.MonkeyPatch, fangraphs_id: Any = 101) -> None:
-    monkeypatch.setattr(
-        "backcaster.cli.lookup_player_ids", lambda _n: pd.DataFrame([{"name_given": "John Smith"}])
-    )
-    monkeypatch.setattr(
-        "backcaster.cli.resolve_player_lookup", lambda *_a: {"key_fangraphs": fangraphs_id}
-    )
-
-
-def test_prior_years_returns_previous_three() -> None:
-    assert _prior_years(2026) == (2025, 2024, 2023)
 
 
 def test_render_cli_prints_table(
@@ -101,62 +50,6 @@ def test_render_rejects_unsupported_format() -> None:
         _render(df, "pdf", None)
 
 
-def test_run_team_success(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "backcaster.cli.fetch_season_stats",
-        lambda y, _k: pd.DataFrame([{"Team": "NYY", "WAR": y}]),
-    )
-    monkeypatch.setattr(
-        "backcaster.cli.project_team", lambda *_a, **_k: pd.DataFrame([{"Team": "NYY"}])
-    )
-    _stub_render(monkeypatch)
-
-    assert run_team(_team_args()) == 0
-
-
-def test_run_team_raises_when_missing_season(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "backcaster.cli.fetch_season_stats", lambda _y, _k: pd.DataFrame([{"Team": "BOS"}])
-    )
-
-    args = _team_args()
-    with pytest.raises(ProjectionError, match="Missing season 2025 for team 'NYY'"):
-        run_team(args)
-
-
-def test_run_team_missing_team_column_raises_data_fetch_error(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        "backcaster.cli.fetch_season_stats", lambda _y, _k: pd.DataFrame([{"WAR": 5.1}])
-    )
-
-    args = _team_args()
-    with pytest.raises(
-        DataFetchError, match=r"Season 2025 batting stats missing required column\(s\): Team\."
-    ):
-        run_team(args)
-
-
-def test_run_batch_success(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "backcaster.cli.fetch_season_stats", lambda y, _k: pd.DataFrame([{"Name": f"P{y}"}])
-    )
-    monkeypatch.setattr(
-        "backcaster.cli.project_team", lambda *_a, **_k: pd.DataFrame([{"Name": "Projected"}])
-    )
-    _stub_render(monkeypatch)
-
-    assert run_batch(Namespace(year=2026, kind="batting", format="cli", out=None)) == 0
-
-
-def test_main_success_path(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("backcaster.cli.run_team", lambda _args: 0)
-    parser = build_parser()
-    parsed = parser.parse_args(["team", "--year", "2026", "--kind", "batting", "--team", "NYY"])
-    assert parsed.func(parsed) == 0
-
-
 @pytest.mark.parametrize(
     ("exc", "msg"),
     [
@@ -172,10 +65,10 @@ def test_main_error_handling(
     exc: Exception,
     msg: str,
 ) -> None:
-    def _boom(_args: Namespace) -> int:
+    def _boom(*_args, **_kwargs):
         raise exc
 
-    monkeypatch.setattr("backcaster.cli.run_team", _boom)
+    monkeypatch.setattr("backcaster.cli.LahmanSource.project", _boom)
 
     rc = main(["team", "--year", "2026", "--kind", "batting", "--team", "NYY"])
 
@@ -190,70 +83,20 @@ def test_main_block_via_runpy_warns_and_exits() -> None:
         runpy.run_module("backcaster.cli", run_name="__main__")
 
 
-def test_run_player_matches_fangraphs_id_successfully(monkeypatch: pytest.MonkeyPatch) -> None:
-    _stub_player_lookup(monkeypatch, fangraphs_id=101)
-    monkeypatch.setattr(
-        "backcaster.cli.fetch_season_stats",
-        lambda y, _k: pd.DataFrame([{"IDfg": 101, "Name": "Someone Else", "PA": 500, "Season": y}]),
-    )
-    monkeypatch.setattr(
-        "backcaster.cli.project_player", lambda *_a, **_k: pd.DataFrame([{"Name": "John Smith"}])
-    )
-    _stub_render(monkeypatch)
+@pytest.mark.parametrize("platform, expected", [("win32", "C:/Baseball/lahman"), ("linux", None)])
+def test_default_data_directory(
+    monkeypatch: pytest.MonkeyPatch, platform: str, expected: str | None
+) -> None:
+    from pathlib import Path
 
-    assert run_player(_player_args()) == 0
+    monkeypatch.delenv("LAHMAN_DATA_DIR", raising=False)
+    monkeypatch.setattr(cli.sys, "platform", platform)
+    assert _default_data_dir() == (expected or str(Path.home() / "Baseball" / "lahman"))
 
 
-def test_run_player_missing_idfg_column_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    _stub_player_lookup(monkeypatch, fangraphs_id=101)
-    monkeypatch.setattr(
-        "backcaster.cli.fetch_season_stats", lambda _y, _k: pd.DataFrame([{"Name": "John Smith"}])
-    )
-
-    args = _player_args()
-    with pytest.raises(ProjectionError, match="Missing season 2025"):
-        run_player(args)
-
-
-def test_run_player_blank_fangraphs_id_falls_back_to_name(monkeypatch: pytest.MonkeyPatch) -> None:
-    _stub_player_lookup(monkeypatch, fangraphs_id=float("nan"))
-    monkeypatch.setattr(
-        "backcaster.cli.fetch_season_stats",
-        lambda _y, _k: pd.DataFrame([{"Name": "john smith", "PA": 500}]),
-    )
-    monkeypatch.setattr(
-        "backcaster.cli.project_player", lambda *_a, **_k: pd.DataFrame([{"Name": "John Smith"}])
-    )
-    _stub_render(monkeypatch)
-
-    assert run_player(_player_args()) == 0
-
-
-def test_run_player_name_fallback_failure_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    _stub_player_lookup(monkeypatch, fangraphs_id=None)
-    monkeypatch.setattr(
-        "backcaster.cli.fetch_season_stats", lambda _y, _k: pd.DataFrame([{"Name": "Not Him"}])
-    )
-
-    args = _player_args()
-    with pytest.raises(ProjectionError, match="Missing season 2025"):
-        run_player(args)
-
-
-def test_run_player_duplicate_id_rows_are_handled(monkeypatch: pytest.MonkeyPatch) -> None:
-    _stub_player_lookup(monkeypatch, fangraphs_id=101)
-    monkeypatch.setattr(
-        "backcaster.cli.fetch_season_stats",
-        lambda _y, _k: pd.DataFrame(
-            [
-                {"IDfg": 101, "Name": "John Smith", "PA": 500},
-                {"IDfg": 101, "Name": "John Smith", "PA": 510},
-            ]
-        ),
-    )
-    monkeypatch.setattr(
-        "backcaster.cli.project_player", lambda *_a, **_k: pd.DataFrame([{"Name": "John Smith"}])
-    )
-    _stub_render(monkeypatch)
-
-    assert run_player(_player_args()) == 0
+def test_data_directory_precedence(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    monkeypatch.setenv("LAHMAN_DATA_DIR", str(tmp_path))
+    parser = build_parser()
+    args = ["batch", "--year", "2024", "--kind", "batting"]
+    assert parser.parse_args(args).data_dir == str(tmp_path)
+    assert parser.parse_args([*args, "--data-dir", "custom"]).data_dir == "custom"

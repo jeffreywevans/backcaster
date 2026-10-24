@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Correct regression to use weighted evidence totals and derive reliability from
+  the observed-evidence fraction; document the math audit and remaining model differences.
+
+- Use local Lahman CSVs for all projections; remove online FanGraphs retrieval, player-register downloads, and the pybaseball dependency.
+- Default to `C:\Baseball\lahman` on Windows or `~/Baseball/lahman` elsewhere, with `LAHMAN_DATA_DIR` and `--data-dir` overrides.
+
 ## 0.3.2
 
 - Document pip upgrades, installing a specific release, and checking the installed version.

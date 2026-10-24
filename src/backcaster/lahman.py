@@ -21,7 +21,10 @@ class LahmanSource:
                 p for p in self.directory.glob("*") if p.name.casefold() == f"{name}.csv".casefold()
             ]
             if len(paths) != 1:
-                raise DataFetchError(f"Expected {name}.csv in Lahman directory '{self.directory}'.")
+                raise DataFetchError(
+                    f"Expected {name}.csv in Lahman directory '{self.directory}'. "
+                    "Extract the Lahman CSVs there or select their directory with --data-dir."
+                )
             try:
                 self.tables[name] = pd.read_csv(paths[0], encoding="utf-8-sig", low_memory=False)
             except (OSError, ValueError) as exc:

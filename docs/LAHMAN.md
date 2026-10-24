@@ -9,6 +9,9 @@ The official database site is <https://sabr.org/lahman-database/>.
 
 Use the comma-delimited CSV distribution, rather than the Access or MSSQL files.
 Extract the files directly into a directory such as `C:\Baseball\lahman`.
+This is the default directory on Windows. Elsewhere the default is
+`~/Baseball/lahman`. Use `LAHMAN_DATA_DIR` or `--data-dir` to select another
+location. All commands run offline, including when no `--data-dir` is supplied.
 Backcaster needs `People.csv`, `Teams.csv`, and `Batting.csv` or `Pitching.csv`,
 depending on the projection kind. Keep those files from the same database edition.
 

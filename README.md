@@ -1,6 +1,6 @@
 # Backcaster
 
-Backcaster is a Python CLI that produces **Marcel-style MLB projections** from the prior three seasons of data using [`pybaseball`](https://github.com/jldbc/pybaseball) and `pandas`.
+Backcaster is a Python CLI that produces **Marcel-style MLB projections** from the prior three seasons of data using local Lahman CSV files and `pandas`.
 
 It supports:
 - **Single player projections** (`player`)
@@ -14,7 +14,8 @@ It supports:
 
 ### Requirements
 - Python **3.13+**
-- Internet access for first-time stat fetches (data is cached locally afterward)
+- An extracted Lahman CSV database covering the three prior seasons
+- Internet access for package installation only; projections run offline
 
 ### Update an installed package
 
@@ -86,11 +87,19 @@ backcaster player --name "Mookie Betts" --year 2026 --kind batting
 
 ### Offline projections with Lahman CSVs
 
-Extract your Lahman CSV distribution into a local directory. Pass `--data-dir`
-to use it without any network requests, player-register downloads, or FanGraphs
-cache reads. The directory must contain `People.csv`, `Teams.csv`, and
+All projections use local Lahman CSVs. On Windows, the default directory is
+`C:\Baseball\lahman`; on other systems it is `~/Baseball/lahman`.
+Set the `LAHMAN_DATA_DIR` environment variable to change the default, or pass
+`--data-dir` to override it for one command. No network requests or online
+fallbacks are made. The directory must contain `People.csv`, `Teams.csv`, and
 `Batting.csv` or `Pitching.csv` for the selected kind. Filenames are matched
 without regard to case. The database is not bundled with Backcaster.
+
+For the default Windows directory, no additional flag is needed:
+
+```powershell
+backcaster player --name "Mookie Betts" --year 2024 --kind batting
+```
 
 See [Lahman database notes](docs/LAHMAN.md) for the supplied 1871–2025 edition's
 coverage, attribution, license, and historical-data caveats, with its original README.
@@ -104,8 +113,8 @@ backcaster batch --year 2022 --kind pitching --data-dir "C:\Baseball\lahman" --f
 Use Lahman's `teamID` values, such as `LAN` for the Dodgers (rather than the
 FanGraphs abbreviation `LAD`). A projection year needs the preceding three seasons:
 2022 requires 2019–2021. Missing seasons produce an error explaining which year
-is unavailable. Without `--data-dir`, the existing pybaseball source is used;
-FanGraphs may reject its automated requests with HTTP 403.
+is unavailable. If the directory or required files are missing, the command
+reports the missing file and directory; it never attempts an online fetch.
 
 Offline qualification uses a consistent modern rule across historical seasons:
 at least **3.1 PA per game** for hitters and **one inning per game** for pitchers.
@@ -132,7 +141,7 @@ to the team in their latest stint for that season; this is not a current-roster 
 ### 2) Team projection
 
 ```bash
-backcaster team --team LAD --year 2026 --kind pitching
+backcaster team --team LAN --year 2026 --kind pitching
 ```
 
 ### 3) Batch projection (all players returned by source data)
@@ -145,7 +154,7 @@ backcaster batch --year 2026 --kind batting
 
 ```bash
 backcaster player --name "Mookie Betts" --year 2026 --kind batting --format csv --out ./out/mookie_2026.csv
-backcaster team --team LAD --year 2026 --kind pitching --format html --out ./out/lad_pitching_2026.html
+backcaster team --team LAN --year 2026 --kind pitching --format html --out ./out/lan_pitching_2026.html
 ```
 
 > `--out` is required for `csv` and `html` formats.
@@ -171,24 +180,11 @@ A basic HTML table (no custom CSS) suitable for quick sharing or embedding.
 
 ---
 
-## Cache behavior
+## Local data updates
 
-Backcaster caches season stat pulls under:
-
-```text
-~/.cache/backcaster/
-```
-
-Cache details:
-- Key pattern: `<kind>_<year>.parquet` (preferred) or `<kind>_<year>.csv` (fallback)
-- Read order: Parquet first, then CSV
-- Write behavior: atomic temp-file write + rename to reduce corruption risk
-- Parquet write failures automatically fall back to CSV
-
-Practical implications:
-- First run for a season may be slower (network fetch).
-- Re-runs are typically faster (local cache hit).
-- If upstream data changes and you need a refresh, delete the relevant cache file(s) and rerun.
+Backcaster reads the local CSV files for each command and does not use the old
+FanGraphs season cache. To refresh the data, replace the CSVs with a complete
+Lahman distribution from the same edition. Existing online caches are ignored.
 
 ---
 
@@ -196,7 +192,6 @@ Practical implications:
 
 Runtime dependencies are intentionally minimal:
 - `pandas` for tabular data processing and projection output
-- `pybaseball` for MLB player/team seasonal stat retrieval and player ID lookup
 
 Development dependencies (`--extra dev`) include:
 - `pytest`, `pytest-cov`
