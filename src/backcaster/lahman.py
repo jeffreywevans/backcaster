@@ -126,27 +126,31 @@ class LahmanSource:
         else:
             self.read("People", {"playerID", "nameFirst", "nameLast", "birthYear"})
             seasons = pd.concat(
-                [self.season(y, kind) for y in (year - 1, year - 2, year - 3)], ignore_index=True
+                [self.season(y, kind, qualified=False) for y in (year - 1, year - 2, year - 3)],
+                ignore_index=True,
             )
+        eligible = seasons[seasons["Qualified"]]
         if command == "player":
-            matches = self._player_seasons(seasons, name)
+            candidates = self._player_seasons(eligible, name)
+            matches = seasons[seasons["PlayerID"] == candidates["PlayerID"].iloc[0]]
             if kind == "batting":
                 return batting[batting["PlayerID"] == matches["PlayerID"].iloc[0]].reset_index(
                     drop=True
                 )
             return project_player(
-                str(matches["Name"].iloc[0]), matches, kind, year, league_df=seasons
-            )
-        selected = seasons
+                str(matches["Name"].iloc[0]), matches, kind, year, league_df=eligible
+            ).assign(PlayerID=matches["PlayerID"].iloc[0])
+        selected = eligible
         if command == "team":
-            selected = seasons[seasons["Team"].str.casefold() == (team or "").casefold()]
+            selected = eligible[eligible["Team"].str.casefold() == (team or "").casefold()]
             if selected.empty:
                 raise ProjectionError(
                     f"No qualified players for Lahman team ID '{team}' in the prior three seasons."
                 )
         if kind == "batting":
             return batting[batting["PlayerID"].isin(selected["PlayerID"])].reset_index(drop=True)
-        return project_team(selected, kind, year, baseline_df=seasons)
+        history = seasons[seasons["PlayerID"].isin(selected["PlayerID"])]
+        return project_team(history, kind, year, baseline_df=eligible)
 
     def _batting_population(self, year: int) -> tuple[pd.DataFrame, pd.DataFrame]:
         self.read("People", {"playerID", "nameFirst", "nameLast", "birthYear"})
@@ -179,7 +183,7 @@ class LahmanSource:
         qualified = seasons[seasons["Qualified"]]
         if qualified.empty:
             raise ProjectionError("No qualified non-pitcher batters in the prior three seasons.")
-        return qualified, projected
+        return seasons, projected
 
     def _player_seasons(self, seasons: pd.DataFrame, name: str | None) -> pd.DataFrame:
         normalized = " ".join((name or "").casefold().split())
@@ -195,6 +199,4 @@ class LahmanSource:
             raise PlayerLookupError(
                 f"Ambiguous Lahman name '{name}'; matching player IDs: {', '.join(ids)}."
             )
-        if matches["Season"].nunique() != 3:
-            raise ProjectionError(f"Player '{name}' must qualify in all three prior seasons.")
         return matches

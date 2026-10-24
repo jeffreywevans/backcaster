@@ -5,7 +5,7 @@ Backcaster is a Python CLI that produces **Marcel-style MLB projections** from t
 It supports:
 - **Single player projections** (`player`)
 - **Single team projections** (`team`)
-- **League-wide batch projections** (`batch`)
+- **League-wide projections** (`hitters`, `pitchers`, or `batch`)
 - Output as terminal table, CSV, or HTML
 
 ---
@@ -66,9 +66,9 @@ pip install dist/backcaster-*.whl
 
 ## Quickstart CLI usage
 
-All commands require:
-- `--year` target projection year
-- `--kind` one of `batting` or `pitching`
+All commands require `--year`, the target projection year.
+The `player`, `team`, and `batch` commands also require `--kind batting|pitching`.
+The `hitters` and `pitchers` commands choose their kind automatically.
 
 Subcommand-specific required options:
 - `player` requires `--name`
@@ -78,6 +78,28 @@ Subcommand-specific required options:
 ```bash
 backcaster <player|team|batch> [subcommand-options] --year <YEAR> --kind <batting|pitching> [--format cli|csv|html] [--out PATH]
 ```
+
+### Pre-offseason league projections
+
+Once the latest regular season is present in your local Lahman files, generate
+both populations without roster updates or team filters:
+
+```powershell
+backcaster hitters --year 2026 --format csv --out hitters_2026.csv
+backcaster pitchers --year 2026 --format csv --out pitchers_2026.csv
+```
+
+`--year 2026` projects 2026 from 2023–2025; it never reads 2026 statistics.
+Both commands support `--data-dir`, `--format cli|csv|html`, and `--out`.
+They are shortcuts for `batch --kind batting` and `batch --kind pitching`.
+
+Players qualify for selection by meeting the existing PA/IP threshold in at least
+one of those three seasons. This is a historical eligibility list, not an active
+roster; pitchers who never reach the qualifying innings threshold (including most
+relievers) remain excluded. Qualification selects players without removing their
+other seasons from the calculation. Trades are combined into one player-season
+before qualification, and all teams' statistics contribute once. The output is
+one row per selected player, ready for comparison with reference projections.
 
 ### 1) Player projection
 
@@ -138,9 +160,9 @@ qualification selects the displayed players. Pitching retains its qualified-only
 baseline, with real-age performance adjustments documented in
 [the pitcher model](docs/PITCHER_MODEL.md). See [the batter model](docs/BATTER_MODEL.md) for the six-stage calculation,
 real-age adjustment, PA formula, and explicit rebaselining choices.
-Single-player projections require qualification in all three preceding seasons.
-Team and batch projections use each player's available qualified seasons within
-that window. For team selection, a traded player's full-season totals are assigned
+Eligibility means qualifying in at least one of the three preceding seasons.
+For every selected player, projections use all available seasons in that window,
+including nonqualified seasons and seasons spent with other teams. For team selection, a traded player's full-season totals are assigned
 to the team in their latest stint for that season; this is not a current-roster forecast.
 
 ### 2) Team projection

@@ -102,8 +102,8 @@ def test_short_season_threshold(lahman: Path) -> None:
     source = LahmanSource(str(lahman))
     assert "star" in set(source.season(2020, "batting").PlayerID)
     assert "star" not in set(source.season(2021, "batting").PlayerID)
-    with pytest.raises(ProjectionError, match="all three"):
-        source.project("player", 2022, "batting", name="Test Star")
+    result = source.project("player", 2022, "batting", name="Test Star")
+    assert result.loc[0, "PA"] == pytest.approx(0.5 * 190 + 0.1 * 190 + 200)
 
 
 @pytest.mark.parametrize("command", ["player", "team", "batch"])
@@ -358,3 +358,63 @@ def test_pitcher_requires_birth_year(lahman: Path) -> None:
     source = LahmanSource(str(lahman))
     with pytest.raises(DataFetchError, match="birthYear"):
         source.project("batch", 2022, "pitching")
+
+
+@pytest.mark.parametrize("command, kind", [("hitters", "batting"), ("pitchers", "pitching")])
+def test_league_commands_match_batch(lahman: Path, command: str, kind: str) -> None:
+    out = lahman / f"{command}.csv"
+    batch = lahman / "batch.csv"
+    common = ["--year", "2022", "--data-dir", str(lahman), "--format", "csv"]
+    assert main([command, *common, "--out", str(out)]) == 0
+    assert main(["batch", *common, "--kind", kind, "--out", str(batch)]) == 0
+    pd.testing.assert_frame_equal(pd.read_csv(out), pd.read_csv(batch))
+    assert len(pd.read_csv(out)) == 2
+
+
+def test_pitcher_full_history_survives_team_and_qualification_selection(lahman: Path) -> None:
+    path = lahman / "Pitching.csv"
+    frame = pd.read_csv(path)
+    frame.loc[(frame.playerID == "star") & (frame.yearID == 2019), "teamID"] = "LAN"
+    middle = (frame.playerID == "star") & (frame.yearID == 2020)
+    frame.loc[middle, ["teamID", "IPouts", "ER"]] = ["LAA", 90, 20]
+    frame.to_csv(path, index=False)
+    source = LahmanSource(str(lahman))
+    player = source.project("player", 2022, "pitching", name="Test Star").iloc[0]
+    team = source.project("team", 2022, "pitching", team="LAN").iloc[0]
+    batch = source.project("batch", 2022, "pitching")
+    row = batch[batch.Name == "Test Star"].iloc[0]
+    assert player["IP"] == pytest.approx((5 * 487 / 3 + 4 * 30 + 3 * 487 / 3) / 12)
+    for candidate in [team, row]:
+        for metric in ["IP", "ER", "ERA", "WHIP", "SO", "Reliability"]:
+            assert candidate[metric] == pytest.approx(player[metric])
+
+
+def test_pitcher_trade_stints_count_once_and_qualify_together(lahman: Path) -> None:
+    original = LahmanSource(str(lahman)).project("batch", 2022, "pitching")
+    path = lahman / "Pitching.csv"
+    frame = pd.read_csv(path)
+    mask = (frame.playerID == "star") & (frame.yearID == 2021)
+    row = frame[mask].copy()
+    frame = frame[~mask]
+    for column in ["IPouts", "ER", "H", "HR", "BB", "SO", "BFP"]:
+        row[column] = row[column] / 2
+    second = row.assign(stint=2, teamID="LAN")
+    pd.concat([frame, row, second]).to_csv(path, index=False)
+    source = LahmanSource(str(lahman))
+    season = source.season(2021, "pitching")
+    assert len(season[season.PlayerID == "star"]) == 1
+    actual = source.project("batch", 2022, "pitching")
+    pd.testing.assert_frame_equal(
+        actual.sort_values("PlayerID").reset_index(drop=True),
+        original.sort_values("PlayerID").reset_index(drop=True),
+    )
+
+
+def test_pitcher_without_three_qualifying_seasons_can_be_selected(lahman: Path) -> None:
+    path = lahman / "Pitching.csv"
+    frame = pd.read_csv(path)
+    frame.loc[(frame.playerID == "star") & (frame.yearID != 2021), "IPouts"] = 90
+    frame.to_csv(path, index=False)
+    result = LahmanSource(str(lahman)).project("player", 2022, "pitching", name="Test Star")
+    assert len(result) == 1
+    assert result.loc[0, "IP"] == pytest.approx((5 * 487 / 3 + 4 * 30 + 3 * 30) / 12)

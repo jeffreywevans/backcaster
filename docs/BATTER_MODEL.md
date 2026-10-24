@@ -26,8 +26,8 @@ with occasional pitching appearances and most two-way hitters.
 
 Use all other positive-PA player-seasons for regression and rebaselining, including
 unqualified players. Apply the existing qualification filter only when selecting
-outputs: single players must qualify in all three years; team/batch selection uses
-available qualified seasons. Team IDs and last-stint membership rules are unchanged.
+outputs: all commands select players qualifying in at least one of the three
+prior seasons and use their available history, including nonqualified seasons. Team IDs and last-stint membership rules are unchanged.
 The rebaselining population is independent of the command and requested team.
 
 ## Calculation
