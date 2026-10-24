@@ -1,11 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.3.6
 
 - Add `hitters` and `pitchers` shortcuts for pre-offseason league projections without team filters or `--kind`.
 - Select players qualifying in at least one prior season, then retain all available history across teams and nonqualified seasons.
 - Keep pitcher season weights attached to calendar years when a player has missing seasons, and export pitcher PlayerID for comparisons.
 - Fix pitching team projections discarding seasons spent on other teams; verify traded players are combined before qualification and projected once.
+
+Eligibility is qualification in at least one of the three prior seasons; all
+available history contributes for selected players. This is a pre-offseason
+projection population, not an active roster. Pitcher 5/4/3 weights and 200-IP
+regression remain unchanged. Python 3.13+ is required.
 
 ## 0.3.5
 
