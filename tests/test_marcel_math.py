@@ -186,7 +186,8 @@ def test_project_player_batting_with_missing_optional_columns() -> None:
     prior = _batting_prior().drop(columns=["HBP", "SF"])
     result = project_player("Test Hitter", prior, "batting", 2026)
     assert float(result.loc[0, "OBP"]) > 0
-    assert "HBP" in result.columns and "SF" in result.columns
+    assert "HBP" in result.columns
+    assert "SF" in result.columns
 
 
 def test_project_player_pitching() -> None:
