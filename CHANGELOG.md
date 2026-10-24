@@ -1,13 +1,17 @@
 # Changelog
 
-## Unreleased
+## 0.3.4
 
 - Acknowledge Ben Dilday's marcelR as a methodological reference, document the
   inspected revision and implementation differences, and ship its MIT notice.
-
 - Add the six-stage Tango batter pipeline: calendar-year weighting, player-specific non-pitcher league regression, projected PA, birth-year aging, and population rebaselining.
 - Require Appearances.csv and People.csv birthYear for batter projections; keep qualified-player output selection and the existing pitcher formulas.
 - Document explicit aging, primary-pitcher classification, and rebaselining choices and remaining differences from Baseball Reference.
+
+Batter projections now require `Appearances.csv` and valid `People.csv.birthYear`
+records in the local Lahman directory. Python 3.13+ remains required. Pitcher
+formulas are unchanged, and exact Baseball Reference parity is not claimed.
+See [the batter model](docs/BATTER_MODEL.md) for the calculation and validation.
 
 ## 0.3.3
 
