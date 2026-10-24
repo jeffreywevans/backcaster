@@ -16,6 +16,27 @@ It supports:
 - Python **3.13+**
 - Internet access for first-time stat fetches (data is cached locally afterward)
 
+### Update an installed package
+
+Upgrade to the latest release available on PyPI:
+
+```powershell
+python -m pip install --upgrade backcaster
+```
+
+To install a specific release, such as 0.3.1:
+
+```powershell
+python -m pip install --upgrade backcaster==0.3.1
+```
+
+Run the command using the same Python environment where you run Backcaster.
+If you use a virtual environment, activate it first. Check the installed version with:
+
+```powershell
+python -m pip show backcaster
+```
+
 ### Install from source (recommended for contributors)
 
 ```bash
