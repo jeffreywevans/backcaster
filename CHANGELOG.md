@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Add the six-stage Tango batter pipeline: calendar-year weighting, player-specific non-pitcher league regression, projected PA, birth-year aging, and population rebaselining.
+- Require Appearances.csv and People.csv birthYear for batter projections; keep qualified-player output selection and the existing pitcher formulas.
+- Document explicit aging, primary-pitcher classification, and rebaselining choices and remaining differences from Baseball Reference.
+
 ## 0.3.3
 
 - Correct regression to use weighted evidence totals and derive reliability from

@@ -13,9 +13,9 @@ from backcaster.marcel import ProjectionError
 def lahman(tmp_path: Path) -> Path:
     pd.DataFrame(
         [
-            {"playerID": "star", "nameFirst": "Test", "nameLast": "Star"},
-            {"playerID": "other", "nameFirst": "Other", "nameLast": "Player"},
-            {"playerID": "minor", "nameFirst": "Brief", "nameLast": "Career"},
+            {"playerID": "star", "nameFirst": "Test", "nameLast": "Star", "birthYear": 1990},
+            {"playerID": "other", "nameFirst": "Other", "nameLast": "Player", "birthYear": 1993},
+            {"playerID": "minor", "nameFirst": "Brief", "nameLast": "Career", "birthYear": 1995},
         ]
     ).to_csv(tmp_path / "People.csv", index=False)
     batting, pitching, teams = [], [], []
@@ -29,11 +29,11 @@ def lahman(tmp_path: Path) -> Path:
                     stint=1,
                     teamID="BOS",
                     AB=ab,
-                    H=150,
-                    **{"2B": 30, "3B": 2},
-                    HR=20,
+                    H=150 if player != "minor" else 5,
+                    **{"2B": 30 if player != "minor" else 1, "3B": 2 if player != "minor" else 0},
+                    HR=20 if player != "minor" else 0,
                     BB=bb,
-                    SO=100,
+                    SO=100 if player != "minor" else 5,
                     HBP=5,
                     SF=5,
                     SH=1,
@@ -54,6 +54,13 @@ def lahman(tmp_path: Path) -> Path:
                     BFP=700,
                 )
             )
+    pd.DataFrame(
+        [
+            dict(playerID=p, yearID=y, G_all=100, G_p=0)
+            for p in ["star", "other", "minor"]
+            for y in (2019, 2020, 2021)
+        ]
+    ).to_csv(tmp_path / "Appearances.csv", index=False)
     pd.DataFrame(batting).to_csv(tmp_path / "Batting.csv", index=False)
     pd.DataFrame(pitching).to_csv(tmp_path / "Pitching.csv", index=False)
     pd.DataFrame(teams).to_csv(tmp_path / "Teams.csv", index=False)
@@ -90,6 +97,7 @@ def test_short_season_threshold(lahman: Path) -> None:
     path = lahman / "Batting.csv"
     frame = pd.read_csv(path)
     frame.loc[frame.playerID == "star", ["AB", "BB", "HBP", "SF", "SH"]] = [190, 0, 0, 0, 0]
+    frame.loc[frame.playerID == "star", ["H", "SO"]] = [60, 20]
     frame.to_csv(path, index=False)
     source = LahmanSource(str(lahman))
     assert "star" in set(source.season(2020, "batting").PlayerID)
@@ -221,7 +229,7 @@ def test_cli_missing_directory_returns_error(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     assert main(["batch", "--year", "2022", "--kind", "batting", "--data-dir", str(tmp_path)]) == 2
-    assert "Expected Batting.csv" in capsys.readouterr().err
+    assert "Expected People.csv" in capsys.readouterr().err
 
 
 def test_qualification_boundary(lahman: Path) -> None:
@@ -261,4 +269,71 @@ def test_missing_default_files_never_fall_back_to_network(
     monkeypatch.setattr("socket.socket.connect", forbidden)
     monkeypatch.setenv("LAHMAN_DATA_DIR", str(tmp_path))
     assert main(["player", "--name", "Test Star", "--year", "2022", "--kind", "batting"]) == 2
-    assert "Expected Batting.csv" in capsys.readouterr().err
+    assert "Expected People.csv" in capsys.readouterr().err
+
+
+def test_batter_commands_share_population_rebaseline(lahman: Path) -> None:
+    source = LahmanSource(str(lahman))
+    player = source.project("player", 2022, "batting", name="Test Star")
+    batch = source.project("batch", 2022, "batting")
+    team = source.project("team", 2022, "batting", team="BOS")
+    expected = batch[batch.PlayerID == "star"].reset_index(drop=True)
+    pd.testing.assert_frame_equal(player, expected)
+    pd.testing.assert_frame_equal(team, batch)
+    assert player.loc[0, "PA"] == pytest.approx(0.5 * 571 + 0.1 * 571 + 200)
+    assert player.loc[0, "Age"] == 32
+
+
+def test_pitcher_exclusion_and_unqualified_league_context(lahman: Path) -> None:
+    source = LahmanSource(str(lahman))
+    before = source.project("batch", 2022, "batting")
+    path = lahman / "Appearances.csv"
+    appearances = pd.read_csv(path)
+    appearances.loc[appearances.playerID == "minor", "G_p"] = 100
+    appearances.to_csv(path, index=False)
+    after = LahmanSource(str(lahman)).project("batch", 2022, "batting")
+    assert set(after.PlayerID) == {"star", "other"}
+    assert not before.HR.equals(after.HR)
+
+
+@pytest.mark.parametrize(
+    "case, message",
+    [
+        ("missing", "must cover"),
+        ("numeric", "Invalid game counts"),
+        ("no_qualified", "No qualified non-pitcher"),
+    ],
+)
+def test_batting_population_errors(lahman: Path, case: str, message: str) -> None:
+    path = lahman / "Appearances.csv"
+    frame = pd.read_csv(path)
+    if case == "missing":
+        frame = frame[frame.playerID != "star"]
+    elif case == "numeric":
+        frame["G_p"] = "invalid"
+    else:
+        # Only the unqualified player remains a non-pitcher.
+        frame.loc[frame.playerID != "minor", "G_p"] = 100
+    frame.to_csv(path, index=False)
+    source = LahmanSource(str(lahman))
+    with pytest.raises((DataFetchError, ProjectionError), match=message):
+        source.project("batch", 2022, "batting")
+
+
+@pytest.mark.parametrize("bad", [-1, 101, float("inf"), float("nan")])
+def test_invalid_appearance_counts(lahman: Path, bad: float) -> None:
+    path = lahman / "Appearances.csv"
+    frame = pd.read_csv(path)
+    frame["G_p"] = bad
+    frame.to_csv(path, index=False)
+    source = LahmanSource(str(lahman))
+    with pytest.raises(DataFetchError, match="Invalid game counts"):
+        source.project("batch", 2022, "batting")
+
+
+def test_missing_birth_year_column(lahman: Path) -> None:
+    path = lahman / "People.csv"
+    pd.read_csv(path).drop(columns="birthYear").to_csv(path, index=False)
+    source = LahmanSource(str(lahman))
+    with pytest.raises(DataFetchError, match="birthYear"):
+        source.project("batch", 2022, "batting")

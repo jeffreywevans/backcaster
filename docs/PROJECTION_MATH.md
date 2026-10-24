@@ -1,5 +1,10 @@
 # Projection math audit
 
+This records the 0.3.3 investigation. The subsequent [batter model](BATTER_MODEL.md)
+implements player-specific baselines, projected PA, real ages, calendar-year
+weights, and population rebaselining. The remaining-differences section below
+describes the implementation at the time of the audit, not the new batter pipeline.
+
 Baseball Reference's projections are the acceptance target for future model
 alignment. The corrections below are incremental; the current implementation
 does not yet reproduce that target. Validate both hitters and pitchers against
