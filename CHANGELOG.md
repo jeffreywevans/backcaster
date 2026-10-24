@@ -1,10 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.3.1
 
 - Add offline Lahman CSV projections through `--data-dir` for player, team, and
   batch commands, with qualified-player filtering, season-length thresholds,
   combined trade stints, and Lahman player identities.
+- Simplify season loading and split composite test assertions to resolve Sonar findings.
+
+Use `--data-dir "C:\Baseball\lahman"` to project from extracted local CSVs
+without FanGraphs requests. Requires Python 3.13+ and data for the three prior
+seasons. Qualification and team-selection rules are documented in README.md.
 
 ## 0.3.0
 
