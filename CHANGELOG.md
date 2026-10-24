@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.0
+
+- Add standalone styled HTML reports with Name/Year/Player ID/Age first, summary cards, search, numeric sorting, sticky headers/names, and print/mobile layouts.
+- Format counting stats as whole numbers, batting rates to three decimals, and ERA/WHIP to two decimals across terminal, CSV, and HTML outputs.
+- Display IP in baseball outs notation, rounding to the nearest out, while preserving full-precision internal calculations.
+
+Presentation/export change: CSV counting stats are now rounded and CSV IP uses
+baseball notation (`161.1` = 161 innings plus one out), not decimal innings.
+Batting rates have three decimal places; ERA and WHIP have two. Projection
+DataFrames and calculations retain full precision. HTML is now a complete
+standalone document with embedded CSS/JavaScript rather than a table fragment.
+See [HTML reporting](docs/HTML_REPORTS.md). Projection formulas and eligibility
+rules are unchanged in this release; Python 3.13+ remains required.
+
 ## 0.3.6
 
 - Add `hitters` and `pitchers` shortcuts for pre-offseason league projections without team filters or `--kind`.
