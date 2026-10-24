@@ -1,9 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.3.5
 
 - Apply birth-year-based pitcher aging to earned runs, hits, HR, walks, and strikeouts, recomputing ERA and WHIP without changing projected IP or BF.
 - Require pitcher birth years and document the marcelR-derived equations and attribution. Pitcher season weights and regression constants are unchanged.
+
+Pitcher commands now require valid `People.csv.birthYear` values. The previous
+uniform age multiplier on pitcher innings is removed: aging changes performance
+rates, not opportunities. Existing 5/4/3 pitcher weights, 200-IP regression, and
+qualified-player baselines remain; see [pitcher aging](docs/PITCHER_MODEL.md).
+Python 3.13+ remains required.
 
 ## 0.3.4
 
