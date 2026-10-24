@@ -71,6 +71,9 @@ cache reads. The directory must contain `People.csv`, `Teams.csv`, and
 `Batting.csv` or `Pitching.csv` for the selected kind. Filenames are matched
 without regard to case. The database is not bundled with Backcaster.
 
+See [Lahman database notes](docs/LAHMAN.md) for the supplied 1871–2025 edition's
+coverage, attribution, license, and historical-data caveats, with its original README.
+
 ```powershell
 backcaster player --name "Mookie Betts" --year 2022 --kind batting --data-dir "C:\Baseball\lahman"
 backcaster team --team LAN --year 2022 --kind batting --data-dir "C:\Baseball\lahman"
