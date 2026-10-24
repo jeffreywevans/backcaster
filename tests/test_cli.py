@@ -90,13 +90,15 @@ def test_render_file_writers(monkeypatch: pytest.MonkeyPatch, tmp_path, fmt: str
 
 @pytest.mark.parametrize("fmt", ["csv", "html"])
 def test_render_file_formats_require_out(fmt: str) -> None:
+    df = pd.DataFrame([{"Name": "A"}])
     with pytest.raises(ValueError, match="--out is required"):
-        _render(pd.DataFrame([{"Name": "A"}]), fmt, None)
+        _render(df, fmt, None)
 
 
 def test_render_rejects_unsupported_format() -> None:
+    df = pd.DataFrame([{"Name": "A"}])
     with pytest.raises(ValueError, match="Unsupported format: pdf"):
-        _render(pd.DataFrame([{"Name": "A"}]), "pdf", None)
+        _render(df, "pdf", None)
 
 
 def test_run_team_success(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -117,8 +119,9 @@ def test_run_team_raises_when_missing_season(monkeypatch: pytest.MonkeyPatch) ->
         "backcaster.cli.fetch_season_stats", lambda _y, _k: pd.DataFrame([{"Team": "BOS"}])
     )
 
+    args = _team_args()
     with pytest.raises(ProjectionError, match="Missing season 2025 for team 'NYY'"):
-        run_team(_team_args())
+        run_team(args)
 
 
 def test_run_team_missing_team_column_raises_data_fetch_error(
@@ -128,10 +131,11 @@ def test_run_team_missing_team_column_raises_data_fetch_error(
         "backcaster.cli.fetch_season_stats", lambda _y, _k: pd.DataFrame([{"WAR": 5.1}])
     )
 
+    args = _team_args()
     with pytest.raises(
         DataFetchError, match=r"Season 2025 batting stats missing required column\(s\): Team\."
     ):
-        run_team(_team_args())
+        run_team(args)
 
 
 def test_run_batch_success(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -205,8 +209,9 @@ def test_run_player_missing_idfg_column_raises(monkeypatch: pytest.MonkeyPatch) 
         "backcaster.cli.fetch_season_stats", lambda _y, _k: pd.DataFrame([{"Name": "John Smith"}])
     )
 
+    args = _player_args()
     with pytest.raises(ProjectionError, match="Missing season 2025"):
-        run_player(_player_args())
+        run_player(args)
 
 
 def test_run_player_blank_fangraphs_id_falls_back_to_name(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -229,8 +234,9 @@ def test_run_player_name_fallback_failure_raises(monkeypatch: pytest.MonkeyPatch
         "backcaster.cli.fetch_season_stats", lambda _y, _k: pd.DataFrame([{"Name": "Not Him"}])
     )
 
+    args = _player_args()
     with pytest.raises(ProjectionError, match="Missing season 2025"):
-        run_player(_player_args())
+        run_player(args)
 
 
 def test_run_player_duplicate_id_rows_are_handled(monkeypatch: pytest.MonkeyPatch) -> None:
