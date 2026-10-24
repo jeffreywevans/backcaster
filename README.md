@@ -25,10 +25,10 @@ Upgrade to the latest release available on PyPI:
 python -m pip install --upgrade backcaster
 ```
 
-To install a specific release, such as 0.3.6:
+To install a specific release, such as 0.4.0:
 
 ```powershell
-python -m pip install --upgrade backcaster==0.3.6
+python -m pip install --upgrade backcaster==0.4.0
 ```
 
 Run the command using the same Python environment where you run Backcaster.
@@ -203,19 +203,63 @@ backcaster team --team LAN --year 2026 --kind pitching --format html --out ./out
 
 ### CLI table output (`--format cli`, default)
 
-Example shape (columns vary by batting vs pitching):
+Selected columns from a 2025 Mookie Betts projection (actual output includes
+additional counting statistics, reliability, and age):
 
 ```text
-   PA    AB     H   2B   3B    HR    BB    SO   HBP    SF    AVG    OBP    SLG    OPS  Reliability          Name  Year
-610.2 545.1 162.4 34.1  2.8  32.6  67.9 119.3   5.6   4.7  0.298  0.384  0.531  0.915        0.89  Mookie Betts  2026
+ PlayerID  PA  AB   H HR   AVG   OBP   SLG   OPS
+bettsmo01 527 461 128 24 0.278 0.362 0.507 0.869
 ```
+
+### Number formatting and baseball innings
+
+Terminal, CSV, and HTML outputs use the same display rules:
+
+- Counting statistics are rounded to the nearest whole number, with halves rounded
+  up. Age and year are displayed as whole numbers too.
+- AVG, OBP, SLG, and OPS always show three decimal places, including `1.048` OPS.
+- ERA and WHIP always show two decimal places, such as `3.46` and `1.23`.
+- IP is rounded to the nearest out and displayed in baseball notation:
+  `161.0` is 161 innings, `161.1` is 161 innings plus one out, and `161.2` is
+  161 innings plus two outs. Three outs carry into the next whole inning.
+
+Calculations and Python projection DataFrames retain full precision. Rates are
+computed from unrounded totals, then formatted; they are not recalculated from
+rounded displayed counts. Independently rounded totals may therefore not add up
+exactly. Reliability formatting is unchanged.
+
+**CSV IP uses baseball notation too.** Convert `161.1` to `161 + 1/3` before doing
+arithmetic; treating it as 161.1 decimal innings gives incorrect results. Internally,
+Backcaster uses decimal innings (`IPouts / 3`), so ERA and WHIP calculations use
+true innings rather than the displayed notation.
 
 ### CSV output (`--format csv`)
 A single-row CSV for `player`; multi-row CSV for `team`, `batch`, `hitters`, and `pitchers`.
 Both populations include `PlayerID` for matching records across files.
 
 ### HTML output (`--format html`)
-A basic HTML table (no custom CSS) suitable for quick sharing or embedding.
+A standalone report with embedded CSS and JavaScript, ready to open in a browser
+or share as one file. No server, CDN, fonts, or internet connection are required.
+
+```powershell
+backcaster hitters --year 2025 --format html --out hitters_2025.html
+backcaster pitchers --year 2025 --format html --out pitchers_2025.html
+```
+
+The first four columns are **Name, Year, Player ID, Age**, followed by counting
+statistics and batting/pitching rates in a consistent order. The report includes:
+
+- A player-count, projection-year, and projection-type summary.
+- Search across player names, IDs, and statistics.
+- Sortable column headings, with numeric sorting for statistics.
+- A sticky name column/header and horizontal scrolling on narrow screens.
+- A reset control and print layout for browser printing or saving as PDF.
+
+Your display precision rules apply, including baseball innings notation. Rates
+retain their trailing decimal places and OPS values above 1.000 display normally.
+Search filters the visible rows; printing respects that current view. Without
+JavaScript, the complete table is still readable. See
+[HTML report customization](docs/HTML_REPORTS.md) for theme and column constants.
 
 ---
 
