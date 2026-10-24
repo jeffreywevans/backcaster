@@ -12,6 +12,7 @@ from backcaster.data import (
     lookup_player_ids,
     resolve_player_lookup,
 )
+from backcaster.lahman import LahmanSource
 from backcaster.marcel import ProjectionError, project_player, project_team
 from backcaster.outputs import to_cli_table, to_csv, to_html
 
@@ -130,6 +131,10 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--kind", choices=["batting", "pitching"], required=True)
         sp.add_argument("--format", choices=_OUTPUT_FORMAT_CHOICES, default="cli")
         sp.add_argument("--out")
+        sp.add_argument(
+            "--data-dir",
+            help="Directory containing extracted Lahman CSVs (offline, qualified players only)",
+        )
 
     pp = sub.add_parser("player")
     add_common(pp)
@@ -151,6 +156,16 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
+        if args.data_dir:
+            result = LahmanSource(args.data_dir).project(
+                args.command,
+                args.year,
+                args.kind,
+                name=getattr(args, "name", None),
+                team=getattr(args, "team", None),
+            )
+            _render(result, args.format, args.out)
+            return 0
         return args.func(args)
     except (DataFetchError, PlayerLookupError, ProjectionError, ValueError) as exc:
         print(f"Error: {exc}", file=sys.stderr)

@@ -63,6 +63,48 @@ backcaster <player|team|batch> [subcommand-options] --year <YEAR> --kind <battin
 backcaster player --name "Mookie Betts" --year 2026 --kind batting
 ```
 
+### Offline projections with Lahman CSVs
+
+Extract your Lahman CSV distribution into a local directory. Pass `--data-dir`
+to use it without any network requests, player-register downloads, or FanGraphs
+cache reads. The directory must contain `People.csv`, `Teams.csv`, and
+`Batting.csv` or `Pitching.csv` for the selected kind. Filenames are matched
+without regard to case. The database is not bundled with Backcaster.
+
+```powershell
+backcaster player --name "Mookie Betts" --year 2022 --kind batting --data-dir "C:\Baseball\lahman"
+backcaster team --team LAN --year 2022 --kind batting --data-dir "C:\Baseball\lahman"
+backcaster batch --year 2022 --kind pitching --data-dir "C:\Baseball\lahman" --format csv --out pitchers.csv
+```
+
+Use Lahman's `teamID` values, such as `LAN` for the Dodgers (rather than the
+FanGraphs abbreviation `LAD`). A projection year needs the preceding three seasons:
+2022 requires 2019–2021. Missing seasons produce an error explaining which year
+is unavailable. Without `--data-dir`, the existing pybaseball source is used;
+FanGraphs may reject its automated requests with HTTP 403.
+
+Offline qualification uses a consistent modern rule across historical seasons:
+at least **3.1 PA per game** for hitters and **one inning per game** for pitchers.
+The season's game count is the maximum `G` in that year's `Teams.csv` records,
+so shortened seasons have lower thresholds. The PA threshold is rounded to the
+nearest integer (502 PA for 162 games, 186 PA for 60 games). This is an analytical filter, not a
+reconstruction of historical award eligibility or batting-title exceptions.
+Relievers generally do not qualify under this pitching rule.
+
+Player stints are summed before qualification. Plate appearances are calculated
+as `AB + BB + HBP + SF + SH`; missing/blank HBP, SF, and SH values count as zero.
+Blank numeric counting-stat cells are also treated as zero; use a dataset with
+complete records for the seasons you intend to project.
+Pitching `IPouts` is divided by three for decimal innings, and `BFP` supplies
+batters faced. Lahman player IDs keep different players with the same name separate;
+ambiguous name lookups report the matching IDs.
+
+Only qualified player-seasons enter projections and league regression baselines.
+Single-player projections require qualification in all three preceding seasons.
+Team and batch projections use each player's available qualified seasons within
+that window. For team selection, a traded player's full-season totals are assigned
+to the team in their latest stint for that season; this is not a current-roster forecast.
+
 ### 2) Team projection
 
 ```bash
