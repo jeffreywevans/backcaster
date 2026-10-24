@@ -86,7 +86,9 @@ def _display_frame(df: pd.DataFrame) -> pd.DataFrame:
             display[column] = display[column].map(_format_innings)
         elif column in COUNT_COLUMNS or column in RATE_PLACES:
             places = RATE_PLACES.get(column, 0)
-            display[column] = display[column].map(lambda value: _format_number(value, places))
+            display[column] = display[column].map(
+                lambda value, places=places: _format_number(value, places)
+            )
     stats = PITCHING_STAT_COLUMNS if "IP" in display else BATTING_STAT_COLUMNS
     ordered = [c for c in (*IDENTITY_COLUMNS, *stats, "Reliability") if c in display]
     ordered += [c for c in display if c not in ordered]
