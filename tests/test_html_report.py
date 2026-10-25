@@ -158,3 +158,69 @@ def test_html_escapes_values_and_column_names(tmp_path: Path) -> None:
     assert "svg" not in parser.tags
     assert parser.tags.count("script") == 1  # Only the trusted report script.
     assert "<script>alert(" not in text
+
+
+def test_historical_comparison_rows_and_variance_colors(tmp_path: Path) -> None:
+    projections = pd.DataFrame(
+        [
+            dict(
+                Name="Aaron Example",
+                Year=2022,
+                PlayerID="example01",
+                Age=30,
+                PA=100.0,
+                HR=10.0,
+                BA=0.250,
+                Reliability=0.8,
+            ),
+            dict(
+                Name="No Actual",
+                Year=2022,
+                PlayerID="missing01",
+                Age=28,
+                PA=50.0,
+                HR=2.0,
+                BA=0.200,
+                Reliability=0.2,
+            ),
+        ]
+    )
+    actuals = pd.DataFrame(
+        [
+            dict(
+                Name="Aaron Example",
+                Year=2022,
+                PlayerID="example01",
+                Age=30,
+                PA=110.0,
+                HR=8.0,
+                BA=0.275,
+            )
+        ]
+    )
+
+    text = to_html(projections, tmp_path / "accuracy.html", actuals).read_text()
+    parser = TableParser()
+    parser.feed(text)
+
+    assert text.count('class="compare-toggle"') == 2
+    assert 'aria-controls="actual-0 variance-0"' in text
+    assert text.count('class="detail-row actual-row"') == 2
+    assert text.count('class="detail-row variance-row"') == 2
+    assert "Actual (no recorded stats)" in parser.cells
+    assert "Variance" in parser.cells
+    assert ">+10</td>" in text
+    assert 'class="variance-negative">-2</td>' in text
+    assert 'class="rate variance-positive">+0.025</td>' in text
+    assert text.index(".rate {") < text.index(".variance-positive {")
+    assert "Variance is actual minus projected" in text
+    assert "Projection, actual, and variance rows" in text
+
+
+def test_historical_comparison_escapes_toggle_attributes(tmp_path: Path) -> None:
+    name = "A &quot; <script>"
+    projections = pd.DataFrame([dict(Name=name, Year=2022, PlayerID="safe01", Age=30, PA=100)])
+    actuals = projections.copy()
+    text = to_html(projections, tmp_path / "safe.html", actuals).read_text()
+    assert 'data-name="A &amp;quot; &lt;script&gt;"' in text
+    assert "<script>" not in text.split("<script>", 1)[0]

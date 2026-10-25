@@ -5,6 +5,7 @@ Generate reports through the existing CLI, for example:
 ```powershell
 backcaster hitters --year 2025 --format html --out hitters_2025.html
 backcaster pitchers --year 2025 --format html --out pitchers_2025.html
+backcaster hitters --year 2025 --format html --compare-actuals --out hitters_accuracy_2025.html
 ```
 
 Each report is one HTML file with embedded CSS and vanilla JavaScript. It has no
@@ -49,3 +50,20 @@ scroll region. Filtering and sort order are preserved for printing.
 IP uses baseball notation even inside HTML: 161.1 means 161 innings and one out,
 not 161.1 decimal innings. Rates are calculated before presentation rounding.
 Player names, metadata, values, and column labels are HTML-escaped.
+
+## Historical accuracy comparisons
+
+Add `--compare-actuals` to an HTML command when the target season is present in
+the local Lahman files. Projection calculations still read only the three prior
+seasons. The report then adds two rows beneath every projected player:
+
+- **Actual** contains the player's aggregated target-season results.
+- **Variance** is `actual - projected`; positive values are green and negative
+  values are red.
+
+The button beside each player name expands or collapses that player's comparison.
+Rows start expanded, remain attached to their player during sorting and filtering,
+and print in their current state. If Lahman has no target-season record for a
+projected player, the report says `Actual (no recorded stats)` and leaves the
+variance cells blank. This avoids treating a season without an appearance as a
+zero-stat season.

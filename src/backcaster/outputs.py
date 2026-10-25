@@ -79,6 +79,21 @@ def _format_innings(value: Any) -> str:
     return f"{whole}.{remainder}"
 
 
+def _format_variance(value: Any, column: str) -> str:
+    """Format actual-minus-projected differences with an explicit direction."""
+    if pd.isna(value):
+        return ""
+    if column == "IP":
+        outs = int((Decimal(str(value)) * 3).to_integral_value(rounding=ROUND_HALF_UP))
+        sign = "+" if outs > 0 else "-" if outs < 0 else ""
+        whole, remainder = divmod(abs(outs), 3)
+        return f"{sign}{whole}.{remainder}"
+    places = RATE_PLACES.get(column, 0)
+    number = Decimal(str(value)).quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_UP)
+    sign = "+" if number > 0 else ""
+    return f"{sign}{number:.{places}f}"
+
+
 def _display_frame(df: pd.DataFrame) -> pd.DataFrame:
     """Format a copy at the output boundary; preserve full-precision calculations."""
     display = df.copy()
@@ -94,6 +109,24 @@ def _display_frame(df: pd.DataFrame) -> pd.DataFrame:
     ordered = [c for c in (*IDENTITY_COLUMNS, *stats, "Reliability") if c in display]
     ordered += [c for c in display if c not in ordered]
     return display.loc[:, ordered]
+
+
+def _display_variances(projected: pd.DataFrame, actuals: pd.DataFrame) -> pd.DataFrame:
+    if "PlayerID" not in projected or "PlayerID" not in actuals:
+        raise ValueError("Historical comparison requires PlayerID in projections and actuals.")
+    stats = PITCHING_STAT_COLUMNS if "IP" in projected else BATTING_STAT_COLUMNS
+    actual_by_id = actuals.set_index("PlayerID")
+    rows: list[dict[str, Any]] = []
+    for projection in projected.to_dict(orient="records"):
+        player_id = projection["PlayerID"]
+        row: dict[str, Any] = {"PlayerID": player_id}
+        if player_id in actual_by_id.index:
+            actual = actual_by_id.loc[player_id]
+            for column in stats:
+                if column in projection and column in actual:
+                    row[column] = _format_variance(actual[column] - projection[column], column)
+        rows.append(row)
+    return pd.DataFrame(rows)
 
 
 def to_cli_table(df: pd.DataFrame) -> str:
@@ -118,9 +151,11 @@ def to_csv(df: pd.DataFrame, out_path: str | Path) -> Path:
     return out
 
 
-def to_html(df: pd.DataFrame, out_path: str | Path) -> Path:
+def to_html(df: pd.DataFrame, out_path: str | Path, actuals: pd.DataFrame | None = None) -> Path:
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    html = render_report(_display_frame(df))
+    actual_display = _display_frame(actuals) if actuals is not None else None
+    variances = _display_variances(df, actuals) if actuals is not None else None
+    html = render_report(_display_frame(df), actual_display, variances)
     out.write_text(html, encoding="utf-8")
     return out

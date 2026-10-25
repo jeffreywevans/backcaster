@@ -37,6 +37,23 @@ def test_render_file_writers(monkeypatch: pytest.MonkeyPatch, tmp_path, fmt: str
     pd.testing.assert_frame_equal(called["df"], df)
 
 
+def test_render_html_passes_historical_actuals(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    projected = pd.DataFrame([{"PlayerID": "a", "PA": 100}])
+    actuals = pd.DataFrame([{"PlayerID": "a", "PA": 110}])
+    called: dict[str, object] = {}
+
+    def fake_html(input_df: pd.DataFrame, path: str, input_actuals: pd.DataFrame) -> None:
+        called.update(df=input_df, path=path, actuals=input_actuals)
+
+    monkeypatch.setattr("backcaster.cli.to_html", fake_html)
+    out = tmp_path / "out.html"
+    _render(projected, "html", str(out), actuals)
+
+    assert called["path"] == str(out)
+    pd.testing.assert_frame_equal(called["df"], projected)
+    pd.testing.assert_frame_equal(called["actuals"], actuals)
+
+
 @pytest.mark.parametrize("fmt", ["csv", "html"])
 @pytest.mark.parametrize("out", [None, ""])
 def test_render_file_formats_require_out(fmt: str, out: str | None) -> None:
@@ -156,6 +173,12 @@ def test_validation_rejects_cli_output_path(capsys: pytest.CaptureFixture[str]) 
     with pytest.raises(ValueError, match="--out cannot be used"):
         _validate_output_options("cli", "ignored.csv")
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize("fmt", ["cli", "csv"])
+def test_historical_comparison_requires_html(fmt: str) -> None:
+    with pytest.raises(ValueError, match="--compare-actuals requires --format html"):
+        _validate_output_options(fmt, "out.csv" if fmt == "csv" else None, True)
 
 
 @pytest.mark.parametrize(

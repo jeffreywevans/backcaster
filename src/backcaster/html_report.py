@@ -24,7 +24,7 @@ COLUMN_HELP = {
 }
 
 REPORT_CSS = r"""
-:root { --brand:#153e3b; --brand-dark:#102e2c; --accent:#78bd82; --canvas:#f3f6f5; --surface:#fff; --ink:#183634; --muted:#617571; --line:#dce5e2; --stripe:#f8faf9; --radius:12px; }
+:root { --brand:#153e3b; --brand-dark:#102e2c; --accent:#78bd82; --positive:#14733b; --positive-bg:#e9f7ee; --negative:#b4232f; --negative-bg:#fff0f1; --canvas:#f3f6f5; --surface:#fff; --ink:#183634; --muted:#617571; --line:#dce5e2; --stripe:#f8faf9; --radius:12px; }
 * { box-sizing:border-box; }
 body { margin:0; background:var(--canvas); color:var(--ink); font:14px/1.5 'Segoe UI',system-ui,sans-serif; }
 .topbar { background:var(--brand-dark); color:white; padding:18px 32px; display:flex; align-items:center; justify-content:space-between; gap:20px; }
@@ -71,7 +71,16 @@ td:nth-child(3) { font-family:ui-monospace,Consolas,monospace; font-size:11px; c
 tbody tr { background:white; }
 tbody tr:nth-child(even) { background:var(--stripe); }
 tbody tr:hover { background:#eaf5ed; }
+.compare-toggle { border:0; background:transparent; color:inherit; font:inherit; font-weight:600; padding:0; display:inline-flex; align-items:center; gap:7px; }
+.compare-toggle .chevron { color:var(--brand); width:10px; transition:transform .15s ease; }
+.compare-toggle[aria-expanded=false] .chevron { transform:rotate(-90deg); }
+.detail-row { background:var(--stripe); color:#49605b; }
+.detail-row td { padding-top:8px; padding-bottom:8px; }
+.detail-row td:first-child { padding-left:30px; font-weight:650; color:var(--muted); }
+.variance-row { border-bottom:2px solid var(--line); }
 .rate { color:var(--brand); font-weight:650; background-color:#78bd8209; }
+.variance-positive { color:var(--positive); background:var(--positive-bg); font-weight:700; }
+.variance-negative { color:var(--negative); background:var(--negative-bg); font-weight:700; }
 .table-footer { padding:12px 20px; font-size:12px; color:var(--muted); display:flex; justify-content:space-between; gap:16px; border-top:1px solid var(--line); }
 .report-notes { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:22px; color:var(--muted); font-size:12px; }
 .report-notes strong { display:block; color:var(--ink); margin-bottom:4px; font-weight:600; }
@@ -87,34 +96,57 @@ REPORT_JS = r"""
 (() => {
  const table=document.getElementById('projections');
  const body=table.tBodies[0];
- const rows=Array.from(body.querySelectorAll('tr[data-player]'));
+ const players=Array.from(body.querySelectorAll('tr[data-player]'));
+ const groups=players.map(player=>({
+   player,
+   details:Array.from(body.querySelectorAll(`tr[data-detail][data-group="${player.dataset.group}"]`))
+ }));
  const search=document.getElementById('search');
  const status=document.getElementById('visible-count');
  const empty=document.getElementById('no-matches');
  let active=-1, ascending=true;
+ function append(group) { body.appendChild(group.player); group.details.forEach(row=>body.appendChild(row)); }
  function filter() {
    const query=search.value.trim().toLocaleLowerCase();
    let visible=0;
-   rows.forEach(row=>{row.hidden=!row.textContent.toLocaleLowerCase().includes(query); if(!row.hidden)visible++;});
-   status.textContent=`Showing ${visible} of ${rows.length} players`;
+   groups.forEach(group=>{
+     const matches=[group.player,...group.details].some(row=>row.textContent.toLocaleLowerCase().includes(query));
+     group.player.hidden=!matches;
+     group.details.forEach(row=>{row.hidden=!matches||group.player.dataset.expanded==='false';});
+     if(matches)visible++;
+   });
+   status.textContent=`Showing ${visible} of ${groups.length} players`;
    empty.hidden=visible!==0;
  }
  table.querySelectorAll('thead button').forEach((button,index)=>{
    button.addEventListener('click',()=>{
      ascending=active===index?!ascending:true; active=index;
-     const sorted=[...rows].sort((a,b)=>{
-       const x=a.cells[index].textContent.trim(), y=b.cells[index].textContent.trim();
+     const sorted=[...groups].sort((a,b)=>{
+       const x=a.player.cells[index].textContent.trim(), y=b.player.cells[index].textContent.trim();
        const numeric=x!==''&&y!==''&&Number.isFinite(Number(x))&&Number.isFinite(Number(y));
        return (numeric?Number(x)-Number(y):x.localeCompare(y,undefined,{numeric:true}))*(ascending?1:-1);
      });
      table.querySelectorAll('th').forEach(th=>th.setAttribute('aria-sort','none'));
      button.parentElement.setAttribute('aria-sort',ascending?'ascending':'descending');
-     sorted.forEach(row=>body.appendChild(row)); filter();
+     sorted.forEach(append); filter();
    });
  });
+ body.querySelectorAll('.compare-toggle').forEach(button=>button.addEventListener('click',()=>{
+   const player=button.closest('tr');
+   const expanded=button.getAttribute('aria-expanded')!=='true';
+   button.setAttribute('aria-expanded',String(expanded));
+   button.setAttribute('aria-label',`${expanded?'Hide':'Show'} historical comparison for ${button.dataset.name}`);
+   player.dataset.expanded=String(expanded);filter();
+ }));
  search.addEventListener('input',filter);
  document.getElementById('reset').addEventListener('click',()=>{
-   search.value='';active=-1;ascending=true;rows.forEach(row=>body.appendChild(row));
+   search.value='';active=-1;ascending=true;
+   groups.forEach(group=>{
+     group.player.dataset.expanded='true';
+     const button=group.player.querySelector('.compare-toggle');
+     if(button){button.setAttribute('aria-expanded','true');button.setAttribute('aria-label',`Hide historical comparison for ${button.dataset.name}`);}
+     append(group);
+   });
    table.querySelectorAll('th').forEach(th=>th.setAttribute('aria-sort','none'));filter();
  });
  document.getElementById('print').addEventListener('click',()=>window.print());
@@ -131,7 +163,73 @@ def _cell(value: Any) -> str:
     return str(value)
 
 
-def _table(frame: pd.DataFrame, columns: list[str]) -> str:
+RATE_COLUMNS = {
+    "BA",
+    "AVG",
+    "OBP",
+    "SLG",
+    "OPS",
+    "W-L%",
+    "ERA",
+    "WHIP",
+    "H9",
+    "HR9",
+    "BB9",
+    "SO9",
+    "SO/W",
+}
+
+
+def _row_cells(
+    values: dict[str, Any], columns: list[str], row_type: str, group: int, comparison: bool
+) -> str:
+    cells = []
+    for column in columns:
+        value = _cell(values.get(column, ""))
+        classes = ["rate"] if column in RATE_COLUMNS else []
+        if row_type == "variance" and value.startswith("+"):
+            classes.append("variance-positive")
+        elif row_type == "variance" and value.startswith("-"):
+            classes.append("variance-negative")
+        class_attribute = f' class="{" ".join(classes)}"' if classes else ""
+        content = escape(value)
+        if column == "Name" and row_type == "projection" and comparison:
+            player_name = escape(value, quote=True)
+            content = (
+                f'<button type="button" class="compare-toggle" aria-expanded="true" '
+                f'aria-controls="actual-{group} variance-{group}" '
+                f'aria-label="Hide historical comparison for {player_name}" '
+                f'data-name="{player_name}"><span class="chevron" aria-hidden="true">▾</span>'
+                f"<span>{escape(value)}</span></button>"
+            )
+        cells.append(f"<td{class_attribute}>{content}</td>")
+    return "".join(cells)
+
+
+def _comparison_values(
+    player_id: str,
+    columns: list[str],
+    indexed: pd.DataFrame,
+    label: str,
+    missing_label: str,
+) -> dict[str, Any]:
+    values: dict[str, Any] = {column: "" for column in columns}
+    if player_id not in indexed.index:
+        values["Name"] = missing_label
+        return values
+    values.update({str(key): value for key, value in indexed.loc[player_id].items()})
+    values["Name"] = label
+    for column in IDENTITY_COLUMNS[1:]:
+        values[column] = ""
+    return values
+
+
+def _table(
+    frame: pd.DataFrame,
+    columns: list[str],
+    actuals: pd.DataFrame | None = None,
+    variances: pd.DataFrame | None = None,
+) -> str:
     headers = []
     for column in columns:
         label = escape(COLUMN_LABELS.get(column, column))
@@ -141,32 +239,37 @@ def _table(frame: pd.DataFrame, columns: list[str]) -> str:
         headers.append(
             f'<th scope="col" aria-sort="none"><button type="button" title="{title}">{label}</button></th>'
         )
+    comparison = actuals is not None and variances is not None
+    actual_by_id = actuals.set_index("PlayerID") if actuals is not None else pd.DataFrame()
+    variance_by_id = variances.set_index("PlayerID") if variances is not None else pd.DataFrame()
     rows = []
-    for row in frame.itertuples(index=False, name=None):
-        cells = []
-        for column, value in zip(columns, row):
-            style = (
-                ' class="rate"'
-                if column
-                in {
-                    "BA",
-                    "AVG",
-                    "OBP",
-                    "SLG",
-                    "OPS",
-                    "W-L%",
-                    "ERA",
-                    "WHIP",
-                    "H9",
-                    "HR9",
-                    "BB9",
-                    "SO9",
-                    "SO/W",
-                }
-                else ""
+    for group, record in enumerate(frame.to_dict(orient="records")):
+        values = {str(key): value for key, value in record.items()}
+        rows.append(
+            f'<tr data-player="true" data-group="{group}" data-expanded="true">'
+            + _row_cells(values, columns, "projection", group, comparison)
+            + "</tr>"
+        )
+        if comparison:
+            player_id = _cell(values.get("PlayerID", ""))
+            actual_values = _comparison_values(
+                player_id, columns, actual_by_id, "Actual", "Actual (no recorded stats)"
             )
-            cells.append(f"<td{style}>{escape(_cell(value))}</td>")
-        rows.append('<tr data-player="true">' + "".join(cells) + "</tr>")
+            variance_values = _comparison_values(
+                player_id, columns, variance_by_id, "Variance", "Variance"
+            )
+            rows.append(
+                f'<tr class="detail-row actual-row" data-detail="true" data-group="{group}" '
+                f'id="actual-{group}">'
+                + _row_cells(actual_values, columns, "actual", group, comparison)
+                + "</tr>"
+            )
+            rows.append(
+                f'<tr class="detail-row variance-row" data-detail="true" data-group="{group}" '
+                f'id="variance-{group}">'
+                + _row_cells(variance_values, columns, "variance", group, comparison)
+                + "</tr>"
+            )
     return (
         '<table id="projections"><caption class="sr-only">Player projection statistics</caption><thead><tr>'
         + "".join(headers)
@@ -176,13 +279,22 @@ def _table(frame: pd.DataFrame, columns: list[str]) -> str:
     )
 
 
-def render_report(display: pd.DataFrame) -> str:
+def render_report(
+    display: pd.DataFrame,
+    actuals: pd.DataFrame | None = None,
+    variances: pd.DataFrame | None = None,
+) -> str:
     pitching = "IP" in display.columns
     kind = "Pitching" if pitching else "Batting"
     stat_order = PITCHING_COLUMNS if pitching else BATTING_COLUMNS
     columns = [*IDENTITY_COLUMNS, *[c for c in stat_order if c in display]]
     columns += [c for c in display.columns if c not in columns]
     frame = display.reindex(columns=columns, fill_value="")
+    actual_frame = actuals.reindex(columns=columns, fill_value="") if actuals is not None else None
+    variance_frame = (
+        variances.reindex(columns=columns, fill_value="") if variances is not None else None
+    )
+    comparison = actual_frame is not None and variance_frame is not None
     years = ", ".join(sorted({_cell(v) for v in frame["Year"] if _cell(v)})) or "—"
     title = f"{kind} projections"
     count = len(frame)
@@ -191,19 +303,32 @@ def render_report(display: pd.DataFrame) -> str:
         if pitching
         else "BA, OBP, SLG, and OPS use three decimal places. Counting statistics are rounded to whole numbers."
     )
+    comparison_note = (
+        " Variance is actual minus projected; positive values are green and negative values are red."
+        if comparison
+        else ""
+    )
+    row_note = (
+        "Projection, actual, and variance rows" if comparison else "One row per projected player"
+    )
+    table_hint = (
+        "Use the control beside a player to show or hide actual and variance rows. Select a column heading to sort."
+        if comparison
+        else "Select a column heading to sort."
+    )
     return f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Backcaster · {title} · {escape(years)}</title><style>{REPORT_CSS}</style></head>
 <body><header class="topbar"><div class="brand"><span class="brand-mark" aria-hidden="true"></span>Backcaster</div><small>PLAYER PROJECTION REPORT</small></header>
 <main><section class="intro"><p class="eyebrow">Season outlook</p><h1>{title}</h1><p class="subtitle">A clear view of projected player performance.</p></section>
-<section class="cards" aria-label="Report summary"><div class="card"><div class="card-label">Players in report</div><div class="card-value">{count:,}</div><div class="card-note">One row per projected player</div></div>
+<section class="cards" aria-label="Report summary"><div class="card"><div class="card-label">Players in report</div><div class="card-value">{count:,}</div><div class="card-note">{row_note}</div></div>
 <div class="card"><div class="card-label">Projection year</div><div class="card-value">{escape(years)}</div><div class="card-note">The season being projected</div></div>
 <div class="card"><div class="card-label">Projection type</div><div class="card-value">{kind}</div><div class="card-note">Marcel-style statistical baseline</div></div></section>
-<section class="panel" aria-label="Player projections"><div class="toolbar"><div><h2>Player projections</h2><p class="table-hint">Select a column heading to sort.</p></div>
+<section class="panel" aria-label="Player projections"><div class="toolbar"><div><h2>Player projections</h2><p class="table-hint">{table_hint}</p></div>
 <div class="controls"><label for="search">Find players</label><input id="search" type="search" placeholder="Search name, ID, or statistic…" autocomplete="off"><button type="button" class="action" id="reset">Reset</button><button type="button" class="action primary" id="print">Print report</button></div></div>
-<div class="table-scroll" tabindex="0" aria-label="Scrollable projection statistics">{_table(frame, columns)}</div>
+<div class="table-scroll" tabindex="0" aria-label="Scrollable projection statistics">{_table(frame, columns, actual_frame, variance_frame)}</div>
 <p class="empty" id="no-matches"{"" if count == 0 else " hidden"}>No players to display.</p>
 <div class="table-footer"><span id="visible-count" role="status" aria-live="polite">Showing {count} of {count} players</span><span>Rounded for presentation</span></div></section>
-<section class="report-notes" aria-label="Reading this report"><div><strong>Reading the numbers</strong>{notes}</div><div><strong>Interpreting projections</strong>Reliability is an observed-evidence weight, not an accuracy probability. Historical eligibility does not represent a current roster.</div></section>
+<section class="report-notes" aria-label="Reading this report"><div><strong>Reading the numbers</strong>{notes}{comparison_note}</div><div><strong>Interpreting projections</strong>Reliability is an observed-evidence weight, not an accuracy probability. Historical eligibility does not represent a current roster.</div></section>
 <footer><span>Backcaster · Marcel-style projections</span><span>Methodology: Tom Tango · Reference inspiration: Ben Dilday’s marcelR</span></footer></main>
 <script>{REPORT_JS}</script></body></html>'''
