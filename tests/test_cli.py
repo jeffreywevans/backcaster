@@ -151,6 +151,7 @@ def test_invalid_output_options_fail_before_loading_data(
 
 
 def test_render_rejects_cli_output_path(capsys: pytest.CaptureFixture[str]) -> None:
+    frame = pd.DataFrame([{"Name": "A"}])
     with pytest.raises(ValueError, match="--out cannot be used"):
-        _render(pd.DataFrame([{"Name": "A"}]), "cli", "ignored.csv")
+        _render(frame, "cli", "ignored.csv")
     assert capsys.readouterr().out == ""
