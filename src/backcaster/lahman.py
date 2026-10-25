@@ -35,6 +35,16 @@ def _exclude_invalid_ages(seasons: pd.DataFrame, year: int, population: str) -> 
     return seasons
 
 
+def _read_snapshot(
+    eligibility_file: str | Path | None, year: int, as_of: str | None
+) -> pd.DataFrame | None:
+    if eligibility_file is None and as_of is None:
+        return None
+    if eligibility_file is None or as_of is None:
+        raise ValueError("--eligibility-file and --as-of must be provided together")
+    return read_eligibility(eligibility_file, year, as_of)
+
+
 class LahmanSource:
     def __init__(self, directory: str) -> None:
         self.directory = Path(directory)
@@ -179,69 +189,73 @@ class LahmanSource:
     ) -> pd.DataFrame:
         if name is not None and player_id is not None:
             raise ValueError("Specify either name or player_id, not both.")
-        snapshot = None
-        if eligibility_file is not None or as_of is not None:
-            if eligibility_file is None or as_of is None:
-                raise ValueError("--eligibility-file and --as-of must be provided together")
-            snapshot = read_eligibility(eligibility_file, year, as_of)
-        batting = pd.DataFrame()
+        snapshot = _read_snapshot(eligibility_file, year, as_of)
+        seasons, batting = self._population(year, kind)
+        selected = self._select_seasons(seasons, command, name, team, player_id, snapshot)
         if kind == "batting":
-            seasons, batting = self._batting_population(year)
+            projection = batting[batting.PlayerID.isin(selected.PlayerID)].reset_index(drop=True)
         else:
-            self.read("People", {"playerID", "nameFirst", "nameLast", "birthYear"})
-            seasons = pd.concat(
-                [self.season(y, kind, qualified=False) for y in (year - 1, year - 2, year - 3)],
-                ignore_index=True,
+            history = seasons[seasons.PlayerID.isin(selected.PlayerID)]
+            if command == "player":
+                projection = project_player(
+                    str(history["Name"].iloc[0]), history, kind, year, league_df=seasons
+                ).assign(PlayerID=history["PlayerID"].iloc[0])
+            else:
+                projection = project_team(history, kind, year, baseline_df=seasons)
+        if snapshot is not None:
+            projection["EligibilityAsOf"] = as_of
+        return projection
+
+    def _population(self, year: int, kind: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Load the complete historical sample before any output selection."""
+        if kind == "batting":
+            return self._batting_population(year)
+        self.read("People", {"playerID", "nameFirst", "nameLast", "birthYear"})
+        seasons = pd.concat(
+            [self.season(y, kind, qualified=False) for y in (year - 1, year - 2, year - 3)],
+            ignore_index=True,
+        )
+        samples = seasons.groupby("PlayerID")[["IP", "BF"]].sum()
+        sampled_ids = samples.index[samples.gt(0).any(axis=1)]
+        seasons = seasons[seasons.PlayerID.isin(sampled_ids)].copy()
+        if seasons.empty:
+            raise ProjectionError(
+                "No pitchers with positive innings or batters faced in the prior three seasons."
             )
-            samples = seasons.groupby("PlayerID")[["IP", "BF"]].sum()
-            sampled_ids = samples.index[samples.gt(0).any(axis=1)]
-            seasons = seasons[seasons.PlayerID.isin(sampled_ids)].copy()
-            if seasons.empty:
-                raise ProjectionError(
-                    "No pitchers with positive innings or batters faced in the prior three seasons."
-                )
-            seasons = _exclude_invalid_ages(seasons, year, "pitchers")
+        return _exclude_invalid_ages(seasons, year, "pitchers"), pd.DataFrame()
+
+    def _select_seasons(
+        self,
+        seasons: pd.DataFrame,
+        command: str,
+        name: str | None,
+        team: str | None,
+        player_id: str | None,
+        snapshot: pd.DataFrame | None,
+    ) -> pd.DataFrame:
+        """Select output membership without changing the regression population."""
         eligible = seasons
         if snapshot is not None:
             allowed = snapshot[snapshot.Eligible]
             eligible = eligible[eligible.PlayerID.isin(allowed.index)]
-            if kind == "batting":
-                batting["EligibilityAsOf"] = as_of
         if command == "player":
-            candidates = self._player_seasons(eligible, name, player_id)
-            matches = seasons[seasons["PlayerID"] == candidates["PlayerID"].iloc[0]]
-            if kind == "batting":
-                return batting[batting["PlayerID"] == matches["PlayerID"].iloc[0]].reset_index(
-                    drop=True
+            return self._player_seasons(eligible, name, player_id)
+        if command != "team":
+            return eligible
+        if snapshot is None:
+            selected = eligible[eligible.Team.str.casefold() == (team or "").casefold()]
+        else:
+            if "Team" not in snapshot:
+                raise DataLoadError(
+                    "Eligibility snapshot requires a Team column for team projections"
                 )
-            projection = project_player(
-                str(matches["Name"].iloc[0]), matches, kind, year, league_df=seasons
-            ).assign(PlayerID=matches["PlayerID"].iloc[0])
-            if snapshot is not None:
-                projection["EligibilityAsOf"] = as_of
-            return projection
-        selected = eligible
-        if command == "team":
-            if snapshot is not None:
-                if "Team" not in snapshot:
-                    raise DataLoadError(
-                        "Eligibility snapshot requires a Team column for team projections"
-                    )
-                team_ids = snapshot.index[snapshot.Team.str.casefold() == (team or "").casefold()]
-                selected = eligible[eligible.PlayerID.isin(team_ids)]
-            else:
-                selected = eligible[eligible["Team"].str.casefold() == (team or "").casefold()]
-            if selected.empty:
-                raise ProjectionError(
-                    f"No eligible players for Lahman team ID '{team}' in the prior three seasons."
-                )
-        if kind == "batting":
-            return batting[batting["PlayerID"].isin(selected["PlayerID"])].reset_index(drop=True)
-        history = seasons[seasons["PlayerID"].isin(selected["PlayerID"])]
-        projection = project_team(history, kind, year, baseline_df=seasons)
-        if snapshot is not None:
-            projection["EligibilityAsOf"] = as_of
-        return projection
+            team_ids = snapshot.index[snapshot.Team.str.casefold() == (team or "").casefold()]
+            selected = eligible[eligible.PlayerID.isin(team_ids)]
+        if selected.empty:
+            raise ProjectionError(
+                f"No eligible players for Lahman team ID '{team}' in the prior three seasons."
+            )
+        return selected
 
     def _batting_population(self, year: int) -> tuple[pd.DataFrame, pd.DataFrame]:
         self.read("People", {"playerID", "nameFirst", "nameLast", "birthYear"})
