@@ -32,7 +32,16 @@ regression PA, playing time, and age adjustments follow the fixed rules below.
 Batting now requires `Appearances.csv` (`playerID`, `yearID`, `G_all`, `G_p`) and
 `People.csv.birthYear`, in addition to the existing tables. Files must be from the
 same edition. Read only the three completed seasons preceding the projection year.
-Unknown or implausible birth years produce an error instead of silently assuming 29.
+The Lahman adapter excludes non-pitcher batters with missing, nonnumeric, or
+implausible birth years (projection ages outside 15–70). It logs the number of
+excluded players and up to ten IDs to stderr so incomplete historical records
+do not block the remaining population. Their seasons are excluded from regression,
+league baselines, and rebaselining. Selection and qualification then operate on
+the remaining population. If no usable batters remain, projection fails with a
+clear error. The birthYear column is still required.
+
+The low-level `project_batters` API continues to require valid birth years for
+every input player; it does not silently substitute age 29.
 
 Aggregate trade stints first. Define a primary pitcher as someone pitching in more
 than half of their appearances that season; exclude that player-season from batting

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import pandas as pd
@@ -9,6 +10,28 @@ import pandas as pd
 from backcaster.batters import project_batters
 from backcaster.data import DataLoadError, PlayerLookupError
 from backcaster.marcel import ProjectionError, project_player, project_team
+
+
+def _exclude_invalid_ages(seasons: pd.DataFrame, year: int, population: str) -> pd.DataFrame:
+    """Keep historical players with usable ages and report excluded player IDs."""
+    ages = year - pd.to_numeric(seasons["birthYear"], errors="coerce")
+    valid_age = ages.between(15, 70)
+    excluded = seasons.loc[~valid_age, "PlayerID"].drop_duplicates().tolist()
+    if excluded:
+        preview = ", ".join(excluded[:10]) + (", ..." if len(excluded) > 10 else "")
+        logging.getLogger(__name__).warning(
+            "Skipping %d %s with missing or invalid birthYear "
+            "(projection age must be 15–70). Player IDs: %s",
+            len(excluded),
+            population,
+            preview,
+        )
+        seasons = seasons.loc[valid_age].copy()
+        if seasons.empty:
+            raise ProjectionError(
+                f"No {population} with valid birthYear remain in the prior three seasons."
+            )
+    return seasons
 
 
 class LahmanSource:
@@ -162,6 +185,7 @@ class LahmanSource:
                 [self.season(y, kind, qualified=False) for y in (year - 1, year - 2, year - 3)],
                 ignore_index=True,
             )
+            seasons = _exclude_invalid_ages(seasons, year, "pitchers")
         eligible = seasons[seasons["Qualified"]]
         if command == "player":
             candidates = self._player_seasons(eligible, name, player_id)
@@ -212,6 +236,7 @@ class LahmanSource:
         # A primary pitcher appears as pitcher in more than half of their games.
         # Retain two-way hitters whose batting appearances outnumber pitching games.
         seasons = seasons[seasons["G_p"] <= seasons["G_all"] / 2].copy()
+        seasons = _exclude_invalid_ages(seasons, year, "non-pitcher batters")
         projected = project_batters(seasons, year)
         qualified = seasons[seasons["Qualified"]]
         if qualified.empty:
