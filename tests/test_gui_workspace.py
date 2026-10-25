@@ -127,6 +127,12 @@ def test_generate_with_real_lahman_engine(workspace, lahman_data, scope, selecto
     assert app.result is not None
     assert not app.result.empty
     assert len(app.tree.get_children()) == len(app.result)
+    for column in ("Year", "Age", "Reliability"):
+        assert str(app.tree.column(column, "anchor")) == "center"
+    for column in ("Name", "PlayerID", "ConfidenceTier"):
+        assert str(app.tree.column(column, "anchor")) == "w"
+    numeric_stat = "IP" if scope == "All pitchers" else "PA"
+    assert str(app.tree.column(numeric_stat, "anchor")) == "center"
     assert "2022" in app.summary.get()
     assert str(app.csv_button["state"]) == "normal"
     if scope == "Particular player":
