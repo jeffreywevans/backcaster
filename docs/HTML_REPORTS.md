@@ -1,6 +1,10 @@
 # HTML reports
 
-Generate reports through the existing CLI, for example:
+In the desktop GUI (`backcaster-gui`, new in 0.5.0), generate a report and choose
+**Export HTML** to save it within the selected report output folder. Historical
+actual-result comparisons remain available through the CLI.
+
+Generate reports through the CLI, for example:
 
 ```powershell
 backcaster hitters --year 2025 --format html --out hitters_2025.html
