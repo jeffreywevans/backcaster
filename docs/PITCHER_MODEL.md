@@ -1,8 +1,14 @@
 # Pitcher projection model
 
 Pitcher projections now use `projection year - People.csv.birthYear` for player,
-team, and batch commands. Missing, nonnumeric, nonfinite, or implausible birth
-years produce errors rather than silently assuming age 29. The low-level Python
+team, and batch commands. The Lahman adapter excludes pitchers with missing,
+nonnumeric, nonfinite, or implausible birth years (ages outside 15–70), and logs
+the excluded count and up to ten player IDs to stderr. Excluded pitchers do not
+contribute to selection or league baselines. Remaining pitchers are projected;
+if none have usable ages, the command returns a clear error. The birthYear
+column is still required, and age 29 is never silently substituted by the CLI.
+
+The low-level Python
 `project_player` and `project_team` functions accept an explicit `age` fallback
 for callers without a birthYear column; both default to 29. For team projections,
 this fallback applies to every pitcher. When birthYear is present, it takes

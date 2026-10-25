@@ -29,11 +29,11 @@ for qualification thresholds, Lahman team IDs, and treatment of traded players.
 
 ## Historical data caveats
 
-A historical target such as `--year 1934` uses 1931–1933 statistics. Batters
+A historical target such as `--year 1934` uses 1931–1933 statistics. Batters and pitchers
 with unusable birth years are excluded from the projection population with a
 stderr warning listing their count and a sample of player IDs. The remaining
-batters can still be projected; age 29 is never silently substituted. If no
-usable batters remain, the command returns an error. This handles missing ages,
+players can still be projected; age 29 is never silently substituted. If no
+usable players remain, the command returns an error. This handles missing ages,
 but does not correct the historical missing-statistic and league-context issues
 below.
 

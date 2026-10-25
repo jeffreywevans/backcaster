@@ -629,10 +629,18 @@ def test_pitcher_with_only_old_qualified_season_has_decayed_playing_time(lahman:
         assert row.Reliability == pytest.approx(487 / (487 + 200))
 
 
+@pytest.mark.parametrize(
+    "kind, population", [("batting", "non-pitcher batters"), ("pitching", "pitchers")]
+)
 @pytest.mark.parametrize("player_id", ["minor", "star"])
 @pytest.mark.parametrize("birth", [float("nan"), "unknown", float("inf"), 1800, 2021])
-def test_missing_batter_age_excludes_only_affected_players(
-    lahman: Path, caplog: pytest.LogCaptureFixture, player_id: str, birth: object
+def test_missing_age_excludes_only_affected_players(
+    lahman: Path,
+    caplog: pytest.LogCaptureFixture,
+    player_id: str,
+    birth: object,
+    kind: str,
+    population: str,
 ) -> None:
     path = lahman / "People.csv"
     people = pd.read_csv(path)
@@ -640,30 +648,38 @@ def test_missing_batter_age_excludes_only_affected_players(
     people.loc[people.playerID == player_id, "birthYear"] = birth
     people.to_csv(path, index=False)
     source = LahmanSource(str(lahman))
-    batch = source.project("batch", 2022, "batting")
+    batch = source.project("batch", 2022, kind)
     assert set(batch.PlayerID) == ({"star", "other"} - {player_id})
     assert batch.Age.between(15, 70).all()
-    assert "Skipping 1 non-pitcher batters" in caplog.text
+    assert f"Skipping 1 {population}" in caplog.text
     assert f"Player IDs: {player_id}" in caplog.text
-    selected = source.project("player", 2022, "batting", player_id="other")
+    team = source.project("team", 2022, kind, team="BOS")
+    pd.testing.assert_frame_equal(team, batch)
+    selected = source.project("player", 2022, kind, player_id="other")
     pd.testing.assert_frame_equal(selected, batch[batch.PlayerID == "other"].reset_index(drop=True))
     if player_id == "star":
         with pytest.raises(PlayerLookupError, match="No qualified"):
-            source.project("player", 2022, "batting", player_id="star")
+            source.project("player", 2022, kind, player_id="star")
 
 
-def test_all_batters_missing_birth_year_reports_actionable_error(lahman: Path) -> None:
+@pytest.mark.parametrize(
+    "kind, population", [("batting", "non-pitcher batters"), ("pitching", "pitchers")]
+)
+def test_all_players_missing_birth_year_reports_actionable_error(
+    lahman: Path, kind: str, population: str
+) -> None:
     path = lahman / "People.csv"
     people = pd.read_csv(path)
     people["birthYear"] = float("nan")
     people.to_csv(path, index=False)
     source = LahmanSource(str(lahman))
-    with pytest.raises(ProjectionError, match="No non-pitcher batters with valid birthYear remain"):
-        source.project("batch", 2022, "batting")
+    with pytest.raises(ProjectionError, match=f"No {population} with valid birthYear remain"):
+        source.project("batch", 2022, kind)
 
 
-def test_1934_html_survives_unknown_batter_birth_year(
-    lahman: Path, caplog: pytest.LogCaptureFixture
+@pytest.mark.parametrize("command, missing_id", [("hitters", "minor"), ("pitchers", "star")])
+def test_1934_html_survives_unknown_birth_year(
+    lahman: Path, caplog: pytest.LogCaptureFixture, command: str, missing_id: str
 ) -> None:
     for name in ["Batting", "Pitching", "Teams", "Appearances"]:
         path = lahman / f"{name}.csv"
@@ -673,13 +689,13 @@ def test_1934_html_survives_unknown_batter_birth_year(
     path = lahman / "People.csv"
     people = pd.read_csv(path)
     people["birthYear"] -= 88
-    people.loc[people.playerID == "minor", "birthYear"] = float("nan")
+    people.loc[people.playerID == missing_id, "birthYear"] = float("nan")
     people.to_csv(path, index=False)
-    output = lahman / "hitters_1934.html"
+    output = lahman / f"{command}_1934.html"
     assert (
         main(
             [
-                "hitters",
+                command,
                 "--year",
                 "1934",
                 "--format",
@@ -694,7 +710,7 @@ def test_1934_html_survives_unknown_batter_birth_year(
     )
     html = output.read_text()
     assert "1934" in html
-    assert "Test Star" in html
+    assert ("Test Star" in html) == (missing_id != "star")
     assert "Other Player" in html
     assert "Brief Career" not in html
     assert "Skipping 1" in caplog.text

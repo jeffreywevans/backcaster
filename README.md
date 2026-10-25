@@ -165,8 +165,8 @@ as `AB + BB + HBP + SF + SH`; missing/blank HBP, SF, and SH values count as zero
 Blank numeric counting-stat cells are also treated as zero; use a dataset with
 complete records for the seasons you intend to project.
 
-Historical batting records with missing or invalid birth years are excluded with
-a stderr warning identifying the count and sample player IDs. Remaining batters
+Historical batting and pitching records with missing or invalid birth years are excluded with
+a stderr warning identifying the count and sample player IDs. Remaining players
 are still projected; no default age is substituted. An entirely unusable
 population produces a clear error. See [historical data caveats](docs/LAHMAN.md).
 Pitcher playing time is `0.5 × last-year IP + 0.1 × two-years-ago IP + 60`,
