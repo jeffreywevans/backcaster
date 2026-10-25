@@ -2,6 +2,8 @@
 
 ## 0.4.2
 
+- Bootstrap uv 0.12.23 with a SHA-pinned setup-uv action and its embedded archive checksums instead of an unhashed pip install.
+
 - Add an explicit `age` fallback to `project_team`, matching `project_player`; birth years take precedence and CLI projections still require them.
 
 - Use recency-based pitcher playing time: `0.5 × last-year IP + 0.1 × two-years-ago IP + 60`. Missing years contribute zero; third-year history still informs regression and reliability. Apply the same formula to player, team, and batch projections.

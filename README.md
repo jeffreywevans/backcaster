@@ -331,7 +331,9 @@ Development dependencies (`--extra dev`) include:
 
 ### Lockfile policy (`uv.lock`)
 
-`uv.lock` is committed and pins runtime, development, and build dependencies. CI uses
+`uv.lock` is committed and pins runtime, development, and build dependencies. CI
+installs uv 0.12.23 with a SHA-pinned `astral-sh/setup-uv` action, whose embedded
+checksums verify the downloaded uv archive. CI uses
 `uv sync --locked --extra dev` and fails if the lockfile is out of date. CI first
 installs the locked tools with `--no-install-project`, then installs Backcaster
 with `--no-build-isolation` to keep build dependencies pinned. CI builds
