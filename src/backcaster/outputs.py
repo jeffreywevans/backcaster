@@ -85,7 +85,12 @@ def _format_variance(value: Any, column: str) -> str:
         return ""
     if column == "IP":
         outs = int((Decimal(str(value)) * 3).to_integral_value(rounding=ROUND_HALF_UP))
-        sign = "+" if outs > 0 else "-" if outs < 0 else ""
+        if outs > 0:
+            sign = "+"
+        elif outs < 0:
+            sign = "-"
+        else:
+            sign = ""
         whole, remainder = divmod(abs(outs), 3)
         return f"{sign}{whole}.{remainder}"
     places = RATE_PLACES.get(column, 0)
@@ -133,8 +138,19 @@ def to_cli_table(df: pd.DataFrame) -> str:
     return _display_frame(df).to_string(index=False)
 
 
+def validate_output_path(out_path: str | Path) -> Path:
+    """Resolve an export destination and confine it to the working directory."""
+    root = Path.cwd().resolve()
+    out = Path(out_path).resolve()
+    if not out.is_relative_to(root):
+        raise ValueError(
+            f"Output path must stay within the current working directory ({root}): {out_path}"
+        )
+    return out
+
+
 def to_csv(df: pd.DataFrame, out_path: str | Path) -> Path:
-    out = Path(out_path)
+    out = validate_output_path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
     display = _display_frame(df)
     for column in ("Name", "PlayerID"):
@@ -152,7 +168,7 @@ def to_csv(df: pd.DataFrame, out_path: str | Path) -> Path:
 
 
 def to_html(df: pd.DataFrame, out_path: str | Path, actuals: pd.DataFrame | None = None) -> Path:
-    out = Path(out_path)
+    out = validate_output_path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
     actual_display = _display_frame(actuals) if actuals is not None else None
     variances = _display_variances(df, actuals) if actuals is not None else None

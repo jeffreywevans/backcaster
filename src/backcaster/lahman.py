@@ -20,6 +20,13 @@ def _ratio(numerator: pd.Series, denominator: pd.Series) -> pd.Series:
     return numerator.div(denominator.where(denominator.ne(0)))
 
 
+def _fill_optional_batting_stats(stats: pd.DataFrame) -> None:
+    """Default optional Lahman batting counts to zero when absent."""
+    for column in ["HBP", "SF", "SH"]:
+        if column not in stats:
+            stats[column] = 0
+
+
 def _actual_batting(season: pd.DataFrame, year: int) -> pd.DataFrame:
     actual = season.copy()
     actual["TB"] = actual["H"] + actual["2B"] + 2 * actual["3B"] + 3 * actual["HR"]
@@ -150,9 +157,7 @@ class LahmanSource:
             )
         games = self._season_games(year)
         if kind == "batting":
-            for column in ["HBP", "SF", "SH"]:
-                if column not in stats:
-                    stats[column] = 0
+            _fill_optional_batting_stats(stats)
             components += ["HBP", "SF", "SH"]
         try:
             stats[components] = stats[components].apply(pd.to_numeric, errors="raise").fillna(0)

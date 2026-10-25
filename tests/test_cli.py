@@ -175,6 +175,22 @@ def test_validation_rejects_cli_output_path(capsys: pytest.CaptureFixture[str]) 
     assert capsys.readouterr().out == ""
 
 
+@pytest.mark.parametrize("fmt", ["csv", "html"])
+def test_cli_rejects_output_escape_before_loading_data(
+    monkeypatch: pytest.MonkeyPatch, tmp_path, capsys: pytest.CaptureFixture[str], fmt: str
+) -> None:
+    def forbidden(*args, **kwargs):
+        raise AssertionError("unsafe output path attempted data loading")
+
+    monkeypatch.setattr("backcaster.cli.LahmanSource", forbidden)
+    out = tmp_path.parent / f"escaped.{fmt}"
+    assert main(["hitters", "--year", "2026", "--format", fmt, "--out", str(out)]) == 2
+    captured = capsys.readouterr()
+    assert "must stay within the current working directory" in captured.err
+    assert captured.out == ""
+    assert not out.exists()
+
+
 @pytest.mark.parametrize("fmt", ["cli", "csv"])
 def test_historical_comparison_requires_html(fmt: str) -> None:
     with pytest.raises(ValueError, match="--compare-actuals requires --format html"):

@@ -62,6 +62,60 @@ def test_html_output_creation(tmp_path: Path) -> None:
     assert "A" in content
 
 
+@pytest.mark.parametrize("writer", [to_csv, to_html])
+@pytest.mark.parametrize("absolute", [False, True])
+def test_exports_allow_nested_paths_within_working_directory(
+    tmp_path: Path, writer, absolute: bool
+) -> None:
+    relative = Path("reports") / "nested" / "report.txt"
+    destination = tmp_path / relative if absolute else relative
+    result = writer(pd.DataFrame([{"Name": "A"}]), destination)
+    assert result == tmp_path / relative
+    assert result.is_file()
+
+
+@pytest.mark.parametrize("writer", [to_csv, to_html])
+@pytest.mark.parametrize("absolute", [False, True])
+def test_exports_reject_paths_outside_working_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, writer, absolute: bool
+) -> None:
+    root = tmp_path / "reports"
+    root.mkdir()
+    monkeypatch.chdir(root)
+    # A sibling with the same prefix also defeats naive string-prefix checks.
+    outside = tmp_path / "reports-other" / "nested" / "report.txt"
+    destination = outside if absolute else Path("..") / "reports-other/nested/report.txt"
+    with pytest.raises(ValueError, match="must stay within the current working directory"):
+        writer(pd.DataFrame([{"Name": "A"}]), destination)
+    assert not outside.parent.exists()
+
+
+@pytest.mark.parametrize("writer", [to_csv, to_html])
+@pytest.mark.parametrize("directory_link", [False, True])
+def test_exports_reject_symlinks_to_outside_working_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, writer, directory_link: bool
+) -> None:
+    root = tmp_path / "reports"
+    root.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    protected = outside / "existing.txt"
+    protected.write_text("preserve me", encoding="utf-8")
+    link = root / "link"
+    try:
+        link.symlink_to(
+            outside if directory_link else protected, target_is_directory=directory_link
+        )
+    except (OSError, NotImplementedError):
+        pytest.skip("Symbolic links are unavailable on this platform")
+    monkeypatch.chdir(root)
+    destination = link / "new/report.txt" if directory_link else link
+    with pytest.raises(ValueError, match="must stay within the current working directory"):
+        writer(pd.DataFrame([{"Name": "A"}]), destination)
+    assert protected.read_text(encoding="utf-8") == "preserve me"
+    assert not (outside / "new").exists()
+
+
 def test_cli_table_output() -> None:
     df = pd.DataFrame([{"Name": "A", "PA": 100}])
     assert to_cli_table(df) == df.to_string(index=False)
