@@ -79,6 +79,9 @@ README before testing.
 
 For 0.4.2, also verify:
 
+- Pitcher IP follows `0.5 × last-year IP + 0.1 × two-years-ago IP + 60`; missing
+  years contribute zero. A pitcher with only third-year history projects for 60 IP.
+
 - Reliability shows six decimals in CLI, CSV, and HTML, and undefined batter
   BA/OBP/SLG/OPS display blank.
 - `player --player-id <Lahman ID>` selects a duplicate-name player. Supplying

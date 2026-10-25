@@ -150,10 +150,7 @@ def project_player(
     weighted = _weighted_row(rows, weights, comps)
 
     pt_col = comps[0]
-    weighted_pt = float(weighted[pt_col])
-    # Regression uses weighted evidence, not the per-season average used for
-    # playing time. Averaging first would multiply regression strength by the
-    # sum of the season weights (12 for three seasons with weights 5/4/3).
+    # Regression uses weighted totals, independently of projected playing time.
     evidence = weighted * sum(weights)
     evidence_pt = float(evidence[pt_col])
     reliability = safe_divide(evidence_pt, evidence_pt + reg_pt)
@@ -162,17 +159,15 @@ def project_player(
         baseline_df = league_df if league_df is not None else prior_df
         _, league_rates = _compute_baseline_rates(baseline_df, comps)
 
+    playing_time = prior_df["Season"].map({year - 1: 0.5, year - 2: 0.1}).fillna(0.0)
+    projected_pt = (float((prior_df["IP"] * playing_time).sum()) + 60) * config.default_ip_growth
     regressed = weighted.copy()
-    regressed[pt_col] = weighted_pt
+    regressed[pt_col] = projected_pt
     for c in comps[1:]:
         regressed_rate = safe_divide(
             float(evidence[c]) + league_rates[c] * reg_pt, evidence_pt + reg_pt
         )
-        regressed[c] = regressed_rate * weighted_pt
-
-    projected_pt = weighted_pt * config.default_ip_growth
-    pt_scale = safe_divide(projected_pt, weighted_pt)
-    regressed *= pt_scale
+        regressed[c] = regressed_rate * projected_pt
 
     age = _pitcher_age(prior_df, year, age)
     regressed = _age_pitching(regressed, age)
@@ -192,8 +187,9 @@ def project_team(
     year: int,
     config: MarcelConfig | None = None,
     baseline_df: pd.DataFrame | None = None,
+    age: float = 29,
 ) -> pd.DataFrame:
-    """Project pitchers with a shared league baseline."""
+    """Project pitchers; age is the shared fallback when birthYear is absent."""
     config = config or MarcelConfig()
     _validate_projection_kind(kind)
     if "Name" not in team_df.columns:
@@ -219,7 +215,7 @@ def project_team(
     ages = (
         year - pd.to_numeric(latest["birthYear"], errors="coerce")
         if "birthYear" in latest
-        else pd.Series(29.0, index=latest.index)
+        else pd.Series(age, index=latest.index)
     ).astype(float)
     if not (np.isfinite(ages) & ages.between(15, 70)).all():
         raise ProjectionError("A valid birthYear or explicit age is required for pitcher aging.")
@@ -235,11 +231,12 @@ def project_team(
     # Match scalar arithmetic: a missing component propagates, rather than
     # disappearing in pandas' default skip-NaN sum.
     evidence = grouped.sum().where(grouped.count().eq(grouped.size(), axis=0))
-    weighted_ip = _pitching_ratio(evidence["IP"], weight_sums)
     evidence = evidence.where(weight_sums.ne(0), 0.0, axis=0)
     denominator = evidence["IP"] + config.regression_ip
     output = pd.DataFrame(index=latest.index)
-    output["IP"] = weighted_ip * config.default_ip_growth
+    playing_time = prior["Season"].map({year - 1: 0.5, year - 2: 0.1}).fillna(0.0)
+    recent_ip = (prior["IP"] * playing_time).groupby(prior["_group"]).sum()
+    output["IP"] = (recent_ip + 60) * config.default_ip_growth
     for column in comps[1:]:
         rate = _pitching_ratio(
             evidence[column] + baseline_rates[column] * config.regression_ip, denominator

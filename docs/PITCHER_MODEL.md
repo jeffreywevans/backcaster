@@ -1,10 +1,12 @@
-# Pitcher aging
+# Pitcher projection model
 
 Pitcher projections now use `projection year - People.csv.birthYear` for player,
 team, and batch commands. Missing, nonnumeric, nonfinite, or implausible birth
 years produce errors rather than silently assuming age 29. The low-level Python
-`project_player` function also accepts an explicit age for callers without birth
-years; its existing default remains 29 for those callers only.
+`project_player` and `project_team` functions accept an explicit `age` fallback
+for callers without a birthYear column; both default to 29. For team projections,
+this fallback applies to every pitcher. When birthYear is present, it takes
+precedence; invalid or missing values raise an error rather than using the fallback.
 
 The aging equations and direction choices are adapted from Ben Dilday's marcelR,
 revision `13a1c7943f5a7317c9c812a28e299c2184060046`, `R/utilities.R` and
@@ -25,9 +27,8 @@ IP, or BF. BF is retained as the existing opportunity estimate, not rederived
 from the adjusted components. The former uniform age multiplier on innings and
 all counts is removed for pitchers; it canceled out of ERA and WHIP.
 
-This is an aging change, not full marcelR pitching equivalence. Existing 5/4/3
-weights, 200-IP regression, qualified-player league baselines, and weighted-average
-innings estimates remain. Eligibility is qualification in at least one prior
+Existing 5/4/3 evidence weights, 200-IP regression, and qualified-player league
+baselines remain. Playing time uses the recency formula below. Eligibility is qualification in at least one prior
 season, but each selected pitcher's full available three-year history is used
 regardless of qualification or team. Trade stints are combined first. Weights remain attached to calendar years
 when a pitcher misses a season; a missing year does not promote an older
@@ -35,6 +36,33 @@ season into the latest-year slot. Pitcher exports include PlayerID for matching.
 regression outs, role-based playing time, and population rebaselining are not yet
 implemented. Historical published forecasts are therefore comparison targets,
 not exact expected matches.
+
+
+## Projected innings
+
+Starting with 0.4.2, projected innings are:
+
+```text
+IP = (0.5 × IP in year−1 + 0.1 × IP in year−2 + 60) × default_ip_growth
+```
+
+Missing calendar years contribute zero without promoting older seasons. The
+third prior season still contributes to regression evidence and reliability,
+but contributes no innings to this playing-time estimate. A pitcher whose only
+history is a 180-IP season three years ago now projects for 60 IP, rather than
+180. With 181 IP last year and 185 IP two years ago, the formula gives 169 IP.
+
+Apply each regressed per-IP count rate to the projected innings, then age the
+performance components. This changes counting-stat totals while preserving
+regressed rates and reliability. The same formula is used by player, team, and
+batch projections. `MarcelConfig.season_weights` controls regression evidence;
+`default_ip_growth` scales the final playing-time estimate (default 1.0).
+
+The 60-IP allowance is a fixed modeling choice. It does not establish a current
+roster spot, distinguish starters from relievers, or account for injuries and
+retirement. Historical qualification still determines selection. This implements
+the playing-time alternative identified in the projection math audit; the matching
+example alone does not establish Baseball Reference or marcelR equivalence.
 
 
 ## Expanded pitcher statistics

@@ -164,6 +164,10 @@ Player stints are summed before qualification. Plate appearances are calculated
 as `AB + BB + HBP + SF + SH`; missing/blank HBP, SF, and SH values count as zero.
 Blank numeric counting-stat cells are also treated as zero; use a dataset with
 complete records for the seasons you intend to project.
+Pitcher playing time is `0.5 × last-year IP + 0.1 × two-years-ago IP + 60`,
+with missing calendar years contributing zero. The third prior season still
+contributes to regression and reliability. See [the pitcher model](docs/PITCHER_MODEL.md).
+
 Pitching `IPouts` is divided by three for decimal innings, and `BFP` supplies
 batters faced. Lahman player IDs keep different players with the same name separate;
 ambiguous name lookups report the matching IDs. Select one with `--player-id`
@@ -327,7 +331,9 @@ Development dependencies (`--extra dev`) include:
 
 ### Lockfile policy (`uv.lock`)
 
-`uv.lock` is committed and pins runtime, development, and build dependencies. CI uses
+`uv.lock` is committed and pins runtime, development, and build dependencies. CI
+installs uv 0.12.23 with a SHA-pinned `astral-sh/setup-uv` action, whose embedded
+checksums verify the downloaded uv archive. CI uses
 `uv sync --locked --extra dev` and fails if the lockfile is out of date. CI first
 installs the locked tools with `--no-install-project`, then installs Backcaster
 with `--no-build-isolation` to keep build dependencies pinned. CI builds

@@ -382,7 +382,7 @@ def test_pitcher_aging_consistent_across_commands(lahman: Path) -> None:
     team = source.project("team", 2022, "pitching", team="BOS")
     batch = source.project("batch", 2022, "pitching")
     assert player["Age"] == 32
-    assert player["IP"] == pytest.approx(487 / 3)
+    assert player["IP"] == pytest.approx(0.6 * 487 / 3 + 60)
     for result in [team, batch]:
         row = result[result.Name == "Test Star"].iloc[0]
         for stat in ["IP", "SO", "ERA", "WHIP", "Age"]:
@@ -420,7 +420,7 @@ def test_pitcher_full_history_survives_team_and_qualification_selection(lahman: 
     team = source.project("team", 2022, "pitching", team="LAN").iloc[0]
     batch = source.project("batch", 2022, "pitching")
     row = batch[batch.Name == "Test Star"].iloc[0]
-    assert player["IP"] == pytest.approx((5 * 487 / 3 + 4 * 30 + 3 * 487 / 3) / 12)
+    assert player["IP"] == pytest.approx(0.5 * 487 / 3 + 0.1 * 30 + 60)
     for candidate in [team, row]:
         for metric in ["IP", "ER", "ERA", "WHIP", "SO", "Reliability"]:
             assert candidate[metric] == pytest.approx(player[metric])
@@ -470,7 +470,7 @@ def test_pitcher_without_three_qualifying_seasons_can_be_selected(lahman: Path) 
     frame.to_csv(path, index=False)
     result = LahmanSource(str(lahman)).project("player", 2022, "pitching", name="Test Star")
     assert len(result) == 1
-    assert result.loc[0, "IP"] == pytest.approx((5 * 487 / 3 + 4 * 30 + 3 * 30) / 12)
+    assert result.loc[0, "IP"] == pytest.approx(0.5 * 487 / 3 + 0.1 * 30 + 60)
 
 
 @pytest.mark.parametrize(
@@ -610,3 +610,20 @@ def test_season_names_without_optional_birth_year(lahman: Path) -> None:
     season = LahmanSource(str(lahman)).season(2021, "batting")
     assert season.loc[season.PlayerID == "star", "Name"].iloc[0] == "Star"
     assert "birthYear" not in season
+
+
+def test_pitcher_with_only_old_qualified_season_has_decayed_playing_time(lahman: Path) -> None:
+    path = lahman / "Pitching.csv"
+    history = pd.read_csv(path)
+    history = history[~((history.playerID == "star") & (history.yearID != 2019))]
+    history.to_csv(path, index=False)
+    source = LahmanSource(str(lahman))
+    for command, selection in [
+        ("player", {"player_id": "star"}),
+        ("team", {"team": "BOS"}),
+        ("batch", {}),
+    ]:
+        result = source.project(command, 2022, "pitching", **selection)
+        row = result[result.PlayerID == "star"].iloc[0]
+        assert row.IP == pytest.approx(60.0)
+        assert row.Reliability == pytest.approx(487 / (487 + 200))

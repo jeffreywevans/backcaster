@@ -33,11 +33,11 @@ def _validate_output_options(output_format: str, out: str | None) -> None:
 
 
 def _render(df: pd.DataFrame, output_format: str, out: str | None) -> None:
-    _validate_output_options(output_format, out)
     if output_format == "cli":
         print(to_cli_table(df))
     elif output_format in _FILE_RENDERERS:
-        assert out is not None
+        if not out:
+            raise ValueError(f"--out is required for {output_format} output")
         _FILE_RENDERERS[output_format](df, out)
     else:
         raise ValueError(f"Unsupported format: {output_format}")
