@@ -1,6 +1,6 @@
 # Releasing Backcaster
 
-## Prepare 0.4.3
+## Prepare 0.5.0
 
 The package version is defined in `src/backcaster/__init__.py`; setuptools reads it
 when building both distributions. After changing the version, run `uv lock` and
@@ -11,13 +11,16 @@ From the repository root, with Python 3.13+ and the development dependencies ins
 ```bash
 uv sync --locked --extra dev --no-install-project
 uv sync --locked --extra dev --no-build-isolation
-uv run --locked --no-sync pytest --cov=src --cov-branch --cov-fail-under=100
+xvfb-run -a uv run --locked --no-sync pytest --cov=src --cov-branch --cov-fail-under=100
 uv run --locked --no-sync ruff check src tests
 uv run --locked --no-sync ruff format --check src tests
 uv run --locked --no-sync mypy
 uv build --no-build-isolation
 uv run --locked --no-sync python -m twine check --strict dist/*
 ```
+
+On headless Linux, install Xvfb and xauth to run the GUI tests; on a graphical
+desktop, omit `xvfb-run -a`. Python must include Tk support.
 
 Use a clean `dist/` directory for release builds so previous versions are not uploaded.
 The Publish to PyPI workflow can be run manually on the release candidate branch
@@ -44,8 +47,8 @@ These GitHub and PyPI settings must be configured separately from the repository
 
 1. Merge the prepared changes into `main` and confirm CI passes, including Python
    3.13 and 3.14 and the 100% coverage gate.
-2. Create a GitHub release named **0.4.3**, using tag **v0.4.3** at the validated
-   commit on `main`. Use the 0.4.3 changelog entry as the release notes.
+2. Create a GitHub release named **0.5.0**, using tag **v0.5.0** at the validated
+   commit on `main`. Use the 0.5.0 changelog entry as the release notes.
 3. Publish the GitHub release as a stable release. This triggers `workflow.yml`;
    a draft does not trigger publication, and a prerelease does not upload to PyPI.
 4. Review the build and the `pypi` deployment job; approve it if the environment
@@ -54,8 +57,8 @@ These GitHub and PyPI settings must be configured separately from the repository
 5. After the upload succeeds, verify from a fresh environment:
 
    ```bash
-   python -m pip install backcaster==0.4.3
-   python -c 'from backcaster import __version__; assert __version__ == "0.4.3"'
+   python -m pip install backcaster==0.5.0
+   python -c 'from backcaster import __version__; assert __version__ == "0.5.0"'
    backcaster --help
    backcaster hitters --help
    backcaster pitchers --help
@@ -77,7 +80,20 @@ at one, and SO/W at two. W-L% is a three-decimal fraction. Undefined W-L% and
 SO/W should be blank. Confirm the local CSVs include the fields listed in the
 README before testing.
 
-For 0.4.3, also verify:
+For 0.5.0, verify the desktop workspace on a graphical desktop:
+
+- Launch `backcaster-gui` and `python -m backcaster.gui`; confirm the title and
+  navigation show Backcaster v0.5.0.
+- Load local Lahman selections and generate player, team, all-hitter, and
+  all-pitcher reports. Verify player IDs distinguish duplicate names and the
+  batting/pitching selector follows report scope.
+- Export HTML and CSV into a selected folder, including a folder outside the
+  working directory. Confirm exports include every player when the preview is
+  capped at 500 rows. Verify save cancellation and overwrite confirmation.
+- Save both folder preferences and restart the app to confirm persistence.
+- Confirm bad filters, missing data, and unwritable folders show readable errors.
+
+Also verify existing report behavior:
 
 - Historical HTML comparisons work for both batters and pitchers with target-year
   results available. Projection inputs still use only the three preceding years.
@@ -88,8 +104,8 @@ For 0.4.3, also verify:
   with a readable error before loading data.
 - Nested export paths inside the current working directory succeed. Paths outside
   it, including parent traversal and symbolic-link escapes, return status 2
-  before data loading or filesystem writes. Python writers enforce the same
-  boundary and return resolved absolute paths.
+  before data loading or filesystem writes. Python writers default to the same
+  boundary, accept an explicit `output_root`, and return resolved absolute paths.
 
 - A one-out pitcher and an outless pitcher with a batter faced receive low-sample
   projections. Dated snapshots also work for pitchers, without changing retained

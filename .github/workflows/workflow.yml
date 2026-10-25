@@ -69,6 +69,23 @@ jobs:
           /tmp/backcaster-wheel/bin/backcaster --help
           /tmp/backcaster-wheel/bin/backcaster hitters --help
           /tmp/backcaster-wheel/bin/backcaster pitchers --help
+          xvfb-run -a /tmp/backcaster-wheel/bin/python - <<'PYGUI'
+          import tkinter as tk
+          from importlib.metadata import entry_points, version
+          from backcaster import __version__
+          from backcaster.gui import Workspace
+
+          assert version("backcaster") == __version__
+          launchers = list(entry_points(group="gui_scripts", name="backcaster-gui"))
+          assert len(launchers) == 1
+          assert callable(launchers[0].load())
+          window = tk.Tk()
+          window.withdraw()
+          Workspace(window)
+          window.update()
+          assert __version__ in window.title()
+          window.destroy()
+          PYGUI
 
       - name: Upload package artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

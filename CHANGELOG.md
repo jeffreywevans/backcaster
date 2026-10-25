@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.5.0
+
+- Add a ServiceNow-inspired desktop report workspace, launched with `backcaster-gui`
+  or `python -m backcaster.gui`, showing the application name and installed version.
+- Select projection seasons, individual players (including exact Lahman IDs), teams,
+  all hitters, or all pitchers. Player and team reports support batting or pitching.
+- Preview up to 500 players in a scrollable table and export the complete generated
+  report to HTML or CSV. Background workers keep projection and export work responsive.
+- Browse and persist Lahman data and report output folders in platform-specific
+  configuration storage. GUI exports stay within the selected output folder; CLI
+  exports keep their existing working-directory restriction. Python writers accept
+  an explicit `output_root` for the selected export boundary.
+- Add real Tk integration tests and virtual-display execution in CI, retaining the
+  100% line and branch coverage gate.
+
+Compatibility: existing CLI commands and projection math are unchanged. The GUI
+requires Python Tk support and a graphical desktop; it adds no Python package
+dependencies. Python 3.13+ remains required.
+
 ## 0.4.3
 
 - Add opt-in historical accuracy comparisons to HTML reports. `--compare-actuals`

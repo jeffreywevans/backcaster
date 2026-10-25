@@ -1,6 +1,9 @@
 # Backcaster
 
-Backcaster is a Python CLI that produces **Marcel-style MLB projections** from the prior three seasons of data using local Lahman CSV files and `pandas`.
+Backcaster is a desktop GUI and Python CLI that produces **Marcel-style MLB projections** from the prior three seasons of data using local Lahman CSV files and `pandas`.
+
+Launch the desktop workspace with `backcaster-gui` after installation; see
+[Desktop GUI](#desktop-gui-new-in-050) for setup and report controls.
 
 It supports:
 - **Single player projections** (`player`)
@@ -26,10 +29,10 @@ Upgrade to the latest release available on PyPI:
 python -m pip install --upgrade backcaster
 ```
 
-To install a specific release, such as 0.4.3:
+To install a specific release, such as 0.5.0:
 
 ```powershell
-python -m pip install --upgrade backcaster==0.4.3
+python -m pip install --upgrade backcaster==0.5.0
 ```
 
 Run the command using the same Python environment where you run Backcaster.
@@ -46,7 +49,7 @@ python -m pip show backcaster
 uv sync --locked
 ```
 
-This installs runtime dependencies and the `backcaster` CLI entrypoint defined in `pyproject.toml`.
+This installs runtime dependencies, the `backcaster` CLI, and the `backcaster-gui` desktop launcher defined in `pyproject.toml`.
 
 ### Install in editable/dev mode
 
@@ -509,7 +512,7 @@ imply endorsement or exact agreement with another implementation's projections.
 
 Please review `SECURITY.md` for reporting guidance. Backcaster is an analytical utility and should be validated independently before use in production pipelines.
 
-## Desktop GUI
+## Desktop GUI (new in 0.5.0)
 
 Launch the desktop report workspace after installing Backcaster:
 
