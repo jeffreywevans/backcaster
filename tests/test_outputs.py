@@ -85,8 +85,9 @@ def test_exports_reject_paths_outside_working_directory(
     # A sibling with the same prefix also defeats naive string-prefix checks.
     outside = tmp_path / "reports-other" / "nested" / "report.txt"
     destination = outside if absolute else Path("..") / "reports-other/nested/report.txt"
+    frame = pd.DataFrame([{"Name": "A"}])
     with pytest.raises(ValueError, match="must stay within the current working directory"):
-        writer(pd.DataFrame([{"Name": "A"}]), destination)
+        writer(frame, destination)
     assert not outside.parent.exists()
 
 
@@ -110,8 +111,9 @@ def test_exports_reject_symlinks_to_outside_working_directory(
         pytest.skip("Symbolic links are unavailable on this platform")
     monkeypatch.chdir(root)
     destination = link / "new/report.txt" if directory_link else link
+    frame = pd.DataFrame([{"Name": "A"}])
     with pytest.raises(ValueError, match="must stay within the current working directory"):
-        writer(pd.DataFrame([{"Name": "A"}]), destination)
+        writer(frame, destination)
     assert protected.read_text(encoding="utf-8") == "preserve me"
     assert not (outside / "new").exists()
 
