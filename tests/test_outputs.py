@@ -154,6 +154,9 @@ def test_invalid_display_innings(innings: float) -> None:
         (-0.004, "ERA", "-0.00"),
         (5 / 3, "IP", "+1.2"),
         (-5 / 3, "IP", "-1.2"),
+        (0, "IP", "0.0"),
+        (0.1, "IP", "0.0"),
+        (-0.1, "IP", "0.0"),
         (float("nan"), "PA", ""),
     ],
 )
