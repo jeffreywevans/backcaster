@@ -104,8 +104,9 @@ def test_data_directory_precedence(monkeypatch: pytest.MonkeyPatch, tmp_path) ->
 
 @pytest.mark.parametrize("selectors", [[], ["--name", "Chris Young", "--player-id", "youngch01"]])
 def test_player_requires_one_selector(selectors: list[str]) -> None:
+    parser = build_parser()
     with pytest.raises(SystemExit) as exc:
-        build_parser().parse_args(["player", "--year", "2022", "--kind", "batting", *selectors])
+        parser.parse_args(["player", "--year", "2022", "--kind", "batting", *selectors])
     assert exc.value.code == 2
 
 
@@ -151,6 +152,7 @@ def test_invalid_output_options_fail_before_loading_data(
 
 
 def test_render_rejects_cli_output_path(capsys: pytest.CaptureFixture[str]) -> None:
+    frame = pd.DataFrame([{"Name": "A"}])
     with pytest.raises(ValueError, match="--out cannot be used"):
-        _render(pd.DataFrame([{"Name": "A"}]), "cli", "ignored.csv")
+        _render(frame, "cli", "ignored.csv")
     assert capsys.readouterr().out == ""

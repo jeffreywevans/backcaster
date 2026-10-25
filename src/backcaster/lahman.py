@@ -21,7 +21,7 @@ class LahmanSource:
     def read(self, name: str, required: set[str]) -> pd.DataFrame:
         optional = {"Batting": {"HBP", "SF", "SH"}, "People": {"birthYear"}}.get(name, set())
         columns = required | optional
-        if name not in self.tables or not columns <= self._requested_columns[name]:
+        if name not in self.tables or columns - self._requested_columns[name]:
             columns |= self._requested_columns.get(name, set())
             paths = [
                 p for p in self.directory.glob("*") if p.name.casefold() == f"{name}.csv".casefold()
