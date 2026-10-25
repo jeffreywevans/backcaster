@@ -54,6 +54,12 @@ def build_parser() -> argparse.ArgumentParser:
         else:
             sp.set_defaults(kind=kind)
         sp.add_argument("--format", choices=_OUTPUT_FORMAT_CHOICES, default="cli")
+        sp.add_argument(
+            "--eligibility-file", help="Batting eligibility CSV keyed by Lahman PlayerID"
+        )
+        sp.add_argument(
+            "--as-of", help="Eligibility snapshot date (YYYY-MM-DD; requires --eligibility-file)"
+        )
         sp.add_argument("--out", help="Output path (required for csv/html; invalid with cli)")
         sp.add_argument(
             "--data-dir",
@@ -64,7 +70,7 @@ def build_parser() -> argparse.ArgumentParser:
     pp = sub.add_parser("player")
     add_common(pp)
     player_selector = pp.add_mutually_exclusive_group(required=True)
-    player_selector.add_argument("--name", help="Player name (must identify one qualified player)")
+    player_selector.add_argument("--name", help="Player name (must identify one eligible player)")
     player_selector.add_argument(
         "--player-id", help="Exact Lahman player ID (for example, bettsmo01)"
     )
@@ -94,6 +100,8 @@ def main(argv: list[str] | None = None) -> int:
             name=getattr(args, "name", None),
             team=getattr(args, "team", None),
             player_id=getattr(args, "player_id", None),
+            eligibility_file=args.eligibility_file,
+            as_of=args.as_of,
         )
         _render(result, args.format, args.out)
         return 0

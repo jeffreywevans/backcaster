@@ -9,6 +9,7 @@ import pandas as pd
 
 from backcaster.batters import project_batters
 from backcaster.data import DataLoadError, PlayerLookupError
+from backcaster.eligibility import read_eligibility
 from backcaster.marcel import ProjectionError, project_player, project_team
 
 
@@ -173,9 +174,20 @@ class LahmanSource:
         name: str | None = None,
         team: str | None = None,
         player_id: str | None = None,
+        eligibility_file: str | Path | None = None,
+        as_of: str | None = None,
     ) -> pd.DataFrame:
         if name is not None and player_id is not None:
             raise ValueError("Specify either name or player_id, not both.")
+        snapshot = None
+        if eligibility_file is not None or as_of is not None:
+            if eligibility_file is None or as_of is None:
+                raise ValueError("--eligibility-file and --as-of must be provided together")
+            if kind != "batting":
+                raise ValueError(
+                    "Eligibility snapshots currently apply to batting projections only"
+                )
+            snapshot = read_eligibility(eligibility_file, year, as_of)
         batting = pd.DataFrame()
         if kind == "batting":
             seasons, batting = self._batting_population(year)
@@ -186,7 +198,11 @@ class LahmanSource:
                 ignore_index=True,
             )
             seasons = _exclude_invalid_ages(seasons, year, "pitchers")
-        eligible = seasons[seasons["Qualified"]]
+        eligible = seasons if kind == "batting" else seasons[seasons["Qualified"]]
+        if snapshot is not None:
+            allowed = snapshot[snapshot.Eligible]
+            eligible = eligible[eligible.PlayerID.isin(allowed.index)]
+            batting["EligibilityAsOf"] = as_of
         if command == "player":
             candidates = self._player_seasons(eligible, name, player_id)
             matches = seasons[seasons["PlayerID"] == candidates["PlayerID"].iloc[0]]
@@ -199,10 +215,18 @@ class LahmanSource:
             ).assign(PlayerID=matches["PlayerID"].iloc[0])
         selected = eligible
         if command == "team":
-            selected = eligible[eligible["Team"].str.casefold() == (team or "").casefold()]
+            if snapshot is not None:
+                if "Team" not in snapshot:
+                    raise DataLoadError(
+                        "Eligibility snapshot requires a Team column for team projections"
+                    )
+                team_ids = snapshot.index[snapshot.Team.str.casefold() == (team or "").casefold()]
+                selected = eligible[eligible.PlayerID.isin(team_ids)]
+            else:
+                selected = eligible[eligible["Team"].str.casefold() == (team or "").casefold()]
             if selected.empty:
                 raise ProjectionError(
-                    f"No qualified players for Lahman team ID '{team}' in the prior three seasons."
+                    f"No eligible players for Lahman team ID '{team}' in the prior three seasons."
                 )
         if kind == "batting":
             return batting[batting["PlayerID"].isin(selected["PlayerID"])].reset_index(drop=True)
@@ -235,12 +259,9 @@ class LahmanSource:
             )
         # A primary pitcher appears as pitcher in more than half of their games.
         # Retain two-way hitters whose batting appearances outnumber pitching games.
-        seasons = seasons[seasons["G_p"] <= seasons["G_all"] / 2].copy()
+        seasons = seasons[(seasons["G_p"] <= seasons["G_all"] / 2) & (seasons["PA"] > 0)].copy()
         seasons = _exclude_invalid_ages(seasons, year, "non-pitcher batters")
         projected = project_batters(seasons, year)
-        qualified = seasons[seasons["Qualified"]]
-        if qualified.empty:
-            raise ProjectionError("No qualified non-pitcher batters in the prior three seasons.")
         return seasons, projected
 
     def _player_seasons(
@@ -250,7 +271,7 @@ class LahmanSource:
             matches = seasons[seasons["PlayerID"] == player_id]
             if matches.empty:
                 raise PlayerLookupError(
-                    f"No qualified Lahman player found for player ID '{player_id}' "
+                    f"No eligible Lahman player found for player ID '{player_id}' "
                     "in the prior three seasons."
                 )
             return matches
@@ -261,7 +282,7 @@ class LahmanSource:
         ids = matches["PlayerID"].unique()
         if len(ids) == 0:
             raise PlayerLookupError(
-                f"No qualified Lahman player found for '{name}' in the prior three seasons."
+                f"No eligible Lahman player found for '{name}' in the prior three seasons."
             )
         if len(ids) > 1:
             raise PlayerLookupError(

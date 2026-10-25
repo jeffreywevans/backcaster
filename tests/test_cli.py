@@ -156,3 +156,33 @@ def test_validation_rejects_cli_output_path(capsys: pytest.CaptureFixture[str]) 
     with pytest.raises(ValueError, match="--out cannot be used"):
         _validate_output_options("cli", "ignored.csv")
     assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    "options, message",
+    [
+        (["--as-of", "2025-01-14"], "must be provided together"),
+        (["--eligibility-file", "eligibility.csv"], "must be provided together"),
+        (
+            [
+                "--eligibility-file",
+                "eligibility.csv",
+                "--as-of",
+                "2025-01-14",
+                "--kind",
+                "pitching",
+            ],
+            "batting projections only",
+        ),
+    ],
+)
+def test_cli_eligibility_options_validate_before_data_loading(
+    tmp_path, capsys: pytest.CaptureFixture[str], options: list[str], message: str
+) -> None:
+    assert (
+        main(
+            ["batch", "--year", "2025", "--kind", "batting", "--data-dir", str(tmp_path), *options]
+        )
+        == 2
+    )
+    assert message in capsys.readouterr().err

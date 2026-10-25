@@ -9,12 +9,17 @@ import pandas as pd
 
 from backcaster.stat_columns import BATTING_STAT_COLUMNS, IDENTITY_COLUMNS, PITCHING_STAT_COLUMNS
 
-BATTING_COLUMNS = (*BATTING_STAT_COLUMNS, "Reliability")
+BATTING_COLUMNS = (*BATTING_STAT_COLUMNS, "Reliability", "ConfidenceTier")
 PITCHING_COLUMNS = (*PITCHING_STAT_COLUMNS, "Reliability")
-COLUMN_LABELS = {"PlayerID": "Player ID"}
+COLUMN_LABELS = {
+    "PlayerID": "Player ID",
+    "ConfidenceTier": "Confidence tier",
+    "EligibilityAsOf": "Eligibility as of",
+}
 COLUMN_HELP = {
     "IP": "Innings in baseball notation: .1 = one out, .2 = two outs",
     "Reliability": "Observed-evidence weight; not a probability of prediction accuracy",
+    "ConfidenceTier": "core: reliability at least 0.50; low-sample: below 0.50. Both receive projections.",
     "Age": "Projection year minus birth year",
 }
 

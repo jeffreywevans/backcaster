@@ -79,6 +79,12 @@ README before testing.
 
 For 0.4.2, also verify:
 
+- A hitter with just three PA in the latest lookback season is included with
+  low reliability and ConfidenceTier=low-sample; no PA or reliability gate applies.
+- A dated eligibility snapshot filters players and team membership as of its
+  stated date without changing retained players' projections. Both confidence
+  tiers and EligibilityAsOf appear in exports.
+
 - Pitcher IP follows `0.5 × last-year IP + 0.1 × two-years-ago IP + 60`; missing
   years contribute zero. A pitcher with only third-year history projects for 60 IP.
 

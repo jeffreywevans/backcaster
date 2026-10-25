@@ -144,7 +144,15 @@ def test_expanded_schema_and_context_league_totals() -> None:
     data = history()
     result = project_batters(data, 2025)
     expected = "PA,AB,R,H,2B,3B,HR,RBI,SB,CS,BB,SO,BA,OBP,SLG,OPS,TB,GDP,HBP,SH,SF,IBB".split(",")
-    assert result.columns.tolist() == ["Name", "Year", "PlayerID", "Age", *expected, "Reliability"]
+    assert result.columns.tolist() == [
+        "Name",
+        "Year",
+        "PlayerID",
+        "Age",
+        *expected,
+        "Reliability",
+        "ConfidenceTier",
+    ]
     latest = data[data.Season == 2024]
     for stat in ["R", "RBI", "SB", "CS", "GDP", "IBB"]:
         assert result[stat].sum() / result.PA.sum() == pytest.approx(
@@ -239,3 +247,19 @@ def test_invalid_context_counts(stat: str, value: float, message: str) -> None:
     data[stat] = value
     with pytest.raises(ProjectionError, match=message):
         project_batters(data, 2025)
+
+
+@pytest.mark.parametrize(
+    "weighted_pa, expected", [(1199.0, "low-sample"), (1200.0, "core"), (1201.0, "core")]
+)
+def test_confidence_tier_uses_unrounded_reliability(weighted_pa: float, expected: str) -> None:
+    data = history()
+    numeric = [c for c in data if c not in {"PlayerID", "Name", "Season", "birthYear"}]
+    data = data.astype(dict.fromkeys(numeric, float))
+    # Each player's three equal seasons contribute 12 times their seasonal PA.
+    for player in ["A", "B"]:
+        for index in data.index[data.PlayerID == player]:
+            data.loc[index, numeric] *= (weighted_pa / 12) / data.loc[index, "PA"]
+    result = project_batters(data, 2025)
+    assert result.Reliability.iloc[0] == pytest.approx(weighted_pa / (weighted_pa + 1200))
+    assert result.ConfidenceTier.eq(expected).all()

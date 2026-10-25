@@ -22,10 +22,10 @@ backcaster player --name "Mookie Betts" --year 2022 --kind batting --data-dir "C
 ```
 
 The target projection year needs the preceding three seasons. The 2025 edition
-can supply 2023–2025 data for a 2026 projection, subject to player qualification
+can supply 2023–2025 data for a 2026 projection, subject to the inclusion rules
 and data availability. It cannot supply 2026 statistics for a 2027 projection.
 See the [offline usage guide](../README.md#offline-projections-with-lahman-csvs)
-for qualification thresholds, Lahman team IDs, and treatment of traded players.
+for inclusion rules, Lahman team IDs, dated status snapshots, and traded players.
 
 ## Historical data caveats
 
@@ -49,8 +49,9 @@ missing values in the source database.
 
 The source also notes that player statistics may not sum to team totals when
 records are incomplete, and that player and team records can cover different
-sets of games. Backcaster's single season-wide qualification threshold is not
-a reconstruction of each historical league's eligibility rules. Review the
+sets of games. Batters need only positive lookback PA; pitcher qualification still uses one
+season-wide game count. Neither historical selection rule establishes a player's
+roster or retirement status for a target season. Review the
 source README's section 2.1 before interpreting historical Negro League results.
 
 ## Attribution and license

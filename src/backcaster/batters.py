@@ -170,6 +170,7 @@ def project_batters(seasons: pd.DataFrame, year: int) -> pd.DataFrame:
     context = _project_context(rates, pa, target, projected)
     out = _summarize(projected.join(context), pa)
     out["Reliability"] = evidence_pa / (evidence_pa + 1200)
+    out["ConfidenceTier"] = np.where(out["Reliability"] >= 0.5, "core", "low-sample")
     out["Age"], out["Name"], out["Year"] = age, people["Name"], year
     out = out.reset_index()
-    return out[[*IDENTITY_COLUMNS, *BATTING_STAT_COLUMNS, "Reliability"]]
+    return out[[*IDENTITY_COLUMNS, *BATTING_STAT_COLUMNS, "Reliability", "ConfidenceTier"]]

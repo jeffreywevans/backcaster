@@ -106,13 +106,14 @@ File formats require `--out`; the CLI format prints to the terminal and rejects
 `--out`. Invalid output options fail before data is loaded. Unwritable output
 paths report an error on stderr and exit with status 2.
 
-Players qualify for selection by meeting the existing PA/IP threshold in at least
-one of those three seasons. This is a historical eligibility list, not an active
-roster; pitchers who never reach the qualifying innings threshold (including most
-relievers) remain excluded. Qualification selects players without removing their
-other seasons from the calculation. Trades are combined into one player-season
-before qualification, and all teams' statistics contribute once. The output is
-one row per selected player, ready for comparison with reference projections.
+Hitters receive a projection with any positive PA in the preceding three seasons,
+subject to usable ages and the existing non-pitcher classification. There is no
+minimum-PA or reliability gate. `ConfidenceTier` labels reliability at least 0.50
+as `core` and lower values as `low-sample`; both tiers appear in every output.
+Pitchers retain the one-inning-per-team-game qualification rule in at least one
+prior season. All selected players use their available three-year history.
+Without a dated eligibility snapshot, this is a historical candidate population,
+including potentially retired or otherwise unavailable players.
 
 ### 1) Player projection
 
@@ -152,13 +153,11 @@ FanGraphs abbreviation `LAD`). A projection year needs the preceding three seaso
 is unavailable. If the directory or required files are missing, the command
 reports the missing file and directory; it never attempts an online fetch.
 
-Offline qualification uses a consistent modern rule across historical seasons:
-at least **3.1 PA per game** for hitters and **one inning per game** for pitchers.
-The season's game count is the maximum `G` in that year's `Teams.csv` records,
-so shortened seasons have lower thresholds. The PA threshold is rounded to the
-nearest integer (502 PA for 162 games, 186 PA for 60 games). This is an analytical filter, not a
-reconstruction of historical award eligibility or batting-title exceptions.
-Relievers generally do not qualify under this pitching rule.
+Batting inclusion requires positive lookback PA, without a minimum seasonal PA
+threshold. `season(..., qualified=True)` still exposes the historical 3.1-PA-per-game
+analytical filter for Python callers; projection commands do not apply it to hitters.
+Pitcher qualification remains one inning per game, using the maximum `G` from
+that year's Teams.csv. Relievers generally do not qualify under the pitching rule.
 
 Player stints are summed before qualification. Plate appearances are calculated
 as `AB + BB + HBP + SF + SH`; missing/blank HBP, SF, and SH values count as zero.
@@ -182,18 +181,53 @@ instead of `--name`, for example:
 backcaster player --player-id bettsmo01 --year 2026 --kind batting
 ```
 
-IDs match Lahman `People.csv.playerID` exactly and retain the same qualification
+IDs match Lahman `People.csv.playerID` exactly and retain the same inclusion
 rules as name lookups.
 
-Batter league regression and rebaselining use all non-pitcher player-seasons;
-qualification selects the displayed players. Pitching retains its qualified-only
-baseline, with real-age performance adjustments documented in
-[the pitcher model](docs/PITCHER_MODEL.md). See [the batter model](docs/BATTER_MODEL.md) for the six-stage calculation,
-real-age adjustment, PA formula, and explicit rebaselining choices.
-Eligibility means qualifying in at least one of the three preceding seasons.
-For every selected player, projections use all available seasons in that window,
-including nonqualified seasons and seasons spent with other teams. For team selection, a traded player's full-season totals are assigned
-to the team in their latest stint for that season; this is not a current-roster forecast.
+Batter league regression and rebaselining use all positive-PA non-pitcher
+player-seasons. Output selection, including status snapshots, does not change
+that calculation. Pitching retains its qualified-only baseline and real-age
+performance adjustments. See [the batter model](docs/BATTER_MODEL.md) and
+[the pitcher model](docs/PITCHER_MODEL.md).
+
+For every selected player, projections use all available seasons in the window,
+including seasons spent with other teams. Without a status snapshot, team
+selection uses historical last-stint membership for each season.
+
+### Dated batting eligibility
+
+For a roster/status comparison, supply an explicit eligibility snapshot and date:
+
+```bash
+backcaster hitters --year 2025 --eligibility-file eligibility_2025.csv --as-of 2025-01-14 --format csv --out mlb_hitting_2025.csv
+```
+
+The CSV uses Lahman IDs and explicit inclusion decisions:
+
+```csv
+PlayerID,Year,AsOf,Eligible,Team
+troutmi01,2025,2025-01-14,true,ANA
+bettsmo01,2025,2025-01-14,true,LAN
+```
+
+Create these decisions from a roster/organization/free-agent/retirement source
+as of the stated date. `Eligible` must be true or false. Unlisted players and
+false rows are excluded; listed players still need positive lookback PA and a
+usable birth year. Eligibility never depends on reliability. The file can contain
+multiple years and dates; only the exact `Year` and `AsOf` match is used, with
+unique PlayerID values within that snapshot.
+
+Both flags are required together and currently apply to batting only. `Team` is
+optional for league/player output and required for team output; it represents
+membership at the snapshot date, with blanks allowed for unassigned players.
+With a snapshot, team selection uses this membership rather than historical teams.
+Exports include `EligibilityAsOf`. The snapshot filters output only; league
+regression and rebaselining continue to use the full historical population.
+
+For the January 14, 2025 Baseball Reference comparison, supply a snapshot actually
+frozen to that date. Lahman history cannot reconstruct roster status on that date,
+and later performance or final career dates are not used to guess it. Matching
+504 benchmark rows requires the right status population as well as model inputs.
 
 ### 2) Team projection
 
@@ -260,7 +294,8 @@ true innings rather than the displayed notation.
 ### Tracked statistics and order
 
 All outputs put available Name, Year, Player ID, and Age metadata first, followed
-by these statistics in order and then Reliability:
+by these statistics in order and then Reliability. Batter outputs also include
+ConfidenceTier; snapshot-filtered output appends EligibilityAsOf:
 
 ```text
 Batters:  PA,AB,R,H,2B,3B,HR,RBI,SB,CS,BB,SO,BA,OBP,SLG,OPS,TB,GDP,HBP,SH,SF,IBB
