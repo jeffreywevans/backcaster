@@ -2,6 +2,11 @@
 
 ## 0.4.2
 
+- Add opt-in historical accuracy comparisons to HTML reports. `--compare-actuals`
+  loads target-season actuals after projection, adds expandable Actual and
+  Variance (`actual - projected`) rows per player, and highlights positive and
+  negative differences in green and red.
+
 - Include pitchers with any recorded outs or batters faced in the lookback, including relievers and outless appearances. Add ConfidenceTier without filtering low reliability, and extend dated eligibility/status and team snapshots to pitching. Use the full historical pitching sample population for regression independently of output selection.
 
 - Include every non-pitcher hitter with positive three-year lookback PA instead of requiring a qualified season. Add ConfidenceTier (`core` at reliability >=0.50, otherwise `low-sample`) without hiding either tier.

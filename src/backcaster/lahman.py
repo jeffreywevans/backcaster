@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from pathlib import Path
 
 import pandas as pd
@@ -11,6 +12,41 @@ from backcaster.batters import project_batters
 from backcaster.data import DataLoadError, PlayerLookupError
 from backcaster.eligibility import read_eligibility
 from backcaster.marcel import ProjectionError, project_player, project_team
+from backcaster.stat_columns import BATTING_STAT_COLUMNS, IDENTITY_COLUMNS, PITCHING_STAT_COLUMNS
+
+
+def _ratio(numerator: pd.Series, denominator: pd.Series) -> pd.Series:
+    """Return a rate while preserving undefined zero-denominator results."""
+    return numerator.div(denominator.where(denominator.ne(0)))
+
+
+def _actual_batting(season: pd.DataFrame, year: int) -> pd.DataFrame:
+    actual = season.copy()
+    actual["TB"] = actual["H"] + actual["2B"] + 2 * actual["3B"] + 3 * actual["HR"]
+    actual["BA"] = _ratio(actual["H"], actual["AB"])
+    obp_denominator = actual["AB"] + actual["BB"] + actual["HBP"] + actual["SF"]
+    actual["OBP"] = _ratio(actual["H"] + actual["BB"] + actual["HBP"], obp_denominator)
+    actual["SLG"] = _ratio(actual["TB"], actual["AB"])
+    actual["OPS"] = actual["OBP"] + actual["SLG"]
+    return _actual_output(actual, year, BATTING_STAT_COLUMNS)
+
+
+def _actual_pitching(season: pd.DataFrame, year: int) -> pd.DataFrame:
+    actual = season.copy()
+    actual["W-L%"] = _ratio(actual["W"], actual["W"] + actual["L"])
+    actual["ERA"] = _ratio(actual["ER"] * 9, actual["IP"])
+    actual["WHIP"] = _ratio(actual["H"] + actual["BB"], actual["IP"])
+    for rate, count in [("H9", "H"), ("HR9", "HR"), ("BB9", "BB"), ("SO9", "SO")]:
+        actual[rate] = _ratio(actual[count] * 9, actual["IP"])
+    actual["SO/W"] = _ratio(actual["SO"], actual["BB"])
+    return _actual_output(actual, year, PITCHING_STAT_COLUMNS)
+
+
+def _actual_output(season: pd.DataFrame, year: int, stats: tuple[str, ...]) -> pd.DataFrame:
+    actual = season.copy()
+    actual["Year"] = year
+    actual["Age"] = year - pd.to_numeric(actual["birthYear"], errors="coerce")
+    return actual[[*IDENTITY_COLUMNS, *stats]].reset_index(drop=True)
 
 
 def _exclude_invalid_ages(seasons: pd.DataFrame, year: int, population: str) -> pd.DataFrame:
@@ -205,6 +241,16 @@ class LahmanSource:
         if snapshot is not None:
             projection["EligibilityAsOf"] = as_of
         return projection
+
+    def actuals(self, year: int, kind: str, player_ids: Iterable[str]) -> pd.DataFrame:
+        """Load target-season results for projected players in a historical comparison."""
+        self.read("People", {"playerID", "nameFirst", "nameLast", "birthYear"})
+        season = self.season(year, kind, qualified=False)
+        requested = set(player_ids)
+        season = season[season["PlayerID"].isin(requested)].copy()
+        if kind == "batting":
+            return _actual_batting(season, year)
+        return _actual_pitching(season, year)
 
     def _population(self, year: int, kind: str) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Load the complete historical sample before any output selection."""

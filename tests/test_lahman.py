@@ -91,6 +91,82 @@ def test_season_qualification_and_components(lahman: Path) -> None:
     assert pitching.loc["star", "BF"] == 700
 
 
+def test_historical_actuals_match_projection_schemas(lahman: Path) -> None:
+    for table in ["Batting", "Pitching"]:
+        path = lahman / f"{table}.csv"
+        history = pd.read_csv(path)
+        target = history[(history.yearID == 2021) & (history.playerID == "star")].assign(
+            yearID=2022
+        )
+        pd.concat([history, target], ignore_index=True).to_csv(path, index=False)
+    teams_path = lahman / "Teams.csv"
+    teams = pd.read_csv(teams_path)
+    pd.concat(
+        [teams, pd.DataFrame([{"yearID": 2022, "teamID": "BOS", "G": 162}])],
+        ignore_index=True,
+    ).to_csv(teams_path, index=False)
+
+    source = LahmanSource(str(lahman))
+    batting = source.actuals(2022, "batting", ["star", "missing"])
+    pitching = source.actuals(2022, "pitching", ["star", "missing"])
+
+    assert batting.PlayerID.tolist() == ["star"]
+    assert batting.loc[0, "Year"] == 2022
+    assert batting.loc[0, "Age"] == 32
+    assert batting.loc[0, "TB"] == 244
+    assert batting.loc[0, "BA"] == pytest.approx(150 / 500)
+    assert batting.loc[0, "OBP"] == pytest.approx((150 + 60 + 5) / (500 + 60 + 5 + 5))
+    assert batting.loc[0, "SLG"] == pytest.approx(244 / 500)
+    assert batting.loc[0, "OPS"] == pytest.approx((150 + 60 + 5) / 570 + 244 / 500)
+    assert pitching.PlayerID.tolist() == ["star"]
+    assert pitching.loc[0, "W-L%"] == pytest.approx(10 / 18)
+    assert pitching.loc[0, "ERA"] == pytest.approx(60 * 9 / (487 / 3))
+    assert pitching.loc[0, "WHIP"] == pytest.approx((150 + 50) / (487 / 3))
+    assert pitching.loc[0, "H9"] == pytest.approx(150 * 9 / (487 / 3))
+    assert pitching.loc[0, "HR9"] == pytest.approx(20 * 9 / (487 / 3))
+    assert pitching.loc[0, "BB9"] == pytest.approx(50 * 9 / (487 / 3))
+    assert pitching.loc[0, "SO9"] == pytest.approx(180 * 9 / (487 / 3))
+    assert pitching.loc[0, "SO/W"] == pytest.approx(180 / 50)
+
+
+def test_cli_historical_accuracy_report_includes_each_projected_player(lahman: Path) -> None:
+    batting_path = lahman / "Batting.csv"
+    batting = pd.read_csv(batting_path)
+    actual = batting[(batting.yearID == 2021) & (batting.playerID == "star")].assign(yearID=2022)
+    pd.concat([batting, actual], ignore_index=True).to_csv(batting_path, index=False)
+    teams_path = lahman / "Teams.csv"
+    teams = pd.read_csv(teams_path)
+    pd.concat(
+        [teams, pd.DataFrame([{"yearID": 2022, "teamID": "BOS", "G": 162}])],
+        ignore_index=True,
+    ).to_csv(teams_path, index=False)
+    output = lahman / "accuracy.html"
+
+    assert (
+        main(
+            [
+                "hitters",
+                "--year",
+                "2022",
+                "--data-dir",
+                str(lahman),
+                "--format",
+                "html",
+                "--compare-actuals",
+                "--out",
+                str(output),
+            ]
+        )
+        == 0
+    )
+    html = output.read_text()
+    assert html.count('class="compare-toggle"') == 3
+    assert html.count('class="detail-row actual-row"') == 3
+    assert html.count("Actual (no recorded stats)") == 2
+    assert "Actual" in html
+    assert "Variance" in html
+
+
 def test_traded_player_combined_before_qualification(lahman: Path) -> None:
     path = lahman / "Batting.csv"
     frame = pd.read_csv(path)

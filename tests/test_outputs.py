@@ -5,7 +5,15 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from backcaster.outputs import _display_frame, _format_innings, to_cli_table, to_csv, to_html
+from backcaster.outputs import (
+    _display_frame,
+    _display_variances,
+    _format_innings,
+    _format_variance,
+    to_cli_table,
+    to_csv,
+    to_html,
+)
 
 
 def test_csv_output_creation(tmp_path: Path) -> None:
@@ -80,6 +88,30 @@ def test_baseball_innings_notation(innings: float, expected: str) -> None:
 def test_invalid_display_innings(innings: float) -> None:
     with pytest.raises(ValueError, match="finite, nonnegative"):
         _format_innings(innings)
+
+
+@pytest.mark.parametrize(
+    ("value", "column", "expected"),
+    [
+        (2.5, "HR", "+3"),
+        (-2.5, "HR", "-3"),
+        (0, "HR", "0"),
+        (0.0249, "BA", "+0.025"),
+        (-0.004, "ERA", "-0.00"),
+        (5 / 3, "IP", "+1.2"),
+        (-5 / 3, "IP", "-1.2"),
+        (float("nan"), "PA", ""),
+    ],
+)
+def test_variance_formatting(value: float, column: str, expected: str) -> None:
+    assert _format_variance(value, column) == expected
+
+
+def test_variances_require_player_ids() -> None:
+    projections = pd.DataFrame([{"Name": "A", "PA": 100}])
+    actuals = pd.DataFrame([{"Name": "A", "PA": 110}])
+    with pytest.raises(ValueError, match="requires PlayerID"):
+        _display_variances(projections, actuals)
 
 
 def test_display_precision_and_no_mutation() -> None:

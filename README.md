@@ -76,8 +76,8 @@ Subcommand-specific required options:
 - `batch`, `hitters`, and `pitchers` require no player or team option
 
 ```bash
-backcaster <player|team|batch> [subcommand-options] --year <YEAR> --kind <batting|pitching> [--format cli|csv|html] [--out PATH]
-backcaster <hitters|pitchers> --year <YEAR> [--data-dir PATH] [--format cli|csv|html] [--out PATH]
+backcaster <player|team|batch> [subcommand-options] --year <YEAR> --kind <batting|pitching> [--format cli|csv|html] [--compare-actuals] [--out PATH]
+backcaster <hitters|pitchers> --year <YEAR> [--data-dir PATH] [--format cli|csv|html] [--compare-actuals] [--out PATH]
 ```
 
 ### Pre-offseason league projections
@@ -97,7 +97,8 @@ backcaster hitters --year 2026 --format csv --out hitters_2026.csv
 backcaster pitchers --year 2026 --format csv --out pitchers_2026.csv
 ```
 
-`--year 2026` projects 2026 from 2023–2025; it never reads 2026 statistics.
+`--year 2026` projects 2026 from 2023–2025. It reads 2026 statistics only when
+`--compare-actuals` is selected for a historical HTML report.
 Both commands support `--data-dir`, `--format cli|csv|html`, and `--out`.
 They are shortcuts for `batch --kind batting` and `batch --kind pitching`.
 For a different data directory, add `--data-dir "C:\Baseball\lahman"`.
@@ -327,6 +328,7 @@ or share as one file. No server, CDN, fonts, or internet connection are required
 ```powershell
 backcaster hitters --year 2025 --format html --out hitters_2025.html
 backcaster pitchers --year 2025 --format html --out pitchers_2025.html
+backcaster hitters --year 2025 --format html --compare-actuals --out hitters_accuracy_2025.html
 ```
 
 The first four columns are **Name, Year, Player ID, Age**, followed by counting
@@ -335,6 +337,7 @@ statistics and batting/pitching rates in a consistent order. The report includes
 - A player-count, projection-year, and projection-type summary.
 - Search across player names, IDs, and statistics.
 - Sortable column headings, with numeric sorting for statistics.
+- Optional historical accuracy rows with a per-player expand/collapse control.
 - A sticky name column/header and horizontal scrolling on narrow screens.
 - A reset control and print layout for browser printing or saving as PDF.
 
@@ -343,6 +346,14 @@ retain their trailing decimal places and OPS values above 1.000 display normally
 Search filters the visible rows; printing respects that current view. Without
 JavaScript, the complete table is still readable. See
 [HTML report customization](docs/HTML_REPORTS.md) for theme and column constants.
+
+`--compare-actuals` is available only with HTML output and requires the selected
+target season in the local Lahman files. The projection continues to use only the
+three preceding seasons. Each projected player receives an Actual row and a
+Variance row, where variance is `actual - projected`. Positive differences are
+green and negative differences are red. A player without a target-season record
+is labeled `Actual (no recorded stats)` and receives blank variances rather than
+zeros. Use the control beside each player name to collapse or expand those rows.
 
 ---
 

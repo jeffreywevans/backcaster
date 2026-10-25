@@ -25,20 +25,32 @@ def _default_data_dir() -> str:
     return os.environ.get("LAHMAN_DATA_DIR", default)
 
 
-def _validate_output_options(output_format: str, out: str | None) -> None:
+def _validate_output_options(
+    output_format: str, out: str | None, compare_actuals: bool = False
+) -> None:
     if output_format == "cli" and out is not None:
         raise ValueError("--out cannot be used with --format cli; choose --format csv or html")
     if output_format in _FILE_RENDERERS and not out:
         raise ValueError(f"--out is required for {output_format} output")
+    if compare_actuals and output_format != "html":
+        raise ValueError("--compare-actuals requires --format html")
 
 
-def _render(df: pd.DataFrame, output_format: str, out: str | None) -> None:
+def _render(
+    df: pd.DataFrame,
+    output_format: str,
+    out: str | None,
+    actuals: pd.DataFrame | None = None,
+) -> None:
     if output_format == "cli":
         print(to_cli_table(df))
     elif output_format in _FILE_RENDERERS:
         if not out:
             raise ValueError(f"--out is required for {output_format} output")
-        _FILE_RENDERERS[output_format](df, out)
+        if output_format == "html" and actuals is not None:
+            to_html(df, out, actuals)
+        else:
+            _FILE_RENDERERS[output_format](df, out)
     else:
         raise ValueError(f"Unsupported format: {output_format}")
 
@@ -61,6 +73,11 @@ def build_parser() -> argparse.ArgumentParser:
             "--as-of", help="Eligibility snapshot date (YYYY-MM-DD; requires --eligibility-file)"
         )
         sp.add_argument("--out", help="Output path (required for csv/html; invalid with cli)")
+        sp.add_argument(
+            "--compare-actuals",
+            action="store_true",
+            help="Add expandable actual and variance rows to a historical HTML report",
+        )
         sp.add_argument(
             "--data-dir",
             default=_default_data_dir(),
@@ -92,8 +109,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        _validate_output_options(args.format, args.out)
-        result = LahmanSource(args.data_dir).project(
+        _validate_output_options(args.format, args.out, args.compare_actuals)
+        source = LahmanSource(args.data_dir)
+        result = source.project(
             args.command,
             args.year,
             args.kind,
@@ -103,7 +121,12 @@ def main(argv: list[str] | None = None) -> int:
             eligibility_file=args.eligibility_file,
             as_of=args.as_of,
         )
-        _render(result, args.format, args.out)
+        actuals = (
+            source.actuals(args.year, args.kind, result["PlayerID"])
+            if args.compare_actuals
+            else None
+        )
+        _render(result, args.format, args.out, actuals)
         return 0
     except (DataLoadError, PlayerLookupError, ProjectionError, ValueError, OSError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
