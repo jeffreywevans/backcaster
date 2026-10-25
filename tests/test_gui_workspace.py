@@ -124,7 +124,8 @@ def test_generate_with_real_lahman_engine(workspace, lahman_data, scope, selecto
     app._generate()
     settle(app)
     gui.messagebox.showerror.assert_not_called()
-    assert app.result is not None and not app.result.empty
+    assert app.result is not None
+    assert not app.result.empty
     assert len(app.tree.get_children()) == len(app.result)
     assert "2022" in app.summary.get()
     assert str(app.csv_button["state"]) == "normal"
