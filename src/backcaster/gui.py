@@ -376,7 +376,12 @@ class Workspace:
             self.tree.configure(columns=columns)
             for column in columns:
                 self.tree.heading(column, text=column)
-                self.tree.column(column, width=160 if column == "Name" else 95, stretch=False)
+                self.tree.column(
+                    column,
+                    width=160 if column == "Name" else 95,
+                    stretch=False,
+                    anchor="center" if pd.api.types.is_numeric_dtype(result[column]) else "w",
+                )
             for values in display.head(500).itertuples(index=False, name=None):
                 self.tree.insert("", "end", values=tuple(str(v) for v in values))
             self.summary.set(f"{label} — {len(result):,} players")
