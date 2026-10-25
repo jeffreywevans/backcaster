@@ -1,20 +1,22 @@
 # Releasing Backcaster
 
-## Prepare 0.4.1
+## Prepare 0.4.2
 
 The package version is defined in `src/backcaster/__init__.py`; setuptools reads it
-when building both distributions. Release notes are in `CHANGELOG.md`.
+when building both distributions. After changing the version, run `uv lock` and
+commit `uv.lock` if it changes. Release notes are in `CHANGELOG.md`.
 
 From the repository root, with Python 3.13+ and the development dependencies installed:
 
 ```bash
-pytest --cov=src --cov-branch --cov-fail-under=100
-ruff check src tests
-ruff format --check src tests
-mypy
-python -m build
-python -m pip install twine
-python -m twine check --strict dist/*
+uv sync --locked --extra dev --no-install-project
+uv sync --locked --extra dev --no-build-isolation
+uv run --locked --no-sync pytest --cov=src --cov-branch --cov-fail-under=100
+uv run --locked --no-sync ruff check src tests
+uv run --locked --no-sync ruff format --check src tests
+uv run --locked --no-sync mypy
+uv build --no-build-isolation
+uv run --locked --no-sync python -m twine check --strict dist/*
 ```
 
 Use a clean `dist/` directory for release builds so previous versions are not uploaded.
@@ -42,8 +44,8 @@ These GitHub and PyPI settings must be configured separately from the repository
 
 1. Merge the prepared changes into `main` and confirm CI passes, including Python
    3.13 and 3.14 and the 100% coverage gate.
-2. Create a GitHub release named **0.4.1**, using tag **v0.4.1** at the validated
-   commit on `main`. Use the 0.4.1 changelog entry as the release notes.
+2. Create a GitHub release named **0.4.2**, using tag **v0.4.2** at the validated
+   commit on `main`. Use the 0.4.2 changelog entry as the release notes.
 3. Publish the GitHub release as a stable release. This triggers `workflow.yml`;
    a draft does not trigger publication, and a prerelease does not upload to PyPI.
 4. Review the build and the `pypi` deployment job; approve it if the environment
@@ -52,8 +54,8 @@ These GitHub and PyPI settings must be configured separately from the repository
 5. After the upload succeeds, verify from a fresh environment:
 
    ```bash
-   python -m pip install backcaster==0.4.1
-   python -c 'from backcaster import __version__; assert __version__ == "0.4.1"'
+   python -m pip install backcaster==0.4.2
+   python -c 'from backcaster import __version__; assert __version__ == "0.4.2"'
    backcaster --help
    backcaster hitters --help
    backcaster pitchers --help
@@ -69,11 +71,24 @@ backcaster pitchers --year 2026 --format csv --out pitchers_2026.csv
 
 Check that each file has one row per PlayerID and the requested projection Year.
 CSV counts are rounded and IP uses baseball notation, not decimal innings.
-For 0.4.1, verify the expanded stat columns and the batter `BA` label. Check
+Verify the expanded stat columns and the batter `BA` label. Check
 batting rates and WHIP at three decimals, ERA at two, per-nine pitching rates
 at one, and SO/W at two. W-L% is a three-decimal fraction. Undefined W-L% and
 SO/W should be blank. Confirm the local CSVs include the fields listed in the
-0.4.1 changelog before testing.
+README before testing.
+
+For 0.4.2, also verify:
+
+- Reliability shows six decimals in CLI, CSV, and HTML, and undefined batter
+  BA/OBP/SLG/OPS display blank.
+- `player --player-id <Lahman ID>` selects a duplicate-name player. Supplying
+  both `--name` and `--player-id` fails with a usage error.
+- `--out` with CLI format and unwritable file-output paths return status 2
+  with a readable error and no traceback.
+- Dangerous Name/PlayerID prefixes are escaped with an apostrophe in CSV.
+- Python API callers use `DataLoadError` and the population batter API as
+  described in the 0.4.2 changelog; projection numeric columns retain numeric dtypes.
+
 Generate and open an HTML report as well:
 
 ```bash
