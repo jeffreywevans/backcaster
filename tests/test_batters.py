@@ -113,9 +113,22 @@ def test_zero_denominators_and_absent_events() -> None:
     data["BB"] = data["PA"]
     data["GDP"] = 0
     result = project_batters(data, 2025)
-    assert result.BA.eq(0).all()
+    assert result.BA.isna().all()
     assert result.OBP.eq(1).all()
-    assert result.SLG.eq(0).all()
+    assert result.SLG.isna().all()
+    assert result.OPS.isna().all()
+
+
+@pytest.mark.parametrize("sacrifices", [0.0, 10.0])
+def test_summarize_preserves_undefined_rates(sacrifices: float) -> None:
+    counts = pd.DataFrame([{event: 0.0 for event in EVENTS}])
+    counts["SH"] = sacrifices
+    original = counts.copy(deep=True)
+    result = batters._summarize(counts, pd.Series([sacrifices])).iloc[0]
+    assert result[["BA", "OBP", "SLG", "OPS"]].isna().all()
+    assert result[["H", "AB", "TB"]].eq(0).all()
+    assert result.PA == sacrifices
+    pd.testing.assert_frame_equal(counts, original)
 
 
 def test_rebaseline_nonconvergence(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from backcaster.batters import project_batters
-from backcaster.data import DataFetchError, PlayerLookupError
+from backcaster.data import DataLoadError, PlayerLookupError
 from backcaster.marcel import ProjectionError, project_player, project_team
 
 
@@ -15,32 +15,41 @@ class LahmanSource:
     def __init__(self, directory: str) -> None:
         self.directory = Path(directory)
         self.tables: dict[str, pd.DataFrame] = {}
+        self._requested_columns: dict[str, set[str]] = {}
+        self._people: pd.DataFrame | None = None
 
     def read(self, name: str, required: set[str]) -> pd.DataFrame:
-        if name not in self.tables:
+        optional = {"Batting": {"HBP", "SF", "SH"}, "People": {"birthYear"}}.get(name, set())
+        columns = required | optional
+        if name not in self.tables or not columns <= self._requested_columns[name]:
+            columns |= self._requested_columns.get(name, set())
             paths = [
                 p for p in self.directory.glob("*") if p.name.casefold() == f"{name}.csv".casefold()
             ]
             if len(paths) != 1:
-                raise DataFetchError(
+                raise DataLoadError(
                     f"Expected {name}.csv in Lahman directory '{self.directory}'. "
                     "Extract the Lahman CSVs there or select their directory with --data-dir."
                 )
             try:
-                self.tables[name] = pd.read_csv(paths[0], encoding="utf-8-sig", low_memory=False)
+                self.tables[name] = pd.read_csv(
+                    paths[0],
+                    encoding="utf-8-sig",
+                    low_memory=False,
+                    usecols=lambda column: column in columns,
+                )
+                self._requested_columns[name] = columns
             except (OSError, ValueError) as exc:
-                raise DataFetchError(f"Unable to read Lahman {name}.csv: {exc}") from exc
+                raise DataLoadError(f"Unable to read Lahman {name}.csv: {exc}") from exc
         frame = self.tables[name]
         missing = required - set(frame.columns)
         if missing:
-            raise DataFetchError(
-                f"Lahman {name}.csv missing columns: {', '.join(sorted(missing))}."
-            )
+            raise DataLoadError(f"Lahman {name}.csv missing columns: {', '.join(sorted(missing))}.")
         return frame
 
     def season(self, year: int, kind: str, *, qualified: bool = True) -> pd.DataFrame:
         if kind not in {"batting", "pitching"}:
-            raise DataFetchError(f"Invalid kind {kind!r}.")
+            raise DataLoadError(f"Invalid kind {kind!r}.")
         name = "Batting" if kind == "batting" else "Pitching"
         components = (
             ["AB", "H", "2B", "3B", "HR", "BB", "SO", "R", "RBI", "SB", "CS", "IBB", "GIDP"]
@@ -66,7 +75,7 @@ class LahmanSource:
         stats = self.read(name, {"playerID", "yearID", "stint", "teamID", *components})
         stats = stats[stats["yearID"] == year].copy()
         if stats.empty:
-            raise DataFetchError(
+            raise DataLoadError(
                 f"Lahman {name}.csv has no data for {year}; choose a covered year or update the dataset."
             )
         games = self._season_games(year)
@@ -79,7 +88,7 @@ class LahmanSource:
             stats[components] = stats[components].apply(pd.to_numeric, errors="raise").fillna(0)
             stats["stint"] = pd.to_numeric(stats["stint"], errors="raise")
         except (ValueError, TypeError) as exc:
-            raise DataFetchError(
+            raise DataLoadError(
                 f"Invalid numeric data in Lahman {name}.csv for {year}: {exc}"
             ) from exc
         totals = stats.groupby("playerID", sort=False)[components].sum()
@@ -100,7 +109,7 @@ class LahmanSource:
         if qualified:
             totals = totals[totals["Qualified"]]
         if totals.empty:
-            raise DataFetchError(f"No qualified {kind} players in Lahman for {year}.")
+            raise DataLoadError(f"No qualified {kind} players in Lahman for {year}.")
         totals = totals.rename(columns={"GIDP": "GDP"})
         totals = self._attach_names(totals)
         totals["PlayerID"] = totals["playerID"]
@@ -111,32 +120,39 @@ class LahmanSource:
         teams = self.read("Teams", {"yearID", "teamID", "G"})
         games = pd.to_numeric(teams.loc[teams["yearID"] == year, "G"], errors="coerce").max()
         if pd.isna(games) or games <= 0:
-            raise DataFetchError(f"Lahman Teams.csv has no valid game counts for {year}.")
+            raise DataLoadError(f"Lahman Teams.csv has no valid game counts for {year}.")
         return float(games)
 
     def _attach_names(self, totals: pd.DataFrame) -> pd.DataFrame:
-        people = self.read("People", {"playerID", "nameFirst", "nameLast"}).copy()
-        people["Name"] = (
-            people["nameFirst"].fillna("") + " " + people["nameLast"].fillna("")
-        ).str.strip()
-        try:
-            totals = totals.reset_index().merge(
-                people[["playerID", "Name", *(["birthYear"] if "birthYear" in people else [])]],
-                on="playerID",
-                how="left",
-                validate="many_to_one",
-            )
-        except pd.errors.MergeError as exc:
-            raise DataFetchError("Duplicate player IDs in Lahman People.csv.") from exc
+        if self._people is None:
+            people = self.read("People", {"playerID", "nameFirst", "nameLast"})
+            if people["playerID"].duplicated().any():
+                raise DataLoadError("Duplicate player IDs in Lahman People.csv.")
+            names = (
+                people["nameFirst"].fillna("") + " " + people["nameLast"].fillna("")
+            ).str.strip()
+            self._people = people.assign(Name=names).set_index("playerID")
+            self._people = self._people[["Name", *(["birthYear"] if "birthYear" in people else [])]]
+        totals = totals.reset_index()
+        for column in self._people:
+            totals[column] = totals["playerID"].map(self._people[column])
         if totals["Name"].isna().any():
-            raise DataFetchError(
+            raise DataLoadError(
                 "Lahman People.csv is missing players present in season statistics."
             )
         return totals
 
     def project(
-        self, command: str, year: int, kind: str, name: str | None = None, team: str | None = None
+        self,
+        command: str,
+        year: int,
+        kind: str,
+        name: str | None = None,
+        team: str | None = None,
+        player_id: str | None = None,
     ) -> pd.DataFrame:
+        if name is not None and player_id is not None:
+            raise ValueError("Specify either name or player_id, not both.")
         batting = pd.DataFrame()
         if kind == "batting":
             seasons, batting = self._batting_population(year)
@@ -148,7 +164,7 @@ class LahmanSource:
             )
         eligible = seasons[seasons["Qualified"]]
         if command == "player":
-            candidates = self._player_seasons(eligible, name)
+            candidates = self._player_seasons(eligible, name, player_id)
             matches = seasons[seasons["PlayerID"] == candidates["PlayerID"].iloc[0]]
             if kind == "batting":
                 return batting[batting["PlayerID"] == matches["PlayerID"].iloc[0]].reset_index(
@@ -182,15 +198,15 @@ class LahmanSource:
                 pd.to_numeric, errors="raise"
             )
         except (ValueError, TypeError) as exc:
-            raise DataFetchError("Invalid game counts in Lahman Appearances.csv.") from exc
+            raise DataLoadError("Invalid game counts in Lahman Appearances.csv.") from exc
         counts = appearances[["G_all", "G_p"]]
         invalid = counts.replace([float("inf"), -float("inf")], float("nan")).isna() | (counts < 0)
         if invalid.any().any() or (appearances["G_p"] > appearances["G_all"]).any():
-            raise DataFetchError("Invalid game counts in Lahman Appearances.csv.")
+            raise DataLoadError("Invalid game counts in Lahman Appearances.csv.")
         games = appearances.groupby(["playerID", "yearID"])[["G_all", "G_p"]].sum(min_count=1)
         seasons = seasons.merge(games, left_on=["PlayerID", "Season"], right_index=True, how="left")
         if seasons[["G_all", "G_p"]].isna().any().any():
-            raise DataFetchError(
+            raise DataLoadError(
                 "Appearances.csv must cover every batting player-season with game counts."
             )
         # A primary pitcher appears as pitcher in more than half of their games.
@@ -202,7 +218,17 @@ class LahmanSource:
             raise ProjectionError("No qualified non-pitcher batters in the prior three seasons.")
         return seasons, projected
 
-    def _player_seasons(self, seasons: pd.DataFrame, name: str | None) -> pd.DataFrame:
+    def _player_seasons(
+        self, seasons: pd.DataFrame, name: str | None, player_id: str | None = None
+    ) -> pd.DataFrame:
+        if player_id is not None:
+            matches = seasons[seasons["PlayerID"] == player_id]
+            if matches.empty:
+                raise PlayerLookupError(
+                    f"No qualified Lahman player found for player ID '{player_id}' "
+                    "in the prior three seasons."
+                )
+            return matches
         normalized = " ".join((name or "").casefold().split())
         matches = seasons[
             seasons["Name"].map(lambda value: " ".join(value.casefold().split())) == normalized
@@ -214,6 +240,7 @@ class LahmanSource:
             )
         if len(ids) > 1:
             raise PlayerLookupError(
-                f"Ambiguous Lahman name '{name}'; matching player IDs: {', '.join(ids)}."
+                f"Ambiguous Lahman name '{name}'; matching player IDs: {', '.join(ids)}. "
+                "Select one with --player-id instead of --name."
             )
         return matches

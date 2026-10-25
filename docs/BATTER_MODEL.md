@@ -11,6 +11,22 @@ We subsequently reviewed Ben Dilday's marcelR implementation as a reference.
 See [source and adaptation notes](MARCELR_REFERENCE.md) for provenance, thanks,
 license attribution, and differences from this implementation.
 
+## Python API and configuration
+
+Use `backcaster.batters.project_batters(seasons, year)` with the full non-pitcher
+population, then filter its results for a player or team. `LahmanSource.project`
+performs this population projection and selection for CLI commands.
+
+The legacy `project_player(..., kind="batting")` and
+`project_team(..., kind="batting")` paths have been removed. They now raise
+`ProjectionError` directing callers to `project_batters`; their flat aging
+multiplier changed playing time while canceling out of rates.
+
+`MarcelConfig` configures pitching only: `season_weights`, `regression_ip`, and
+`default_ip_growth`. Its unused batting fields `regression_pa`,
+`default_pa_growth`, and `age_adjustment_fn` have been removed. Batter weights,
+regression PA, playing time, and age adjustments follow the fixed rules below.
+
 ## Inputs and eligibility
 
 Batting now requires `Appearances.csv` (`playerID`, `yearID`, `G_all`, `G_p`) and

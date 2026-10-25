@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from backcaster.cli import main
-from backcaster.data import DataFetchError, PlayerLookupError
+from backcaster.data import DataLoadError, PlayerLookupError
 from backcaster.lahman import LahmanSource
 from backcaster.marcel import ProjectionError
 
@@ -180,10 +180,10 @@ def test_offline_cli(
 
 def test_missing_season_and_files(lahman: Path) -> None:
     source = LahmanSource(str(lahman))
-    with pytest.raises(DataFetchError, match="no data for 2025"):
+    with pytest.raises(DataLoadError, match="no data for 2025"):
         source.season(2025, "batting")
     missing = LahmanSource(str(lahman / "missing"))
-    with pytest.raises(DataFetchError, match="Expected Batting.csv"):
+    with pytest.raises(DataLoadError, match="Expected Batting.csv"):
         missing.season(2021, "batting")
 
 
@@ -237,14 +237,14 @@ def test_invalid_data_reports_actionable_errors(lahman: Path, case: str, message
         frame = pd.concat([frame, frame.iloc[[0]]]) if case == "duplicate" else frame.iloc[0:0]
     frame.to_csv(path, index=False)
     source = LahmanSource(str(lahman))
-    with pytest.raises(DataFetchError, match=message):
+    with pytest.raises(DataLoadError, match=message):
         source.season(2021, "batting")
 
 
 def test_unreadable_csv(lahman: Path) -> None:
     (lahman / "Batting.csv").write_text("", encoding="utf-8")
     source = LahmanSource(str(lahman))
-    with pytest.raises(DataFetchError, match="Unable to read"):
+    with pytest.raises(DataLoadError, match="Unable to read"):
         source.season(2021, "batting")
 
 
@@ -258,7 +258,7 @@ def test_optional_columns_and_case_insensitive_filenames(lahman: Path) -> None:
 
 def test_invalid_kind(lahman: Path) -> None:
     source = LahmanSource(str(lahman))
-    with pytest.raises(DataFetchError, match="Invalid kind"):
+    with pytest.raises(DataLoadError, match="Invalid kind"):
         source.season(2021, "fielding")
 
 
@@ -353,7 +353,7 @@ def test_batting_population_errors(lahman: Path, case: str, message: str) -> Non
         frame.loc[frame.playerID != "minor", "G_p"] = 100
     frame.to_csv(path, index=False)
     source = LahmanSource(str(lahman))
-    with pytest.raises((DataFetchError, ProjectionError), match=message):
+    with pytest.raises((DataLoadError, ProjectionError), match=message):
         source.project("batch", 2022, "batting")
 
 
@@ -364,7 +364,7 @@ def test_invalid_appearance_counts(lahman: Path, bad: float) -> None:
     frame["G_p"] = bad
     frame.to_csv(path, index=False)
     source = LahmanSource(str(lahman))
-    with pytest.raises(DataFetchError, match="Invalid game counts"):
+    with pytest.raises(DataLoadError, match="Invalid game counts"):
         source.project("batch", 2022, "batting")
 
 
@@ -372,7 +372,7 @@ def test_missing_birth_year_column(lahman: Path) -> None:
     path = lahman / "People.csv"
     pd.read_csv(path).drop(columns="birthYear").to_csv(path, index=False)
     source = LahmanSource(str(lahman))
-    with pytest.raises(DataFetchError, match="birthYear"):
+    with pytest.raises(DataLoadError, match="birthYear"):
         source.project("batch", 2022, "batting")
 
 
@@ -393,7 +393,7 @@ def test_pitcher_requires_birth_year(lahman: Path) -> None:
     path = lahman / "People.csv"
     pd.read_csv(path).drop(columns="birthYear").to_csv(path, index=False)
     source = LahmanSource(str(lahman))
-    with pytest.raises(DataFetchError, match="birthYear"):
+    with pytest.raises(DataLoadError, match="birthYear"):
         source.project("batch", 2022, "pitching")
 
 
@@ -491,3 +491,123 @@ def test_full_schema_in_cli_and_csv(lahman: Path, kind: str, schema: str) -> Non
     out = to_csv(frame, lahman / "schema.csv")
     assert pd.read_csv(out).columns.tolist() == expected
     assert to_cli_table(frame).splitlines()[0].split() == expected
+
+
+@pytest.mark.parametrize("kind", ["batting", "pitching"])
+def test_duplicate_name_selected_by_id(
+    lahman: Path, kind: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = lahman / "People.csv"
+    people = pd.read_csv(path)
+    people.loc[people.playerID.isin(["star", "other"]), ["nameFirst", "nameLast"]] = [
+        "Chris",
+        "Young",
+    ]
+    people.to_csv(path, index=False)
+    source = LahmanSource(str(lahman))
+    batch = source.project("batch", 2022, kind).set_index("PlayerID")
+    with pytest.raises(PlayerLookupError, match="--player-id"):
+        source.project("player", 2022, kind, name="Chris Young")
+    for player_id in ["star", "other"]:
+        result = source.project("player", 2022, kind, player_id=player_id).set_index("PlayerID")
+        pd.testing.assert_frame_equal(result, batch.loc[[player_id]])
+        assert (
+            main(
+                [
+                    "player",
+                    "--player-id",
+                    player_id,
+                    "--year",
+                    "2022",
+                    "--kind",
+                    kind,
+                    "--data-dir",
+                    str(lahman),
+                ]
+            )
+            == 0
+        )
+        output = capsys.readouterr().out
+        assert player_id in output
+        assert "Chris Young" in output
+
+
+@pytest.mark.parametrize("kind", ["batting", "pitching"])
+@pytest.mark.parametrize("player_id", ["unknown", "minor"])
+def test_player_id_lookup_preserves_eligibility(
+    lahman: Path, kind: str, player_id: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert (
+        main(
+            [
+                "player",
+                "--player-id",
+                player_id,
+                "--year",
+                "2022",
+                "--kind",
+                kind,
+                "--data-dir",
+                str(lahman),
+            ]
+        )
+        == 2
+    )
+    assert (
+        f"No qualified Lahman player found for player ID '{player_id}'" in capsys.readouterr().err
+    )
+
+
+def test_project_rejects_name_and_player_id(lahman: Path) -> None:
+    with pytest.raises(ValueError, match="either name or player_id"):
+        LahmanSource(str(lahman)).project(
+            "player", 2022, "batting", name="Test Star", player_id="star"
+        )
+
+
+def test_csv_reads_select_columns_and_reuse_people_lookup(
+    lahman: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    expected = LahmanSource(str(lahman)).project("batch", 2022, "batting")
+    for name in ["Batting", "Pitching", "People", "Teams", "Appearances"]:
+        path = lahman / f"{name}.csv"
+        frame = pd.read_csv(path)
+        frame["UnusedLargeText"] = "x" * 10000
+        frame.to_csv(path, index=False)
+    read_csv = pd.read_csv
+    reads: list[str] = []
+
+    def selected_read(path, **kwargs):
+        assert callable(kwargs["usecols"])
+        assert not kwargs["usecols"]("UnusedLargeText")
+        reads.append(path.stem)
+        return read_csv(path, **kwargs)
+
+    monkeypatch.setattr(pd, "read_csv", selected_read)
+    source = LahmanSource(str(lahman))
+    actual = source.project("batch", 2022, "batting")
+    pd.testing.assert_frame_equal(actual, expected)
+    people_lookup = source._people
+    source.project("batch", 2022, "pitching")
+    assert source._people is people_lookup
+    assert sorted(reads) == ["Appearances", "Batting", "People", "Pitching", "Teams"]
+    assert all("UnusedLargeText" not in table for table in source.tables.values())
+
+
+def test_read_expands_cached_column_selection(lahman: Path) -> None:
+    source = LahmanSource(str(lahman))
+    assert source.read("Teams", {"yearID"}).columns.tolist() == ["yearID"]
+    expanded = source.read("Teams", {"G"})
+    assert set(expanded) == {"yearID", "G"}
+    with pytest.raises(DataLoadError, match="missing columns: absent"):
+        source.read("Teams", {"absent"})
+
+
+def test_season_names_without_optional_birth_year(lahman: Path) -> None:
+    path = lahman / "People.csv"
+    people = pd.read_csv(path).drop(columns="birthYear")
+    people.loc[people.playerID == "star", "nameFirst"] = None
+    people.to_csv(path, index=False)
+    season = LahmanSource(str(lahman)).season(2021, "batting")
+    assert season.loc[season.PlayerID == "star", "Name"].iloc[0] == "Star"
+    assert "birthYear" not in season

@@ -1,52 +1,18 @@
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 
 import pandas as pd
 import pytest
 
 from backcaster.marcel import (
-    BATTING_COMPONENTS,
     PITCHING_COMPONENTS,
     ProjectionError,
     _compute_baseline_rates,
-    _derive_batting_rates,
     _derive_pitching_rates,
     _weighted_row,
     project_player,
     project_team,
 )
 from backcaster.schemas import MarcelConfig
-
-
-def _batting_row(
-    season: int,
-    pa: float,
-    ab: float,
-    h: float,
-    doubles: float,
-    triples: float,
-    hr: float,
-    bb: float,
-    so: float,
-    hbp: float,
-    sf: float,
-) -> dict[str, float]:
-    return {
-        "Season": season,
-        "PA": pa,
-        "AB": ab,
-        "H": h,
-        "2B": doubles,
-        "3B": triples,
-        "HR": hr,
-        "BB": bb,
-        "SO": so,
-        "HBP": hbp,
-        "SF": sf,
-    }
-
-
-def _frame(rows: Iterable[dict[str, float]]) -> pd.DataFrame:
-    return pd.DataFrame(list(rows))
 
 
 def test_weighted_row_with_one_row() -> None:
@@ -77,15 +43,6 @@ def test_weighted_row_with_zero_total_weight() -> None:
     out = _weighted_row([row], (0.0, 0.0, 0.0), ["PA", "AB"])
     assert out["PA"] == 0.0
     assert out["AB"] == 0.0
-
-
-def test_derive_batting_rates_with_zero_denominators() -> None:
-    s = pd.Series({"H": 0, "2B": 0, "3B": 0, "HR": 0, "AB": 0, "BB": 0, "HBP": 0, "SF": 0})
-    rates = _derive_batting_rates(s)
-    assert rates["AVG"] == 0.0
-    assert rates["OBP"] == 0.0
-    assert rates["SLG"] == 0.0
-    assert rates["OPS"] == 0.0
 
 
 def test_derive_pitching_rates_with_zero_ip() -> None:
@@ -129,16 +86,6 @@ def test_compute_baseline_rates_with_no_present_columns() -> None:
     assert rates["H"] == 0.0
 
 
-def _batting_prior() -> pd.DataFrame:
-    return _frame(
-        [
-            _batting_row(2025, 700, 600, 180, 35, 2, 30, 80, 120, 5, 6),
-            _batting_row(2024, 650, 560, 165, 30, 3, 28, 75, 110, 4, 5),
-            _batting_row(2023, 620, 540, 155, 28, 4, 25, 70, 108, 4, 4),
-        ]
-    )
-
-
 def _pitching_prior() -> pd.DataFrame:
     return pd.DataFrame(
         [
@@ -179,15 +126,7 @@ def _pitching_prior() -> pd.DataFrame:
 def test_project_player_empty_input() -> None:
     prior = pd.DataFrame()
     with pytest.raises(ProjectionError, match="at least one"):
-        project_player("Nobody", prior, "batting", 2026)
-
-
-def test_project_player_batting_with_missing_optional_columns() -> None:
-    prior = _batting_prior().drop(columns=["HBP", "SF"])
-    result = project_player("Test Hitter", prior, "batting", 2026)
-    assert float(result.loc[0, "OBP"]) > 0
-    assert "HBP" in result.columns
-    assert "SF" in result.columns
+        project_player("Nobody", prior, "pitching", 2026)
 
 
 def test_project_player_pitching() -> None:
@@ -198,51 +137,60 @@ def test_project_player_pitching() -> None:
     assert float(result.loc[0, "WHIP"]) > 0
 
 
+@pytest.mark.parametrize("scope", ["player", "team"])
+def test_projection_preserves_numeric_dtypes(scope: str) -> None:
+    prior = _pitching_prior()
+    if scope == "player":
+        result = project_player("Pitcher", prior, "pitching", 2026)
+    else:
+        history = pd.concat([prior.assign(Name=name) for name in ["A", "B"]], ignore_index=True)
+        result = project_team(history, "pitching", 2026)
+    numeric_columns = [column for column in result if column != "Name"]
+    assert all(pd.api.types.is_numeric_dtype(result[column]) for column in numeric_columns)
+    assert result["Name"].map(lambda name: isinstance(name, str)).all()
+    assert result["IP"].sum() == pytest.approx(len(result) * (5 * 200 + 4 * 180 + 3 * 210) / 12)
+    assert result["Year"].eq(2026).all()
+
+
 def test_project_player_supplied_league_rates_branch() -> None:
-    prior = _batting_prior()
-    custom_rates = {c: 0.0 for c in BATTING_COMPONENTS[1:]}
-    out = project_player("Test Hitter", prior, "batting", 2026, league_rates=custom_rates)
-    assert float(out.loc[0, "PA"]) > 0
+    prior = _pitching_prior()
+    custom_rates = {c: 0.0 for c in PITCHING_COMPONENTS[1:]}
+    out = project_player("Test Pitcher", prior, "pitching", 2026, league_rates=custom_rates)
+    assert float(out.loc[0, "IP"]) > 0
 
 
 def test_project_player_supplied_league_df_branch() -> None:
-    prior = _batting_prior()
-    league_df = pd.DataFrame([{c: 100.0 for c in BATTING_COMPONENTS}])
-    out = project_player("Test Hitter", prior, "batting", 2026, league_df=league_df)
-    assert float(out.loc[0, "AVG"]) > 0
+    prior = _pitching_prior()
+    league_df = pd.DataFrame([{c: 100.0 for c in PITCHING_COMPONENTS}])
+    out = project_player("Test Pitcher", prior, "pitching", 2026, league_df=league_df)
+    assert float(out.loc[0, "ERA"]) > 0
 
 
 def test_project_player_default_prior_df_baseline_branch() -> None:
-    prior = _batting_prior()
-    out = project_player("Test Hitter", prior, "batting", 2026)
-    assert float(out.loc[0, "PA"]) > 0
-
-
-@pytest.mark.parametrize("age", [28, 34], ids=["age_le_29", "age_gt_29"])
-def test_project_player_age_adjustments(age: int) -> None:
-    out = project_player("Test Hitter", _batting_prior(), "batting", 2026, age=age)
-    assert float(out.loc[0, "PA"]) > 0
+    prior = _pitching_prior()
+    out = project_player("Test Pitcher", prior, "pitching", 2026)
+    assert float(out.loc[0, "IP"]) > 0
 
 
 def test_project_player_zero_playing_time() -> None:
-    prior = pd.DataFrame([{"Season": 2025, **{c: 0.0 for c in BATTING_COMPONENTS}}])
-    out = project_player("Zero PT", prior, "batting", 2026)
-    assert float(out.loc[0, "PA"]) == 0.0
+    prior = pd.DataFrame([{"Season": 2025, **{c: 0.0 for c in PITCHING_COMPONENTS}}])
+    out = project_player("Zero PT", prior, "pitching", 2026)
+    assert float(out.loc[0, "IP"]) == 0.0
     assert float(out.loc[0, "Reliability"]) == 0.0
 
 
 def test_project_player_invalid_kind() -> None:
-    prior = _batting_prior()
+    prior = _pitching_prior()
     with pytest.raises(ProjectionError, match="kind"):
         project_player("Test", prior, "fielding", 2026)
 
 
 def test_project_player_sorts_unsorted_input_before_weighting() -> None:
-    sorted_prior = _batting_prior()
+    sorted_prior = _pitching_prior()
     ascending_prior = sorted_prior.sort_values("Season", ascending=True).reset_index(drop=True)
 
-    out_sorted = project_player("Test Hitter", sorted_prior, "batting", 2026)
-    out_ascending = project_player("Test Hitter", ascending_prior, "batting", 2026)
+    out_sorted = project_player("Test Pitcher", sorted_prior, "pitching", 2026)
+    out_ascending = project_player("Test Pitcher", ascending_prior, "pitching", 2026)
 
     pd.testing.assert_frame_equal(out_sorted, out_ascending)
 
@@ -250,71 +198,56 @@ def test_project_player_sorts_unsorted_input_before_weighting() -> None:
 def test_project_player_rejects_more_than_three_prior_seasons() -> None:
     df = pd.concat(
         [
-            _batting_prior(),
-            pd.DataFrame([_batting_row(2022, 610, 530, 150, 26, 3, 22, 68, 105, 3, 4)]),
+            _pitching_prior(),
+            _pitching_prior().iloc[[0]].assign(Season=2022),
         ],
         ignore_index=True,
     )
     with pytest.raises(ProjectionError, match="at most three"):
-        project_player("Test Hitter", df, "batting", 2026)
+        project_player("Test Pitcher", df, "pitching", 2026)
 
 
 def test_project_player_rejects_missing_season_column() -> None:
-    prior = _batting_prior().drop(columns=["Season"])
+    prior = _pitching_prior().drop(columns=["Season"])
 
     with pytest.raises(ProjectionError, match="Missing required Season column"):
-        project_player("Test Hitter", prior, "batting", 2026)
+        project_player("Test Pitcher", prior, "pitching", 2026)
 
 
-def test_project_player_allows_missing_optional_batting_components() -> None:
-    prior = _batting_prior().drop(columns=["HBP", "SF"])
+def test_project_player_allows_missing_optional_pitching_components() -> None:
+    prior = _pitching_prior().drop(columns=["HBP", "WP"], errors="ignore")
 
-    out = project_player("Test Hitter", prior, "batting", 2026)
-    assert float(out.loc[0, "PA"]) > 0
+    out = project_player("Test Pitcher", prior, "pitching", 2026)
+    assert float(out.loc[0, "IP"]) > 0
 
 
 def test_project_player_rejects_missing_required_component_columns() -> None:
-    prior = _batting_prior().drop(columns=["AB", "H"])
+    prior = _pitching_prior().drop(columns=["IP", "H"])
 
     with pytest.raises(ProjectionError, match="Missing required component columns"):
-        project_player("Test Hitter", prior, "batting", 2026)
+        project_player("Test Pitcher", prior, "pitching", 2026)
 
 
 def test_project_player_rejects_missing_season_values() -> None:
-    prior = _batting_prior().copy()
+    prior = _pitching_prior().copy()
     prior.loc[1, "Season"] = None
 
     with pytest.raises(ProjectionError, match="non-missing"):
-        project_player("Test Hitter", prior, "batting", 2026)
+        project_player("Test Pitcher", prior, "pitching", 2026)
 
 
 def test_project_player_rejects_non_numeric_season_values() -> None:
-    prior = _batting_prior().copy()
+    prior = _pitching_prior().copy()
     prior["Season"] = prior["Season"].astype("object")
     prior.loc[0, "Season"] = "bad-season"
 
     with pytest.raises(ProjectionError, match="numeric"):
-        project_player("Test Hitter", prior, "batting", 2026)
-
-
-def test_project_player_uses_stable_sort_for_duplicate_seasons() -> None:
-    prior = _frame(
-        [
-            _batting_row(2025, 600, 500, 150, 30, 2, 20, 70, 110, 3, 4),
-            _batting_row(2025, 300, 250, 80, 15, 1, 10, 35, 60, 2, 2),
-            _batting_row(2024, 200, 180, 50, 10, 1, 5, 20, 45, 1, 2),
-        ]
-    )
-
-    out = project_player("Test Hitter", prior, "batting", 2026)
-    expected_weighted_pa = (600 * 5 + 300 * 4 + 200 * 3) / 12
-    assert float(out.loc[0, "PA"]) == pytest.approx(expected_weighted_pa * 1.006)
+        project_player("Test Pitcher", prior, "pitching", 2026)
 
 
 @pytest.mark.parametrize(
     ("kind", "prior_factory", "names", "required_cols"),
     [
-        ("batting", _batting_prior, ["A", "B"], set()),
         ("pitching", _pitching_prior, ["Pitcher A", "Pitcher B"], {"IP", "ERA", "WHIP"}),
     ],
 )
@@ -328,53 +261,37 @@ def test_project_team_success(
 
 
 def test_project_team_groups_by_idfg_when_available() -> None:
-    base = _batting_prior().assign(Name="Same Name")
+    base = _pitching_prior().assign(Name="Same Name")
     player_a = base.assign(IDfg=101)
     player_b = base.assign(IDfg=202)
     team_df = pd.concat([player_a, player_b], ignore_index=True)
 
-    out = project_team(team_df, "batting", 2026)
+    out = project_team(team_df, "pitching", 2026)
 
     assert out.shape[0] == 2
     assert out["Name"].tolist() == ["Same Name", "Same Name"]
 
 
 def test_project_team_empty_no_players() -> None:
-    empty = pd.DataFrame(columns=["Name", "Season", *BATTING_COMPONENTS])
+    empty = pd.DataFrame(columns=["Name", "Season", *PITCHING_COMPONENTS])
     with pytest.raises(ProjectionError, match="No players"):
-        project_team(empty, "batting", 2026)
+        project_team(empty, "pitching", 2026)
 
 
 def test_project_team_missing_name_season_validation() -> None:
-    no_name = _batting_prior()
+    no_name = _pitching_prior()
     with pytest.raises(ProjectionError, match="Name"):
-        project_team(no_name, "batting", 2026)
+        project_team(no_name, "pitching", 2026)
 
-    no_season = _batting_prior().assign(Name="A").drop(columns=["Season"])
+    no_season = _pitching_prior().assign(Name="A").drop(columns=["Season"])
     with pytest.raises(ProjectionError, match="Season"):
-        project_team(no_season, "batting", 2026)
+        project_team(no_season, "pitching", 2026)
 
 
 def test_project_team_rejects_non_string_name() -> None:
-    invalid_name_df = _batting_prior().assign(Name=101)
+    invalid_name_df = _pitching_prior().assign(Name=101)
     with pytest.raises(ProjectionError, match="non-string player name"):
-        project_team(invalid_name_df, "batting", 2026)
-
-
-def test_batting_regression_uses_weighted_evidence_not_average() -> None:
-    # 7,200 weighted PA and 720 weighted HR, plus 1,200 PA at a 2% HR rate.
-    prior = pd.DataFrame(
-        [
-            _batting_row(season, 600, 500, 150, 25, 2, 60, 80, 100, 10, 10)
-            for season in [2024, 2023, 2022]
-        ]
-    )
-    rates = {column: 0.0 for column in BATTING_COMPONENTS[1:]}
-    rates["HR"] = 0.02
-    result = project_player("Power Hitter", prior, "batting", 2025, league_rates=rates)
-    expected_rate = (720 + 24) / (7200 + 1200)
-    assert float(result.loc[0, "HR"]) / float(result.loc[0, "PA"]) == pytest.approx(expected_rate)
-    assert float(result.loc[0, "Reliability"]) == pytest.approx(7200 / 8400)
+        project_team(invalid_name_df, "pitching", 2026)
 
 
 def test_pitching_regression_and_reliability_use_innings_evidence() -> None:
@@ -399,15 +316,6 @@ def test_pitching_regression_and_reliability_use_innings_evidence() -> None:
     # 2,160 weighted IP, 720 weighted ER, plus 200 IP at 0.5 ER/IP.
     assert float(result.loc[0, "ERA"]) == pytest.approx(9 * (720 + 100) / (2160 + 200))
     assert float(result.loc[0, "Reliability"]) == pytest.approx(2160 / 2360)
-
-
-def test_one_season_regression_uses_only_available_weights() -> None:
-    prior = pd.DataFrame([_batting_row(2024, 600, 500, 150, 25, 2, 60, 80, 100, 10, 10)])
-    rates = {column: 0.0 for column in BATTING_COMPONENTS[1:]}
-    rates["HR"] = 0.02
-    result = project_player("One Season", prior, "batting", 2025, league_rates=rates)
-    assert float(result.loc[0, "HR"]) / float(result.loc[0, "PA"]) == pytest.approx(324 / 4200)
-    assert float(result.loc[0, "Reliability"]) == pytest.approx(3000 / 4200)
 
 
 @pytest.mark.parametrize("age, factor", [(25, 1.024), (29, 1.0), (34, 1 / 1.015)])
@@ -471,3 +379,101 @@ def test_undefined_pitching_decisions_and_walk_ratio() -> None:
     assert pd.isna(rates["W-L%"])
     assert pd.isna(rates["SO/W"])
     assert rates["SO9"] == 27
+
+
+@pytest.mark.parametrize("kind", ["batting", "fielding"])
+def test_legacy_projection_entrypoints_reject_non_pitching(kind: str) -> None:
+    prior = _pitching_prior().assign(Name="Player")
+    for project in [
+        lambda: project_player("Player", prior, kind, 2026),
+        lambda: project_team(prior, kind, 2026),
+    ]:
+        with pytest.raises(ProjectionError, match="project_batters"):
+            project()
+
+
+def test_pitching_config_controls_evidence_regression_and_playing_time() -> None:
+    prior = _pitching_prior()
+    config = MarcelConfig(
+        season_weights=(2.0, 1.0, 0.0), regression_ip=100.0, default_ip_growth=0.5
+    )
+    rates = {column: 0.0 for column in PITCHING_COMPONENTS[1:]}
+    rates["ER"] = 0.5
+    result = project_player("Pitcher", prior, "pitching", 2026, config, league_rates=rates).iloc[0]
+    assert result.IP == pytest.approx((2 * 200 + 180) / 3 * 0.5)
+    assert result.Reliability == pytest.approx(580 / 680)
+    assert result.ERA == pytest.approx(9 * (2 * 65 + 70 + 100 * 0.5) / 680)
+
+
+def _scalar_team_reference(
+    history: pd.DataFrame, config: MarcelConfig, baseline: pd.DataFrame
+) -> pd.DataFrame:
+    _, rates = _compute_baseline_rates(baseline, PITCHING_COMPONENTS)
+    identity = "PlayerID" if "PlayerID" in history else "IDfg"
+    keys = history[identity].fillna(history.Name) if identity in history else history.Name
+    rows = []
+    for _, group in history.groupby(keys, sort=False, dropna=False):
+        prior = group.sort_values("Season", ascending=False, kind="stable").head(3)
+        result = project_player(
+            prior.Name.iloc[0], prior, "pitching", 2026, config, league_rates=rates
+        )
+        if "PlayerID" in prior:
+            result["PlayerID"] = prior.PlayerID.iloc[0]
+        rows.append(result)
+    return pd.concat(rows, ignore_index=True)
+
+
+@pytest.mark.parametrize("identity", ["PlayerID", "IDfg", None])
+@pytest.mark.parametrize("birth_years", [True, False])
+@pytest.mark.parametrize(
+    "config",
+    [
+        MarcelConfig(),
+        MarcelConfig(season_weights=(3.0, 2.0, 1.0), regression_ip=75.0, default_ip_growth=0.8),
+        MarcelConfig(season_weights=(0.0, 0.0, 0.0), regression_ip=0.0),
+    ],
+)
+def test_vectorized_pitching_matches_scalar_reference(
+    identity: str | None, birth_years: bool, config: MarcelConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pieces = []
+    for player, age in enumerate([25, 29, 34, 70, 15, 35]):
+        prior = _pitching_prior().assign(Name="Same Name" if player < 2 else f"Pitcher {player}")
+        if identity:
+            prior[identity] = None if player == 5 else f"id{player}"
+        if birth_years:
+            prior["birthYear"] = 2026 - age
+        for column in PITCHING_COMPONENTS:
+            if column in prior:
+                prior[column] *= 1 + player * 0.1
+        if player == 0:
+            prior.loc[0, "ER"] = float("nan")
+        elif player == 1:
+            prior = prior[prior.Season != 2024]
+        elif player == 2:
+            prior[[c for c in PITCHING_COMPONENTS if c in prior]] = 0.0
+        elif player == 3:
+            prior["BB"] = 0.0
+        elif player == 4:
+            prior = pd.concat([prior.iloc[[0]].assign(Season=2026), prior], ignore_index=True)
+        else:
+            prior = pd.concat([prior.iloc[[0]], prior], ignore_index=True)
+        pieces.append(prior)
+    history = pd.concat(pieces, ignore_index=True).sample(frac=1, random_state=42)
+    baseline = _pitching_prior().assign(W=0.0, L=0.0)
+    original = history.copy(deep=True)
+    expected = _scalar_team_reference(history, config, baseline)
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("team projection invoked scalar project_player")
+
+    monkeypatch.setattr("backcaster.marcel.project_player", forbidden)
+    actual = project_team(history, "pitching", 2026, config, baseline_df=baseline)
+    pd.testing.assert_frame_equal(actual, expected, rtol=1e-12, atol=1e-12)
+    pd.testing.assert_frame_equal(history, original)
+
+
+@pytest.mark.parametrize("birth", [float("nan"), float("inf"), "unknown", 1800, 2025])
+def test_vectorized_pitching_rejects_invalid_age(birth: object) -> None:
+    with pytest.raises(ProjectionError, match="valid birthYear"):
+        project_team(_pitching_prior().assign(Name="Pitcher", birthYear=birth), "pitching", 2026)

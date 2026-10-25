@@ -1,3 +1,4 @@
+import csv
 import re
 from pathlib import Path
 
@@ -14,6 +15,33 @@ def test_csv_output_creation(tmp_path: Path) -> None:
     assert out.exists()
     content = out.read_text(encoding="utf-8")
     assert "Name,PA" in content
+
+
+@pytest.mark.parametrize("column", ["Name", "PlayerID"])
+@pytest.mark.parametrize(
+    "value",
+    ['=HYPERLINK("http://x","c") Doe', "+1+1", "-1+1", "@SUM(1,2)", "\tformula", "\rformula"],
+)
+def test_csv_escapes_spreadsheet_formulas(tmp_path: Path, column: str, value: str) -> None:
+    frame = pd.DataFrame([{column: value, "PA": -10}])
+    original = frame.copy(deep=True)
+    path = to_csv(frame, tmp_path / "out.csv")
+    with path.open(encoding="utf-8", newline="") as stream:
+        row = next(csv.DictReader(stream))
+    assert row[column] == "'" + value
+    assert row["PA"] == "-10"
+    pd.testing.assert_frame_equal(frame, original)
+    assert _display_frame(frame).iloc[0][column] == value
+
+
+@pytest.mark.parametrize("value", ["Normal Name", "", "'Already escaped", "A=B", None, pd.NA])
+def test_csv_preserves_safe_and_missing_strings(tmp_path: Path, value: object) -> None:
+    frame = pd.DataFrame([{"Name": value, "PlayerID": value}])
+    path = to_csv(frame, tmp_path / "out.csv")
+    with path.open(encoding="utf-8", newline="") as stream:
+        row = next(csv.DictReader(stream))
+    expected = "" if pd.isna(value) else value
+    assert row == {"Name": expected, "PlayerID": expected}
 
 
 def test_html_output_creation(tmp_path: Path) -> None:
@@ -140,6 +168,29 @@ def test_all_outputs_share_display_format(tmp_path: Path, output: str) -> None:
         text = to_html(frame, tmp_path / "out.html").read_text()
         for value in ["25", "1.048", "161.2", "3.46", "1.234"]:
             assert re.search(r"<td(?: [^>]*)?>" + re.escape(value) + r"</td>", text)
+
+
+@pytest.mark.parametrize(
+    "reliability, expected",
+    [(0.8627787307032591, "0.862779"), (0.0, "0.000000"), (1.0, "1.000000"), (float("nan"), "")],
+)
+def test_reliability_precision_and_undefined_rates(
+    tmp_path: Path, reliability: float, expected: str
+) -> None:
+    frame = pd.DataFrame(
+        [dict(Name="Example", BA=float("nan"), OBP=float("nan"), Reliability=reliability)]
+    )
+    original = frame.copy(deep=True)
+    display = _display_frame(frame)
+    assert display.iloc[0].to_dict() == dict(Name="Example", BA="", OBP="", Reliability=expected)
+    assert to_cli_table(frame) == display.to_string(index=False)
+    path = to_csv(frame, tmp_path / "out.csv")
+    with path.open(encoding="utf-8", newline="") as stream:
+        assert next(csv.DictReader(stream)) == display.iloc[0].to_dict()
+    html = to_html(frame, tmp_path / "out.html").read_text()
+    assert '<td class="rate"></td><td class="rate"></td>' in html
+    assert f"<td>{expected}</td>" in html
+    pd.testing.assert_frame_equal(frame, original)
 
 
 def test_new_batter_stats_format_as_requested() -> None:

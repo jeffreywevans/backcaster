@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import pandas as pd
 
 from backcaster.normalize import safe_divide
@@ -13,7 +14,6 @@ class ProjectionError(RuntimeError):
     pass
 
 
-BATTING_COMPONENTS = ["PA", "AB", "H", "2B", "3B", "HR", "BB", "SO", "HBP", "SF"]
 PITCHING_COMPONENTS = ["IP", "ER", "H", "HR", "BB", "SO", "BF", *PITCHING_EXTRA_COUNTS]
 
 
@@ -49,17 +49,6 @@ def _weighted_row(rows: list[pd.Series], weights: tuple[float, ...], cols: list[
     return pd.Series(out)
 
 
-def _derive_batting_rates(s: pd.Series) -> pd.Series:
-    singles = s["H"] - s["2B"] - s["3B"] - s["HR"]
-    tb = singles + 2 * s["2B"] + 3 * s["3B"] + 4 * s["HR"]
-    avg = safe_divide(s["H"], s["AB"])
-    obp = safe_divide(
-        s["H"] + s["BB"] + s.get("HBP", 0), s["AB"] + s["BB"] + s.get("HBP", 0) + s.get("SF", 0)
-    )
-    slg = safe_divide(tb, s["AB"])
-    return pd.Series({"AVG": avg, "OBP": obp, "SLG": slg, "OPS": obp + slg})
-
-
 def _derive_pitching_rates(s: pd.Series) -> pd.Series:
     era = safe_divide(s["ER"] * 9, s["IP"])
     whip = safe_divide(s["H"] + s["BB"], s["IP"])
@@ -87,16 +76,12 @@ def _compute_baseline_rates(df: pd.DataFrame, comps: list[str]) -> tuple[float, 
     return league_pt, league_rates
 
 
-def _validate_projection_kind(kind: str) -> str:
-    if kind not in {"batting", "pitching"}:
-        raise ProjectionError(f"Invalid kind {kind!r}. Expected one of: 'batting', 'pitching'.")
-    return kind
-
-
-def _projection_components(kind: str, config: MarcelConfig) -> tuple[list[str], float]:
-    if kind == "batting":
-        return BATTING_COMPONENTS, config.regression_pa
-    return PITCHING_COMPONENTS, config.regression_ip
+def _validate_projection_kind(kind: str) -> None:
+    if kind != "pitching":
+        raise ProjectionError(
+            f"Invalid kind {kind!r}. These projections support only 'pitching'; "
+            "use backcaster.batters.project_batters for batting projections."
+        )
 
 
 def _prepare_prior_df(
@@ -145,24 +130,23 @@ def project_player(
     league_df: pd.DataFrame | None = None,
     league_rates: dict[str, float] | None = None,
 ) -> pd.DataFrame:
+    """Project one pitcher; batting uses the population model in project_batters."""
     config = config or MarcelConfig()
+    _validate_projection_kind(kind)
     if prior_three.empty:
         raise ProjectionError("Expected at least one prior season for projection.")
     if prior_three.shape[0] > 3:
         raise ProjectionError("Expected at most three prior seasons for projection.")
 
-    kind = _validate_projection_kind(kind)
-    comps, reg_pt = _projection_components(kind, config)
-    optional_comps = {"HBP", "SF"} if kind == "batting" else set(PITCHING_EXTRA_COUNTS)
+    comps, reg_pt = PITCHING_COMPONENTS, config.regression_ip
+    optional_comps = set(PITCHING_EXTRA_COUNTS)
     prior_df = _prepare_prior_df(prior_three, comps, optional_comps=optional_comps)
 
     rows = [prior_df.iloc[i] for i in range(min(3, prior_df.shape[0]))]
-    weights: tuple[float, ...] = config.season_weights[: len(rows)]
-    if kind == "pitching":
-        calendar_weights: dict[float, float] = dict(
-            zip((year - 1, year - 2, year - 3), config.season_weights)
-        )
-        weights = tuple(calendar_weights.get(float(row["Season"]), 0.0) for row in rows)
+    calendar_weights: dict[float, float] = dict(
+        zip((year - 1, year - 2, year - 3), config.season_weights)
+    )
+    weights = tuple(calendar_weights.get(float(row["Season"]), 0.0) for row in rows)
     weighted = _weighted_row(rows, weights, comps)
 
     pt_col = comps[0]
@@ -186,26 +170,20 @@ def project_player(
         )
         regressed[c] = regressed_rate * weighted_pt
 
-    growth = config.default_pa_growth if kind == "batting" else config.default_ip_growth
-    age_adj = config.age_adjustment_fn(age) if kind == "batting" else 1.0
-    projected_pt = weighted_pt * growth * age_adj
+    projected_pt = weighted_pt * config.default_ip_growth
     pt_scale = safe_divide(projected_pt, weighted_pt)
     regressed *= pt_scale
 
-    if kind == "batting":
-        rates = _derive_batting_rates(regressed)
-    else:
-        age = _pitcher_age(prior_df, year, age)
-        regressed = _age_pitching(regressed, age)
-        rates = _derive_pitching_rates(regressed)
+    age = _pitcher_age(prior_df, year, age)
+    regressed = _age_pitching(regressed, age)
+    rates = _derive_pitching_rates(regressed)
 
-    output = pd.concat([regressed, rates])
+    output = pd.DataFrame([pd.concat([regressed, rates]).to_dict()])
     output["Reliability"] = reliability
     output["Name"] = player_name
     output["Year"] = year
-    if kind == "pitching":
-        output["Age"] = age
-    return output.to_frame().T
+    output["Age"] = float(age)
+    return output
 
 
 def project_team(
@@ -215,40 +193,84 @@ def project_team(
     config: MarcelConfig | None = None,
     baseline_df: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
+    """Project pitchers with a shared league baseline."""
     config = config or MarcelConfig()
+    _validate_projection_kind(kind)
     if "Name" not in team_df.columns:
         raise ProjectionError("Missing required Name column in team input.")
     if "Season" not in team_df.columns:
         raise ProjectionError("Missing required Season column in team input.")
-    kind = _validate_projection_kind(kind)
-    if kind == "batting":
-        comps = BATTING_COMPONENTS
-    else:
-        comps = PITCHING_COMPONENTS
+    comps = PITCHING_COMPONENTS
     baseline_source = baseline_df if baseline_df is not None else team_df
     _, baseline_rates = _compute_baseline_rates(baseline_source, comps)
-    identity = "PlayerID" if "PlayerID" in team_df.columns else "IDfg"
-    group_column = (
-        team_df[identity].fillna(team_df["Name"]) if identity in team_df.columns else "Name"
-    )
-    grouped = team_df.groupby(group_column, dropna=False, sort=False)
-    projections: list[pd.DataFrame] = []
-    for _, grp in grouped:
-        sorted_grp = grp.sort_values("Season", ascending=False, kind="mergesort")
-        display_name = sorted_grp["Name"].iloc[0]
-        if not isinstance(display_name, str):
-            raise ProjectionError("Encountered non-string player name in team input.")
-        projection = project_player(
-            display_name,
-            sorted_grp.head(3),
-            kind,
-            year,
-            config,
-            league_rates=baseline_rates,
-        )
-        if "PlayerID" in sorted_grp:
-            projection["PlayerID"] = sorted_grp["PlayerID"].iloc[0]
-        projections.append(projection)
-    if not projections:
+    if team_df.empty:
         raise ProjectionError("No players available to project for this team.")
-    return pd.concat(projections, ignore_index=True)
+    identity = "PlayerID" if "PlayerID" in team_df.columns else "IDfg"
+    keys = team_df[identity].fillna(team_df["Name"]) if identity in team_df else team_df["Name"]
+    # Integer groups retain first-appearance ordering and separate duplicate names.
+    groups, _ = pd.factorize(keys, sort=False, use_na_sentinel=False)
+    prior = _prepare_prior_df(
+        team_df.assign(_group=groups), comps, optional_comps=set(PITCHING_EXTRA_COUNTS)
+    )
+    prior = prior.groupby("_group", sort=False).head(3)
+    latest = prior.drop_duplicates("_group").set_index("_group").sort_index()
+    if not latest["Name"].map(lambda name: isinstance(name, str)).all():
+        raise ProjectionError("Encountered non-string player name in team input.")
+    ages = (
+        year - pd.to_numeric(latest["birthYear"], errors="coerce")
+        if "birthYear" in latest
+        else pd.Series(29.0, index=latest.index)
+    ).astype(float)
+    if not (np.isfinite(ages) & ages.between(15, 70)).all():
+        raise ProjectionError("A valid birthYear or explicit age is required for pitcher aging.")
+
+    weights = (
+        prior["Season"]
+        .map(dict(zip((year - 1, year - 2, year - 3), config.season_weights)))
+        .fillna(0.0)
+    )
+    weight_sums = weights.groupby(prior["_group"]).sum()
+    weighted_counts = prior[comps].astype(float).mul(weights, axis=0)
+    grouped = weighted_counts.groupby(prior["_group"])
+    # Match scalar arithmetic: a missing component propagates, rather than
+    # disappearing in pandas' default skip-NaN sum.
+    evidence = grouped.sum().where(grouped.count().eq(grouped.size(), axis=0))
+    weighted_ip = _pitching_ratio(evidence["IP"], weight_sums)
+    evidence = evidence.where(weight_sums.ne(0), 0.0, axis=0)
+    denominator = evidence["IP"] + config.regression_ip
+    output = pd.DataFrame(index=latest.index)
+    output["IP"] = weighted_ip * config.default_ip_growth
+    for column in comps[1:]:
+        rate = _pitching_ratio(
+            evidence[column] + baseline_rates[column] * config.regression_ip, denominator
+        )
+        output[column] = rate * output["IP"]
+
+    # Same marcelR skill adjustment as the single-player reference calculation.
+    benefit = pd.Series(
+        np.where(ages > 29, 1 / (1 + 0.003 * (ages - 29)), 1 + 0.006 * (29 - ages)),
+        index=ages.index,
+    )
+    harmful = ["ER", "H", "HR", "BB", "R", "IBB", "HBP", "BK", "WP"]
+    output[harmful] = output[harmful].div(benefit, axis=0)
+    output["SO"] *= benefit
+    decisions = output["W"] + output["L"]
+    output["W-L%"] = output["W"].div(decisions.replace(0, np.nan))
+    output["ERA"] = _pitching_ratio(output["ER"] * 9, output["IP"])
+    output["WHIP"] = _pitching_ratio(output["H"] + output["BB"], output["IP"])
+    for rate_column, count in [("H9", "H"), ("HR9", "HR"), ("BB9", "BB"), ("SO9", "SO")]:
+        output[rate_column] = _pitching_ratio(output[count] * 9, output["IP"])
+    output["SO/W"] = output["SO"].div(output["BB"].replace(0, np.nan))
+    output["Reliability"] = _pitching_ratio(evidence["IP"], denominator)
+    output["Name"] = latest["Name"]
+    output["Year"] = year
+    output["Age"] = ages
+    if "PlayerID" in latest:
+        output["PlayerID"] = latest["PlayerID"]
+    return output.reset_index(drop=True)
+
+
+def _pitching_ratio(numerator: pd.Series, denominator: pd.Series) -> pd.Series:
+    """Vector equivalent of safe_divide, including a zero numerator result at 0 IP."""
+    nonzero = denominator.ne(0)
+    return numerator.div(denominator.where(nonzero, 1)).where(nonzero, 0.0)

@@ -21,7 +21,7 @@ classifiers = [
 ]
 requires-python = ">=3.13"
 dependencies = [
-  "pandas>=2.0",
+  "pandas>=2.2.2",
   "numpy>=2.0",
 ]
 
@@ -38,6 +38,9 @@ dev = [
   "mypy>=1.10",
   "pandas-stubs>=2.2",
   "build>=1.2",
+  "setuptools>=77",
+  "wheel",
+  "twine",
 ]
 
 [project.scripts]
