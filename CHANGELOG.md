@@ -2,6 +2,11 @@
 
 ## 0.4.2
 
+- Include pitchers with any recorded outs or batters faced in the lookback, including relievers and outless appearances. Add ConfidenceTier without filtering low reliability, and extend dated eligibility/status and team snapshots to pitching. Use the full historical pitching sample population for regression independently of output selection.
+
+- Include every non-pitcher hitter with positive three-year lookback PA instead of requiring a qualified season. Add ConfidenceTier (`core` at reliability >=0.50, otherwise `low-sample`) without hiding either tier.
+- Add dated batting eligibility snapshots via `--eligibility-file` and `--as-of`; filter target-season status and team membership independently of the historical population calculation, and export EligibilityAsOf. Without a snapshot, outputs are historical candidates rather than roster forecasts.
+
 - Exclude historical batters and pitchers with unusable birth years, with a count-and-ID warning, so their missing ages do not block projections for the remaining population. Retain strict age validation in the low-level projection APIs.
 
 - Bootstrap uv 0.12.23 with a SHA-pinned setup-uv action and its embedded archive checksums instead of an unhashed pip install.

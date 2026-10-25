@@ -36,7 +36,7 @@ The Lahman adapter excludes non-pitcher batters with missing, nonnumeric, or
 implausible birth years (projection ages outside 15–70). It logs the number of
 excluded players and up to ten IDs to stderr so incomplete historical records
 do not block the remaining population. Their seasons are excluded from regression,
-league baselines, and rebaselining. Selection and qualification then operate on
+league baselines, and rebaselining. Output selection then operates on
 the remaining population. If no usable batters remain, projection fails with a
 clear error. The birthYear column is still required.
 
@@ -49,11 +49,24 @@ league context and projections. This is a documented classification choice rathe
 than a claim about Baseball Reference's exact classification. It retains hitters
 with occasional pitching appearances and most two-way hitters.
 
-Use all other positive-PA player-seasons for regression and rebaselining, including
-unqualified players. Apply the existing qualification filter only when selecting
-outputs: all commands select players qualifying in at least one of the three
-prior seasons and use their available history, including nonqualified seasons. Team IDs and last-stint membership rules are unchanged.
-The rebaselining population is independent of the command and requested team.
+Use all other positive-PA player-seasons for regression and rebaselining. Every
+player with a positive sample can receive a projection; seasonal PA qualification
+and reliability are not inclusion gates. A three-PA latest-year sample has 15
+weighted PA, reliability `15 / 1215`, and 201.5 projected PA before display rounding.
+
+The output includes `ConfidenceTier`: `core` when unrounded reliability is at least
+0.50, otherwise `low-sample`. The boundary corresponds to 1,200 weighted PA,
+where evidence equals the regression prior. Both tiers are always exported.
+
+Roster/status inclusion is independent. The Lahman adapter, for both hitting and pitching, optionally accepts
+`eligibility_file` and `as_of` (CLI: `--eligibility-file` and `--as-of`) containing
+a dated allowlist of target-season decisions. Its columns are PlayerID, Year,
+AsOf, Eligible, and optionally Team. Status filters act after the population
+projection; they cannot change any retained player's rates or reliability.
+Without this input, all historical candidates are returned, with no claim of
+current roster eligibility. Snapshot membership determines team selection when
+provided; otherwise historical last-stint membership is used. See the README
+for schema and January 14, 2025 comparison instructions.
 
 ## Calculation
 
@@ -77,7 +90,7 @@ The rebaselining population is independent of the command and requested team.
    season's league event rates. Iterative proportional fitting adjusts the event
    matrix until league totals match at fixed player PA. This is our explicit
    interpretation of rebaselining; it avoids incompatible AB, hits, and PA totals.
-   Fail if it does not converge. Select the requested qualified players afterward.
+   Fail if it does not converge. Select the requested eligible players afterward.
 
 The mutually exclusive events are singles, doubles, triples, HR, BB, HBP, SO, SH,
 SF, and remaining AB outs. Reconstruct H and AB and derive TB and recompute BA/OBP/SLG/OPS after
@@ -87,8 +100,8 @@ rebaselining. All counts retain decimal precision; no rounding enters the formul
 
 Hand-calculated fixtures exercise player-specific regression, PA, age direction,
 calendar-year gaps, future-data exclusion, and conservation of league rates/player
-PA. Integration tests check qualification, primary-pitcher exclusion, the effect
-of unqualified players on league context, command consistency, and file errors.
+PA. Integration tests check three-PA inclusion, confidence boundaries, dated status
+selection, primary-pitcher exclusion, command consistency, and file errors.
 
 A manual 2025 check against Lahman CSVs distributed by Rdatasets produced Betts:
 527.3 PA, 24.27 HR, .278 AVG, .362 OBP, .507 SLG, .869 OPS, .8583 reliability.

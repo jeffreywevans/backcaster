@@ -9,6 +9,7 @@ import pandas as pd
 
 from backcaster.batters import project_batters
 from backcaster.data import DataLoadError, PlayerLookupError
+from backcaster.eligibility import read_eligibility
 from backcaster.marcel import ProjectionError, project_player, project_team
 
 
@@ -173,9 +174,16 @@ class LahmanSource:
         name: str | None = None,
         team: str | None = None,
         player_id: str | None = None,
+        eligibility_file: str | Path | None = None,
+        as_of: str | None = None,
     ) -> pd.DataFrame:
         if name is not None and player_id is not None:
             raise ValueError("Specify either name or player_id, not both.")
+        snapshot = None
+        if eligibility_file is not None or as_of is not None:
+            if eligibility_file is None or as_of is None:
+                raise ValueError("--eligibility-file and --as-of must be provided together")
+            snapshot = read_eligibility(eligibility_file, year, as_of)
         batting = pd.DataFrame()
         if kind == "batting":
             seasons, batting = self._batting_population(year)
@@ -185,8 +193,20 @@ class LahmanSource:
                 [self.season(y, kind, qualified=False) for y in (year - 1, year - 2, year - 3)],
                 ignore_index=True,
             )
+            samples = seasons.groupby("PlayerID")[["IP", "BF"]].sum()
+            sampled_ids = samples.index[samples.gt(0).any(axis=1)]
+            seasons = seasons[seasons.PlayerID.isin(sampled_ids)].copy()
+            if seasons.empty:
+                raise ProjectionError(
+                    "No pitchers with positive innings or batters faced in the prior three seasons."
+                )
             seasons = _exclude_invalid_ages(seasons, year, "pitchers")
-        eligible = seasons[seasons["Qualified"]]
+        eligible = seasons
+        if snapshot is not None:
+            allowed = snapshot[snapshot.Eligible]
+            eligible = eligible[eligible.PlayerID.isin(allowed.index)]
+            if kind == "batting":
+                batting["EligibilityAsOf"] = as_of
         if command == "player":
             candidates = self._player_seasons(eligible, name, player_id)
             matches = seasons[seasons["PlayerID"] == candidates["PlayerID"].iloc[0]]
@@ -194,20 +214,34 @@ class LahmanSource:
                 return batting[batting["PlayerID"] == matches["PlayerID"].iloc[0]].reset_index(
                     drop=True
                 )
-            return project_player(
-                str(matches["Name"].iloc[0]), matches, kind, year, league_df=eligible
+            projection = project_player(
+                str(matches["Name"].iloc[0]), matches, kind, year, league_df=seasons
             ).assign(PlayerID=matches["PlayerID"].iloc[0])
+            if snapshot is not None:
+                projection["EligibilityAsOf"] = as_of
+            return projection
         selected = eligible
         if command == "team":
-            selected = eligible[eligible["Team"].str.casefold() == (team or "").casefold()]
+            if snapshot is not None:
+                if "Team" not in snapshot:
+                    raise DataLoadError(
+                        "Eligibility snapshot requires a Team column for team projections"
+                    )
+                team_ids = snapshot.index[snapshot.Team.str.casefold() == (team or "").casefold()]
+                selected = eligible[eligible.PlayerID.isin(team_ids)]
+            else:
+                selected = eligible[eligible["Team"].str.casefold() == (team or "").casefold()]
             if selected.empty:
                 raise ProjectionError(
-                    f"No qualified players for Lahman team ID '{team}' in the prior three seasons."
+                    f"No eligible players for Lahman team ID '{team}' in the prior three seasons."
                 )
         if kind == "batting":
             return batting[batting["PlayerID"].isin(selected["PlayerID"])].reset_index(drop=True)
         history = seasons[seasons["PlayerID"].isin(selected["PlayerID"])]
-        return project_team(history, kind, year, baseline_df=eligible)
+        projection = project_team(history, kind, year, baseline_df=seasons)
+        if snapshot is not None:
+            projection["EligibilityAsOf"] = as_of
+        return projection
 
     def _batting_population(self, year: int) -> tuple[pd.DataFrame, pd.DataFrame]:
         self.read("People", {"playerID", "nameFirst", "nameLast", "birthYear"})
@@ -235,12 +269,9 @@ class LahmanSource:
             )
         # A primary pitcher appears as pitcher in more than half of their games.
         # Retain two-way hitters whose batting appearances outnumber pitching games.
-        seasons = seasons[seasons["G_p"] <= seasons["G_all"] / 2].copy()
+        seasons = seasons[(seasons["G_p"] <= seasons["G_all"] / 2) & (seasons["PA"] > 0)].copy()
         seasons = _exclude_invalid_ages(seasons, year, "non-pitcher batters")
         projected = project_batters(seasons, year)
-        qualified = seasons[seasons["Qualified"]]
-        if qualified.empty:
-            raise ProjectionError("No qualified non-pitcher batters in the prior three seasons.")
         return seasons, projected
 
     def _player_seasons(
@@ -250,7 +281,7 @@ class LahmanSource:
             matches = seasons[seasons["PlayerID"] == player_id]
             if matches.empty:
                 raise PlayerLookupError(
-                    f"No qualified Lahman player found for player ID '{player_id}' "
+                    f"No eligible Lahman player found for player ID '{player_id}' "
                     "in the prior three seasons."
                 )
             return matches
@@ -261,7 +292,7 @@ class LahmanSource:
         ids = matches["PlayerID"].unique()
         if len(ids) == 0:
             raise PlayerLookupError(
-                f"No qualified Lahman player found for '{name}' in the prior three seasons."
+                f"No eligible Lahman player found for '{name}' in the prior three seasons."
             )
         if len(ids) > 1:
             raise PlayerLookupError(
