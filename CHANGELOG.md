@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.2
+## 0.4.3
 
 - Add opt-in historical accuracy comparisons to HTML reports. `--compare-actuals`
   loads target-season actuals after projection, adds expandable Actual and
@@ -20,6 +20,27 @@
 
 - Use recency-based pitcher playing time: `0.5 × last-year IP + 0.1 × two-years-ago IP + 60`. Missing years contribute zero; third-year history still informs regression and reliability. Apply the same formula to player, team, and batch projections.
 
+- Confine CSV and HTML export paths to the current working directory and its
+  subdirectories, resolving parent traversal and symbolic links before writing.
+  Validate CLI destinations before loading data.
+- Refactor season loading and HTML rendering to resolve static-analysis findings;
+  cover zero and rounded-zero innings variance formatting and keep exception
+  assertions focused on the writer call.
+
+Projection change: pitcher IP and counting-stat totals now follow the recency-based
+playing-time estimate instead of a weighted seasonal average. Regressed per-IP
+rates, aging, and reliability formulas remain unchanged.
+
+Compatibility: file exports through the CLI and Python writers must resolve
+inside the current working directory; run from the intended export directory
+when writing elsewhere. Python writers return the resolved absolute output path.
+Projection inclusion now uses positive lookback PA for non-pitcher hitters and
+positive outs or batters faced for pitchers; neither qualification nor reliability
+filters output membership. ConfidenceTier is added to exports, and dated
+snapshots add EligibilityAsOf. Python 3.13+ remains required.
+
+## 0.4.2
+
 - Prevent CSV formula injection by escaping Name and PlayerID cells beginning with `=`, `+`, `-`, `@`, tab, or carriage return.
 - Add `player --player-id` to disambiguate duplicate names while retaining qualification rules. Require exactly one of `--name` or `--player-id`.
 - Report unwritable output paths as CLI errors with exit status 2; reject `--out` with CLI output and validate output options before loading data.
@@ -30,10 +51,6 @@
 - Rename the local data-loading exception to DataLoadError and document the Python API changes.
 - Add uv.lock for reproducible CI, build tools, and wheel smoke tests; raise the pandas minimum to 2.2.2 for NumPy 2 compatibility and configure Dependabot for uv.
 - Correct action-pin version comments, pass SonarCloud shell inputs through environment variables, and resolve static-analysis findings in exception tests.
-
-Projection change: pitcher IP and counting-stat totals now follow the recency-based
-playing-time estimate instead of a weighted seasonal average. Regressed per-IP
-rates, aging, and reliability formulas remain unchanged.
 
 Compatibility: `project_player` and `project_team` now support pitching only;
 Python batting callers must use `backcaster.batters.project_batters` with the full

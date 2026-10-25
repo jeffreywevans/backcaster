@@ -5,7 +5,7 @@ implements player-specific baselines, projected PA, real ages, calendar-year
 weights, and population rebaselining. The remaining-differences section below
 describes the implementation at the time of the audit. The current
 [pitcher model](PITCHER_MODEL.md) also uses the recency-based innings estimate
-starting with 0.4.2.
+starting with 0.4.3.
 
 Baseball Reference's projections are the acceptance target for future model
 alignment. The corrections below are incremental; the current implementation

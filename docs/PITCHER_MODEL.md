@@ -49,7 +49,7 @@ not exact expected matches.
 
 ## Projected innings
 
-Starting with 0.4.2, projected innings are:
+Starting with 0.4.3, projected innings are:
 
 ```text
 IP = (0.5 × IP in year−1 + 0.1 × IP in year−2 + 60) × default_ip_growth
