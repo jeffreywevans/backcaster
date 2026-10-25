@@ -90,6 +90,10 @@ For 0.5.0, verify the desktop workspace on a graphical desktop:
 - Export HTML and CSV into a selected folder, including a folder outside the
   working directory. Confirm exports include every player when the preview is
   capped at 500 rows. Verify save cancellation and overwrite confirmation.
+- Set comparison to Yes and verify batting and pitching actuals and actual-minus-
+  projected variances in the preview, HTML, and CSV. Set No and regenerate to verify
+  projection-only output. Missing target-season data must show an error; partial
+  player coverage must leave unavailable actuals and variances blank.
 - Save both folder preferences and restart the app to confirm persistence.
 - Confirm bad filters, missing data, and unwritable folders show readable errors.
 

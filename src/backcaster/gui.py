@@ -20,7 +20,14 @@ import pandas as pd
 from backcaster import __version__
 from backcaster.cli import _default_data_dir
 from backcaster.lahman import LahmanSource
-from backcaster.outputs import _display_frame, to_csv, to_html
+from backcaster.outputs import (
+    COUNT_COLUMNS,
+    RATE_PLACES,
+    _display_frame,
+    comparison_frame,
+    to_csv,
+    to_html,
+)
 
 APP_NAME = "Backcaster"
 SCOPE_ALL_HITTERS = "All hitters"
@@ -94,6 +101,8 @@ class Workspace:
         self.kind = tk.StringVar(value="batting")
         self.player = tk.StringVar()
         self.team = tk.StringVar()
+        self.compare = tk.StringVar(value="No")
+        self.actuals: pd.DataFrame | None = None
         self.status = tk.StringVar(
             value="Choose your Lahman data folder, then load selections to get started."
         )
@@ -188,6 +197,9 @@ class Workspace:
         )
         self.kind_box = self._combo(
             filters, 0, 2, "Statistics", self.kind, ["batting", "pitching"], True
+        )
+        self.compare_box = self._combo(
+            filters, 0, 3, "Compare actual season", self.compare, ["No", "Yes"], True
         )
         self.player_box = self._combo(
             filters, 2, 0, "Player name or Lahman ID", self.player, [], span=2
@@ -367,34 +379,54 @@ class Workspace:
         directory = self.data_dir.get()
         label = f"{year} · {scope} · {kind}"
 
-        def generated(result: pd.DataFrame) -> None:
-            self.result = result
-            self.report_name = f"backcaster-{year}-{command}-{kind}"
-            display = _display_frame(result)
-            self.tree.delete(*self.tree.get_children())
-            columns = list(display.columns)
-            self.tree.configure(columns=columns)
-            for column in columns:
-                self.tree.heading(column, text=column)
-                self.tree.column(
-                    column,
-                    width=160 if column == "Name" else 95,
-                    stretch=False,
-                    anchor="center" if pd.api.types.is_numeric_dtype(result[column]) else "w",
+        compare = self.compare.get() == "Yes"
+
+        def project() -> tuple[pd.DataFrame, pd.DataFrame | None]:
+            source = LahmanSource(directory)
+            result = source.project(command, year, kind, **kwargs)
+            actuals = source.actuals(year, kind, result["PlayerID"]) if compare else None
+            if actuals is not None and actuals.empty:
+                raise ValueError(
+                    f"No actual results available for the selected players in {year}. Choose No to generate projections only."
                 )
-            for values in display.head(500).itertuples(index=False, name=None):
-                self.tree.insert("", "end", values=tuple(str(v) for v in values))
-            self.summary.set(f"{label} — {len(result):,} players")
-            self.status.set(
-                "Report ready. Preview shows up to 500 players; exports include every result."
-            )
-            self._export_state(not result.empty)
+            return result, actuals
 
         self._run(
-            lambda: LahmanSource(directory).project(command, year, kind, **kwargs),
-            generated,
+            project,
+            lambda report: self._show_report(report, label, f"backcaster-{year}-{command}-{kind}"),
             "Generating projections from the prior three seasons…",
         )
+
+    def _show_report(
+        self, report: tuple[pd.DataFrame, pd.DataFrame | None], label: str, report_name: str
+    ) -> None:
+        result, actuals = report
+        self.result = result
+        self.actuals = actuals
+        self.report_name = report_name
+        display = _display_frame(result) if actuals is None else comparison_frame(result, actuals)
+        self.tree.delete(*self.tree.get_children())
+        columns = list(display.columns)
+        self.tree.configure(columns=columns)
+        for column in columns:
+            self.tree.heading(column, text=column)
+            self.tree.column(
+                column,
+                width=160 if column in {"Name", "ActualStatus"} else 95,
+                stretch=False,
+                anchor="center"
+                if column.removeprefix("Actual ").removeprefix("Variance ")
+                in COUNT_COLUMNS | RATE_PLACES.keys() | {"IP"}
+                else "w",
+            )
+        for values in display.head(500).itertuples(index=False, name=None):
+            self.tree.insert("", "end", values=tuple(str(v) for v in values))
+        comparison_label = " · Actuals & variance" if actuals is not None else ""
+        self.summary.set(f"{label}{comparison_label} — {len(result):,} players")
+        self.status.set(
+            "Report ready. Preview shows up to 500 players; exports include every result."
+        )
+        self._export_state(not result.empty)
 
     def _export(self, format: str) -> None:
         if self.result is None or self.result.empty:
@@ -422,9 +454,10 @@ class Workspace:
         if not destination:
             return
         result = self.result.copy()
+        actuals = self.actuals.copy() if self.actuals is not None else None
         renderer = to_csv if format == "csv" else to_html
         self._run(
-            lambda: renderer(result, destination, output_root=root),
+            lambda: renderer(result, destination, actuals, output_root=root),
             lambda path: self.status.set(f"Exported {len(result):,} players to {path}"),
             f"Exporting {format.upper()} report…",
         )
