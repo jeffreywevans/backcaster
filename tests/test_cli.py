@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from backcaster import cli
-from backcaster.cli import _default_data_dir, _render, build_parser, main
+from backcaster.cli import _default_data_dir, _render, _validate_output_options, build_parser, main
 from backcaster.data import DataLoadError, PlayerLookupError
 from backcaster.marcel import ProjectionError
 
@@ -38,10 +38,11 @@ def test_render_file_writers(monkeypatch: pytest.MonkeyPatch, tmp_path, fmt: str
 
 
 @pytest.mark.parametrize("fmt", ["csv", "html"])
-def test_render_file_formats_require_out(fmt: str) -> None:
+@pytest.mark.parametrize("out", [None, ""])
+def test_render_file_formats_require_out(fmt: str, out: str | None) -> None:
     df = pd.DataFrame([{"Name": "A"}])
     with pytest.raises(ValueError, match="--out is required"):
-        _render(df, fmt, None)
+        _render(df, fmt, out)
 
 
 def test_render_rejects_unsupported_format() -> None:
@@ -151,8 +152,7 @@ def test_invalid_output_options_fail_before_loading_data(
     assert captured.out == ""
 
 
-def test_render_rejects_cli_output_path(capsys: pytest.CaptureFixture[str]) -> None:
-    frame = pd.DataFrame([{"Name": "A"}])
+def test_validation_rejects_cli_output_path(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(ValueError, match="--out cannot be used"):
-        _render(frame, "cli", "ignored.csv")
+        _validate_output_options("cli", "ignored.csv")
     assert capsys.readouterr().out == ""
