@@ -543,3 +543,8 @@ The season list includes years with three preceding seasons in the loaded data.
 Player and team lists include historical entries; the projection engine checks
 eligibility for the chosen season. The existing CLI remains available with its
 working-directory export restriction.
+
+GUI integration tests use real Tk widgets. On a Linux machine without a display,
+install Xvfb and xauth, then run `xvfb-run -a pytest`. CI runs the full suite and
+coverage reports this way. Without a display, local runs skip window integration
+tests; settings, export, and CLI tests still run normally.
