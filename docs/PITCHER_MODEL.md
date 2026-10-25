@@ -3,8 +3,10 @@
 Pitcher projections now use `projection year - People.csv.birthYear` for player,
 team, and batch commands. Missing, nonnumeric, nonfinite, or implausible birth
 years produce errors rather than silently assuming age 29. The low-level Python
-`project_player` function also accepts an explicit age for callers without birth
-years; its existing default remains 29 for those callers only.
+`project_player` and `project_team` functions accept an explicit `age` fallback
+for callers without a birthYear column; both default to 29. For team projections,
+this fallback applies to every pitcher. When birthYear is present, it takes
+precedence; invalid or missing values raise an error rather than using the fallback.
 
 The aging equations and direction choices are adapted from Ben Dilday's marcelR,
 revision `13a1c7943f5a7317c9c812a28e299c2184060046`, `R/utilities.R` and

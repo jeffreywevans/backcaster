@@ -515,3 +515,26 @@ def test_pitcher_playing_time_scales_counts_without_changing_rates() -> None:
         assert scaled[column] == pytest.approx(normal[column] * 0.5)
     for column in ["ERA", "WHIP", "H9", "HR9", "BB9", "SO9", "Reliability"]:
         assert scaled[column] == pytest.approx(normal[column])
+
+
+@pytest.mark.parametrize("age", [25.0, 29.0, 34.0])
+def test_team_explicit_age_matches_player_fallback(age: float) -> None:
+    prior = _pitching_prior()
+    expected = project_player("Pitcher", prior, "pitching", 2026, age=age)
+    actual = project_team(prior.assign(Name="Pitcher"), "pitching", 2026, age=age)
+    pd.testing.assert_frame_equal(actual, expected)
+
+
+def test_team_birth_year_overrides_explicit_age() -> None:
+    prior = _pitching_prior().assign(Name="Pitcher", birthYear=1992)
+    expected = project_team(prior, "pitching", 2026)
+    actual = project_team(prior, "pitching", 2026, age=25)
+    pd.testing.assert_frame_equal(actual, expected)
+    assert actual.Age.iloc[0] == 34
+
+
+@pytest.mark.parametrize("age", [float("nan"), float("inf"), 14.0, 71.0])
+def test_team_rejects_invalid_fallback_age(age: float) -> None:
+    prior = _pitching_prior().assign(Name="Pitcher")
+    with pytest.raises(ProjectionError, match="valid birthYear or explicit age"):
+        project_team(prior, "pitching", 2026, age=age)

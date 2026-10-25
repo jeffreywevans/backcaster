@@ -187,8 +187,9 @@ def project_team(
     year: int,
     config: MarcelConfig | None = None,
     baseline_df: pd.DataFrame | None = None,
+    age: float = 29,
 ) -> pd.DataFrame:
-    """Project pitchers with a shared league baseline."""
+    """Project pitchers; age is the shared fallback when birthYear is absent."""
     config = config or MarcelConfig()
     _validate_projection_kind(kind)
     if "Name" not in team_df.columns:
@@ -214,7 +215,7 @@ def project_team(
     ages = (
         year - pd.to_numeric(latest["birthYear"], errors="coerce")
         if "birthYear" in latest
-        else pd.Series(29.0, index=latest.index)
+        else pd.Series(age, index=latest.index)
     ).astype(float)
     if not (np.isfinite(ages) & ages.between(15, 70)).all():
         raise ProjectionError("A valid birthYear or explicit age is required for pitcher aging.")
