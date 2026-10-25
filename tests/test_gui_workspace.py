@@ -285,3 +285,28 @@ def test_main_explains_missing_display(monkeypatch):
     monkeypatch.setattr(gui.tk, "Tk", fail)
     with pytest.raises(SystemExit, match="requires a graphical desktop"):
         gui.main()
+
+
+def test_loading_without_complete_history_preserves_selected_season(workspace, monkeypatch):
+    app = workspace
+    app.year.set("2022")
+    monkeypatch.setattr(gui, "load_choices", lambda directory: ([], [], []))
+    app._load()
+    settle(app)
+    assert app.year.get() == "2022"
+    assert not app.season_box["values"]
+    assert not app.player_box["values"]
+    assert not app.team_box["values"]
+    assert "Loaded 0 players and 0 team IDs" in app.status.get()
+    gui.messagebox.showerror.assert_not_called()
+
+
+def test_module_entrypoint_explains_missing_display(monkeypatch):
+    import runpy
+
+    def fail():
+        raise tk.TclError("no display")
+
+    monkeypatch.setattr(tk, "Tk", fail)
+    with pytest.raises(SystemExit, match="requires a graphical desktop: no display"):
+        runpy.run_path(gui.__file__, run_name="__main__")
