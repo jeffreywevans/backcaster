@@ -1,6 +1,6 @@
 # Releasing Backcaster
 
-## Prepare 0.4.2
+## Prepare 0.4.3
 
 The package version is defined in `src/backcaster/__init__.py`; setuptools reads it
 when building both distributions. After changing the version, run `uv lock` and
@@ -44,8 +44,8 @@ These GitHub and PyPI settings must be configured separately from the repository
 
 1. Merge the prepared changes into `main` and confirm CI passes, including Python
    3.13 and 3.14 and the 100% coverage gate.
-2. Create a GitHub release named **0.4.2**, using tag **v0.4.2** at the validated
-   commit on `main`. Use the 0.4.2 changelog entry as the release notes.
+2. Create a GitHub release named **0.4.3**, using tag **v0.4.3** at the validated
+   commit on `main`. Use the 0.4.3 changelog entry as the release notes.
 3. Publish the GitHub release as a stable release. This triggers `workflow.yml`;
    a draft does not trigger publication, and a prerelease does not upload to PyPI.
 4. Review the build and the `pypi` deployment job; approve it if the environment
@@ -54,8 +54,8 @@ These GitHub and PyPI settings must be configured separately from the repository
 5. After the upload succeeds, verify from a fresh environment:
 
    ```bash
-   python -m pip install backcaster==0.4.2
-   python -c 'from backcaster import __version__; assert __version__ == "0.4.2"'
+   python -m pip install backcaster==0.4.3
+   python -c 'from backcaster import __version__; assert __version__ == "0.4.3"'
    backcaster --help
    backcaster hitters --help
    backcaster pitchers --help
@@ -77,7 +77,19 @@ at one, and SO/W at two. W-L% is a three-decimal fraction. Undefined W-L% and
 SO/W should be blank. Confirm the local CSVs include the fields listed in the
 README before testing.
 
-For 0.4.2, also verify:
+For 0.4.3, also verify:
+
+- Historical HTML comparisons work for both batters and pitchers with target-year
+  results available. Projection inputs still use only the three preceding years.
+  Actual and Variance rows start expanded and stay with their player when sorting
+  or filtering; print preserves the current view. Variance is actual minus
+  projected, with signed baseball notation for IP. Missing target-year player
+  records have a clear label and blank variances. CLI and CSV comparisons fail
+  with a readable error before loading data.
+- Nested export paths inside the current working directory succeed. Paths outside
+  it, including parent traversal and symbolic-link escapes, return status 2
+  before data loading or filesystem writes. Python writers enforce the same
+  boundary and return resolved absolute paths.
 
 - A one-out pitcher and an outless pitcher with a batter faced receive low-sample
   projections. Dated snapshots also work for pitchers, without changing retained
@@ -107,6 +119,9 @@ Generate and open an HTML report as well:
 ```bash
 backcaster hitters --year 2026 --format html --out hitters_2026.html
 backcaster pitchers --year 2026 --format html --out pitchers_2026.html
+# Historical comparisons require 2022–2025 in the local dataset:
+backcaster hitters --year 2025 --format html --compare-actuals --out hitters_accuracy_2025.html
+backcaster pitchers --year 2025 --format html --compare-actuals --out pitchers_accuracy_2025.html
 ```
 
 Verify Name/Year/Player ID/Age column order, rounded counts, fixed rate precision,

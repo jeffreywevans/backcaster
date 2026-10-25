@@ -27,6 +27,12 @@ and data availability. It cannot supply 2026 statistics for a 2027 projection.
 See the [offline usage guide](../README.md#offline-projections-with-lahman-csvs)
 for inclusion rules, Lahman team IDs, dated status snapshots, and traded players.
 
+Historical comparisons with `--format html --compare-actuals` additionally need
+the target season in `Batting.csv` or `Pitching.csv` and `Teams.csv`. A 2025
+comparison uses 2022–2024 to project, then loads 2025 results by PlayerID. The
+2025 edition cannot supply actual results for a 2026 comparison. See
+[comparison usage](../README.md#compare-projections-with-actual-results-new-in-043).
+
 ## Historical data caveats
 
 A historical target such as `--year 1934` uses 1931–1933 statistics. Batters and pitchers

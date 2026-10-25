@@ -7,6 +7,7 @@ It supports:
 - **Single team projections** (`team`)
 - **League-wide projections** (`hitters`, `pitchers`, or `batch`)
 - Output as terminal table, CSV, or HTML
+- Historical comparisons against actual results in HTML reports (`--compare-actuals`)
 
 ---
 
@@ -25,10 +26,10 @@ Upgrade to the latest release available on PyPI:
 python -m pip install --upgrade backcaster
 ```
 
-To install a specific release, such as 0.4.2:
+To install a specific release, such as 0.4.3:
 
 ```powershell
-python -m pip install --upgrade backcaster==0.4.2
+python -m pip install --upgrade backcaster==0.4.3
 ```
 
 Run the command using the same Python environment where you run Backcaster.
@@ -352,13 +353,42 @@ Search filters the visible rows; printing respects that current view. Without
 JavaScript, the complete table is still readable. See
 [HTML report customization](docs/HTML_REPORTS.md) for theme and column constants.
 
-`--compare-actuals` is available only with HTML output and requires the selected
-target season in the local Lahman files. The projection continues to use only the
-three preceding seasons. Each projected player receives an Actual row and a
-Variance row, where variance is `actual - projected`. Positive differences are
-green and negative differences are red. A player without a target-season record
-is labeled `Actual (no recorded stats)` and receives blank variances rather than
-zeros. Use the control beside each player name to collapse or expand those rows.
+### Compare projections with actual results (new in 0.4.3)
+
+Add `--compare-actuals` to a historical HTML report for either batters or pitchers:
+
+```powershell
+backcaster hitters --year 2025 --format html --compare-actuals --out hitters_accuracy_2025.html
+backcaster pitchers --year 2025 --format html --compare-actuals --out pitchers_accuracy_2025.html
+```
+
+For these examples, the local Lahman files must cover **2022–2024** for the
+projection and **2025** for the actual results, including target-year game counts
+in `Teams.csv`. Use `--data-dir` to select the dataset. The 1871–2025 edition can
+support a 2025 comparison; it cannot provide actual results for 2026.
+The option also works with `player`, `team`, and `batch`; it requires
+`--format html` and `--out` and is rejected for terminal or CSV output.
+
+Projection calculations use only the three preceding seasons. Target-season
+results are loaded afterward and matched by Lahman PlayerID, combining trade
+stints without requiring the player to meet a seasonal qualification threshold.
+Each projected player has two additional rows:
+
+- **Actual** shows the player's recorded target-season results.
+- **Variance** shows `actual - projected`, calculated before display rounding.
+  For example, 25 actual HR against 20 projected HR displays `+5`.
+
+Positive differences are green and negative differences are red. These colors
+indicate direction: a positive ERA variance means more earned runs per nine
+innings than projected. IP differences use signed baseball innings notation;
+`+1.2` means one inning and two outs.
+
+Rows start expanded. Use the control beside each player name to collapse or
+expand them; the rows stay with their player when sorting or filtering, and
+printing preserves the current view. A projected player without a target-season
+record is labeled `Actual (no recorded stats)` and has blank variance cells.
+Players absent from the projection population are not added from the actuals.
+ConfidenceTier and Reliability describe the projection, not the actual results.
 
 ---
 
@@ -439,7 +469,7 @@ pytest
 ### Coverage + JUnit reports
 
 ```bash
-pytest --junitxml=pytest.xml --cov=src --cov-report=xml:coverage.xml
+pytest --junitxml=pytest.xml --cov=src --cov-branch --cov-report=xml:coverage.xml --cov-fail-under=100
 ```
 
 ### Lint and types

@@ -6,6 +6,7 @@ Generate reports through the existing CLI, for example:
 backcaster hitters --year 2025 --format html --out hitters_2025.html
 backcaster pitchers --year 2025 --format html --out pitchers_2025.html
 backcaster hitters --year 2025 --format html --compare-actuals --out hitters_accuracy_2025.html
+backcaster pitchers --year 2025 --format html --compare-actuals --out pitchers_accuracy_2025.html
 ```
 
 Each report is one HTML file with embedded CSS and vanilla JavaScript. It has no
@@ -13,6 +14,10 @@ external asset or network dependencies. Search, column sorting, reset, and brows
 printing operate locally. The table remains readable if JavaScript is disabled.
 The visual design uses a restrained enterprise reporting palette, light cards,
 and compact striped tables, with no third-party branding or copied assets.
+
+Output paths must resolve within the current working directory or its
+subdirectories. Run Backcaster from the intended output directory when exporting
+elsewhere; parent traversal and symbolic links cannot escape this boundary.
 
 ## Layout and constants
 
@@ -25,6 +30,7 @@ and identity columns shared by calculations and every output format.
 - `BATTING_COLUMNS` and `PITCHING_COLUMNS`: the shared canonical stat order.
   Additional fields are preserved after known statistics.
 - `COLUMN_LABELS` and `COLUMN_HELP`: display labels and column tooltips.
+- `TABLE_ROW_END`: the shared closing tag for projection and comparison rows.
 - `REPORT_CSS`: theme, responsive layout, and print rules. Change the CSS custom
   properties in `:root` to adjust brand colors, surfaces, borders, and rounding.
 - `REPORT_JS`: local search and sorting behavior; data is read from table cells
@@ -53,7 +59,7 @@ Player names, metadata, values, and column labels are HTML-escaped.
 
 ## Historical accuracy comparisons
 
-Add `--compare-actuals` to an HTML command when the target season is present in
+New in 0.4.3: add `--compare-actuals` to an HTML command when the target season is present in
 the local Lahman files. Projection calculations still read only the three prior
 seasons. The report then adds two rows beneath every projected player:
 
@@ -67,3 +73,15 @@ and print in their current state. If Lahman has no target-season record for a
 projected player, the report says `Actual (no recorded stats)` and leaves the
 variance cells blank. This avoids treating a season without an appearance as a
 zero-stat season.
+
+For a 2025 comparison, supply 2022–2024 projection inputs plus 2025 batting or
+pitching results and team game counts. This works with all CLI projection
+commands and is rejected for CSV and terminal output. Actuals are matched by
+PlayerID, combine all target-year stints, and do not require qualification.
+Only projected players appear; actual results do not add new players.
+
+Variances use full-precision values before formatting. Colors show direction,
+not whether a result is better: positive ERA variance means a higher ERA than
+projected. IP variances use signed baseball notation (`+1.2` means one inning
+and two outs). Projection-only metadata such as ConfidenceTier and Reliability
+is blank on actual and variance rows.
