@@ -475,5 +475,6 @@ def test_vectorized_pitching_matches_scalar_reference(
 
 @pytest.mark.parametrize("birth", [float("nan"), float("inf"), "unknown", 1800, 2025])
 def test_vectorized_pitching_rejects_invalid_age(birth: object) -> None:
+    prior = _pitching_prior().assign(Name="Pitcher", birthYear=birth)
     with pytest.raises(ProjectionError, match="valid birthYear"):
-        project_team(_pitching_prior().assign(Name="Pitcher", birthYear=birth), "pitching", 2026)
+        project_team(prior, "pitching", 2026)
