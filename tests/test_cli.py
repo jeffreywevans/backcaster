@@ -7,7 +7,7 @@ import pytest
 
 from backcaster import cli
 from backcaster.cli import _default_data_dir, _render, build_parser, main
-from backcaster.data import DataFetchError, PlayerLookupError
+from backcaster.data import DataLoadError, PlayerLookupError
 from backcaster.marcel import ProjectionError
 
 
@@ -53,7 +53,7 @@ def test_render_rejects_unsupported_format() -> None:
 @pytest.mark.parametrize(
     ("exc", "msg"),
     [
-        (DataFetchError("fetch failed"), "fetch failed"),
+        (DataLoadError("data load failed"), "data load failed"),
         (PlayerLookupError("lookup failed"), "lookup failed"),
         (ProjectionError("projection failed"), "projection failed"),
         (ValueError("bad value"), "bad value"),
@@ -100,3 +100,57 @@ def test_data_directory_precedence(monkeypatch: pytest.MonkeyPatch, tmp_path) ->
     args = ["batch", "--year", "2024", "--kind", "batting"]
     assert parser.parse_args(args).data_dir == str(tmp_path)
     assert parser.parse_args([*args, "--data-dir", "custom"]).data_dir == "custom"
+
+
+@pytest.mark.parametrize("selectors", [[], ["--name", "Chris Young", "--player-id", "youngch01"]])
+def test_player_requires_one_selector(selectors: list[str]) -> None:
+    with pytest.raises(SystemExit) as exc:
+        build_parser().parse_args(["player", "--year", "2022", "--kind", "batting", *selectors])
+    assert exc.value.code == 2
+
+
+@pytest.mark.parametrize("fmt", ["csv", "html"])
+def test_unwritable_output_reports_cli_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path, capsys: pytest.CaptureFixture[str], fmt: str
+) -> None:
+    monkeypatch.setattr(
+        "backcaster.cli.LahmanSource.project", lambda *args, **kwargs: pd.DataFrame([{"Name": "A"}])
+    )
+    # A directory as the destination fails even when tests run with elevated privileges.
+    assert main(["hitters", "--year", "2026", "--format", fmt, "--out", str(tmp_path)]) == 2
+    captured = capsys.readouterr()
+    assert "Error:" in captured.err
+    assert str(tmp_path) in captured.err
+    assert "Traceback" not in captured.err
+    assert captured.out == ""
+
+
+@pytest.mark.parametrize(
+    "options, message",
+    [
+        (["--out", "ignored.csv"], "--out cannot be used with --format cli"),
+        (["--format", "cli", "--out", "ignored.csv"], "--out cannot be used with --format cli"),
+        (["--format", "csv"], "--out is required"),
+        (["--format", "html"], "--out is required"),
+    ],
+)
+def test_invalid_output_options_fail_before_loading_data(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    options: list[str],
+    message: str,
+) -> None:
+    def forbidden(*args, **kwargs):
+        raise AssertionError("invalid output options attempted data loading")
+
+    monkeypatch.setattr("backcaster.cli.LahmanSource.project", forbidden)
+    assert main(["hitters", "--year", "2026", *options]) == 2
+    captured = capsys.readouterr()
+    assert message in captured.err
+    assert captured.out == ""
+
+
+def test_render_rejects_cli_output_path(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(ValueError, match="--out cannot be used"):
+        _render(pd.DataFrame([{"Name": "A"}]), "cli", "ignored.csv")
+    assert capsys.readouterr().out == ""

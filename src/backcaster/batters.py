@@ -144,7 +144,7 @@ def _summarize(projected: pd.DataFrame, pa: pd.Series) -> pd.DataFrame:
     ).replace(0, np.nan)
     out["SLG"] = out["TB"] / out["AB"].replace(0, np.nan)
     out["OPS"] = out["OBP"] + out["SLG"]
-    return out.fillna(0)
+    return out
 
 
 def project_batters(seasons: pd.DataFrame, year: int) -> pd.DataFrame:

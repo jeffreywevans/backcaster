@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from backcaster.data import DataFetchError, PlayerLookupError
+from backcaster.data import DataLoadError, PlayerLookupError
 from backcaster.lahman import LahmanSource
 from backcaster.marcel import ProjectionError
 from backcaster.outputs import to_cli_table, to_csv, to_html
@@ -25,12 +25,19 @@ def _default_data_dir() -> str:
     return os.environ.get("LAHMAN_DATA_DIR", default)
 
 
+def _validate_output_options(output_format: str, out: str | None) -> None:
+    if output_format == "cli" and out is not None:
+        raise ValueError("--out cannot be used with --format cli; choose --format csv or html")
+    if output_format in _FILE_RENDERERS and not out:
+        raise ValueError(f"--out is required for {output_format} output")
+
+
 def _render(df: pd.DataFrame, output_format: str, out: str | None) -> None:
+    _validate_output_options(output_format, out)
     if output_format == "cli":
         print(to_cli_table(df))
     elif output_format in _FILE_RENDERERS:
-        if not out:
-            raise ValueError(f"--out is required for {output_format} output")
+        assert out is not None
         _FILE_RENDERERS[output_format](df, out)
     else:
         raise ValueError(f"Unsupported format: {output_format}")
@@ -47,7 +54,7 @@ def build_parser() -> argparse.ArgumentParser:
         else:
             sp.set_defaults(kind=kind)
         sp.add_argument("--format", choices=_OUTPUT_FORMAT_CHOICES, default="cli")
-        sp.add_argument("--out")
+        sp.add_argument("--out", help="Output path (required for csv/html; invalid with cli)")
         sp.add_argument(
             "--data-dir",
             default=_default_data_dir(),
@@ -56,7 +63,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     pp = sub.add_parser("player")
     add_common(pp)
-    pp.add_argument("--name", required=True)
+    player_selector = pp.add_mutually_exclusive_group(required=True)
+    player_selector.add_argument("--name", help="Player name (must identify one qualified player)")
+    player_selector.add_argument(
+        "--player-id", help="Exact Lahman player ID (for example, bettsmo01)"
+    )
 
     tp = sub.add_parser("team")
     add_common(tp)
@@ -75,16 +86,18 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
+        _validate_output_options(args.format, args.out)
         result = LahmanSource(args.data_dir).project(
             args.command,
             args.year,
             args.kind,
             name=getattr(args, "name", None),
             team=getattr(args, "team", None),
+            player_id=getattr(args, "player_id", None),
         )
         _render(result, args.format, args.out)
         return 0
-    except (DataFetchError, PlayerLookupError, ProjectionError, ValueError) as exc:
+    except (DataLoadError, PlayerLookupError, ProjectionError, ValueError, OSError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 2
 

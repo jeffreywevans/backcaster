@@ -57,3 +57,16 @@ ERA has two display decimals, WHIP three, per-nine rates one, and SO/W two.
 Undefined W-L% (no decisions) and SO/W (no walks) are NaN internally and blank in
 exports. Existing zero-IP ERA/WHIP/per-nine behavior remains zero. R is total
 runs allowed, not a substitute for ER. All counts remain unrounded internally.
+
+## Batch calculation
+
+`project_team` computes pitcher evidence, regression, aging, and derived rates
+with grouped column operations, avoiding one `project_player` call per pitcher.
+It retains the shared league baseline, calendar weights, latest three records,
+first-appearance player order, and latest-record name and birth year. PlayerID
+(or IDfg for older callers) separates pitchers who share a name.
+
+Parity tests compare every output column against the single-player calculation,
+including missing seasons, zero innings, undefined ratios, missing components,
+custom configuration, and age boundaries. This optimization changes execution
+cost without changing the pitching model.

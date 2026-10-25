@@ -44,6 +44,7 @@ COUNT_COLUMNS = {
     "Year",
 }
 RATE_PLACES = {
+    "Reliability": 6,
     "BA": 3,
     "AVG": 3,
     "OBP": 3,
@@ -102,7 +103,18 @@ def to_cli_table(df: pd.DataFrame) -> str:
 def to_csv(df: pd.DataFrame, out_path: str | Path) -> Path:
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    _display_frame(df).to_csv(out, index=False)
+    display = _display_frame(df)
+    for column in ("Name", "PlayerID"):
+        if column in display:
+            # CSV quoting alone does not prevent spreadsheet formula execution.
+            display[column] = display[column].map(
+                lambda value: (
+                    "'" + value
+                    if isinstance(value, str) and value.startswith(("=", "+", "-", "@", "\t", "\r"))
+                    else value
+                )
+            )
+    display.to_csv(out, index=False)
     return out
 
 

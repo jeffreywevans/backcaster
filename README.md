@@ -42,7 +42,7 @@ python -m pip show backcaster
 
 ```bash
 # from repo root
-uv sync
+uv sync --locked
 ```
 
 This installs runtime dependencies and the `backcaster` CLI entrypoint defined in `pyproject.toml`.
@@ -50,10 +50,10 @@ This installs runtime dependencies and the `backcaster` CLI entrypoint defined i
 ### Install in editable/dev mode
 
 ```bash
-uv sync --extra dev
+uv sync --locked --extra dev
 ```
 
-This adds test/lint/type-check/build tooling (`pytest`, `pytest-cov`, `ruff`, `mypy`, `pandas-stubs`, `build`).
+This adds test/lint/type-check/build tooling (`pytest`, `pytest-cov`, `ruff`, `mypy`, `pandas-stubs`, `build`, `setuptools`, `wheel`, `twine`).
 
 ### Build/install as a package
 
@@ -71,7 +71,7 @@ The `player`, `team`, and `batch` commands also require `--kind batting|pitching
 The `hitters` and `pitchers` commands choose their kind automatically.
 
 Subcommand-specific required options:
-- `player` requires `--name`
+- `player` requires exactly one of `--name` or `--player-id`
 - `team` requires `--team`
 - `batch`, `hitters`, and `pitchers` require no player or team option
 
@@ -102,7 +102,9 @@ Both commands support `--data-dir`, `--format cli|csv|html`, and `--out`.
 They are shortcuts for `batch --kind batting` and `batch --kind pitching`.
 For a different data directory, add `--data-dir "C:\Baseball\lahman"`.
 For HTML, use `--format html --out hitters_2026.html` (or a pitcher output filename).
-File formats require `--out`; the CLI format prints to the terminal.
+File formats require `--out`; the CLI format prints to the terminal and rejects
+`--out`. Invalid output options fail before data is loaded. Unwritable output
+paths report an error on stderr and exit with status 2.
 
 Players qualify for selection by meeting the existing PA/IP threshold in at least
 one of those three seasons. This is a historical eligibility list, not an active
@@ -164,7 +166,15 @@ Blank numeric counting-stat cells are also treated as zero; use a dataset with
 complete records for the seasons you intend to project.
 Pitching `IPouts` is divided by three for decimal innings, and `BFP` supplies
 batters faced. Lahman player IDs keep different players with the same name separate;
-ambiguous name lookups report the matching IDs.
+ambiguous name lookups report the matching IDs. Select one with `--player-id`
+instead of `--name`, for example:
+
+```bash
+backcaster player --player-id bettsmo01 --year 2026 --kind batting
+```
+
+IDs match Lahman `People.csv.playerID` exactly and retain the same qualification
+rules as name lookups.
 
 Batter league regression and rebaselining use all non-pitcher player-seasons;
 qualification selects the displayed players. Pitching retains its qualified-only
@@ -195,7 +205,7 @@ backcaster player --name "Mookie Betts" --year 2026 --kind batting --format csv 
 backcaster team --team LAN --year 2026 --kind pitching --format html --out ./out/lan_pitching_2026.html
 ```
 
-> `--out` is required for `csv` and `html` formats.
+> `--out` is required for `csv` and `html` formats and cannot be used with `cli`.
 
 ---
 
@@ -219,6 +229,8 @@ Terminal, CSV, and HTML outputs use the same display rules:
   up. Age and year are displayed as whole numbers too.
 - BA, OBP, SLG, and OPS always show three decimal places, including `1.048` OPS.
   BA is the canonical batter output label (previously AVG).
+  Rates with zero denominators remain undefined (NaN) and display blank;
+  OPS is undefined when OBP or SLG is undefined.
 - ERA shows two decimals; WHIP shows three. W-L% shows a three-decimal
   fraction, such as `0.524`. H9, HR9, BB9, and SO9 show one decimal; SO/W shows two.
   W-L% without any decisions and SO/W without walks are undefined and display blank.
@@ -229,7 +241,7 @@ Terminal, CSV, and HTML outputs use the same display rules:
 Calculations and Python projection DataFrames retain full precision. Rates are
 computed from unrounded totals, then formatted; they are not recalculated from
 rounded displayed counts. Independently rounded totals may therefore not add up
-exactly. Reliability formatting is unchanged.
+exactly. Reliability shows six decimal places in CLI, CSV, and HTML output.
 
 **CSV IP uses baseball notation too.** Convert `161.1` to `161 + 1/3` before doing
 arithmetic; treating it as 161.1 decimal innings gives incorrect results. Internally,
@@ -295,6 +307,13 @@ Lahman distribution from the same edition. Existing online caches are ignored.
 
 ---
 
+### Python data-loading errors
+
+Local data-loading and validation failures raise
+`backcaster.data.DataLoadError` (renamed from `DataFetchError`). Player lookup
+failures continue to raise `PlayerLookupError`. The CLI reports these failures
+and filesystem errors on stderr with exit status 2.
+
 ## Dependency notes
 
 Runtime dependencies are intentionally minimal:
@@ -308,7 +327,12 @@ Development dependencies (`--extra dev`) include:
 
 ### Lockfile policy (`uv.lock`)
 
-`uv.lock` pins transitive versions for reproducible environments when working from a Git checkout.
+`uv.lock` is committed and pins runtime, development, and build dependencies. CI uses
+`uv sync --locked --extra dev` and fails if the lockfile is out of date. CI first
+installs the locked tools with `--no-install-project`, then installs Backcaster
+with `--no-build-isolation` to keep build dependencies pinned. CI builds
+without build isolation using the locked build tools; wheel smoke tests install
+hash-checked runtime dependencies exported from the same lockfile.
 
 Release/source ZIP archives may not include `uv.lock`. If it is missing in your environment, regenerate it locally:
 
@@ -316,7 +340,8 @@ Release/source ZIP archives may not include `uv.lock`. If it is missing in your 
 uv lock
 ```
 
-Do not hand-edit `uv.lock`; regenerate it when dependencies change.
+Do not hand-edit `uv.lock`; run `uv lock` and commit the updated lockfile when
+dependencies change. To deliberately refresh all pins, run `uv lock --upgrade`.
 
 ---
 
