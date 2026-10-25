@@ -183,10 +183,6 @@ class LahmanSource:
         if eligibility_file is not None or as_of is not None:
             if eligibility_file is None or as_of is None:
                 raise ValueError("--eligibility-file and --as-of must be provided together")
-            if kind != "batting":
-                raise ValueError(
-                    "Eligibility snapshots currently apply to batting projections only"
-                )
             snapshot = read_eligibility(eligibility_file, year, as_of)
         batting = pd.DataFrame()
         if kind == "batting":
@@ -197,12 +193,20 @@ class LahmanSource:
                 [self.season(y, kind, qualified=False) for y in (year - 1, year - 2, year - 3)],
                 ignore_index=True,
             )
+            samples = seasons.groupby("PlayerID")[["IP", "BF"]].sum()
+            sampled_ids = samples.index[samples.gt(0).any(axis=1)]
+            seasons = seasons[seasons.PlayerID.isin(sampled_ids)].copy()
+            if seasons.empty:
+                raise ProjectionError(
+                    "No pitchers with positive innings or batters faced in the prior three seasons."
+                )
             seasons = _exclude_invalid_ages(seasons, year, "pitchers")
-        eligible = seasons if kind == "batting" else seasons[seasons["Qualified"]]
+        eligible = seasons
         if snapshot is not None:
             allowed = snapshot[snapshot.Eligible]
             eligible = eligible[eligible.PlayerID.isin(allowed.index)]
-            batting["EligibilityAsOf"] = as_of
+            if kind == "batting":
+                batting["EligibilityAsOf"] = as_of
         if command == "player":
             candidates = self._player_seasons(eligible, name, player_id)
             matches = seasons[seasons["PlayerID"] == candidates["PlayerID"].iloc[0]]
@@ -210,9 +214,12 @@ class LahmanSource:
                 return batting[batting["PlayerID"] == matches["PlayerID"].iloc[0]].reset_index(
                     drop=True
                 )
-            return project_player(
-                str(matches["Name"].iloc[0]), matches, kind, year, league_df=eligible
+            projection = project_player(
+                str(matches["Name"].iloc[0]), matches, kind, year, league_df=seasons
             ).assign(PlayerID=matches["PlayerID"].iloc[0])
+            if snapshot is not None:
+                projection["EligibilityAsOf"] = as_of
+            return projection
         selected = eligible
         if command == "team":
             if snapshot is not None:
@@ -231,7 +238,10 @@ class LahmanSource:
         if kind == "batting":
             return batting[batting["PlayerID"].isin(selected["PlayerID"])].reset_index(drop=True)
         history = seasons[seasons["PlayerID"].isin(selected["PlayerID"])]
-        return project_team(history, kind, year, baseline_df=eligible)
+        projection = project_team(history, kind, year, baseline_df=seasons)
+        if snapshot is not None:
+            projection["EligibilityAsOf"] = as_of
+        return projection
 
     def _batting_population(self, year: int) -> tuple[pd.DataFrame, pd.DataFrame]:
         self.read("People", {"playerID", "nameFirst", "nameLast", "birthYear"})

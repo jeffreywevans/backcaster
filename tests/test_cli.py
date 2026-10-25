@@ -163,17 +163,6 @@ def test_validation_rejects_cli_output_path(capsys: pytest.CaptureFixture[str]) 
     [
         (["--as-of", "2025-01-14"], "must be provided together"),
         (["--eligibility-file", "eligibility.csv"], "must be provided together"),
-        (
-            [
-                "--eligibility-file",
-                "eligibility.csv",
-                "--as-of",
-                "2025-01-14",
-                "--kind",
-                "pitching",
-            ],
-            "batting projections only",
-        ),
     ],
 )
 def test_cli_eligibility_options_validate_before_data_loading(

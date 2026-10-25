@@ -175,6 +175,7 @@ def project_player(
 
     output = pd.DataFrame([pd.concat([regressed, rates]).to_dict()])
     output["Reliability"] = reliability
+    output["ConfidenceTier"] = "core" if reliability >= 0.5 else "low-sample"
     output["Name"] = player_name
     output["Year"] = year
     output["Age"] = float(age)
@@ -259,6 +260,7 @@ def project_team(
         output[rate_column] = _pitching_ratio(output[count] * 9, output["IP"])
     output["SO/W"] = output["SO"].div(output["BB"].replace(0, np.nan))
     output["Reliability"] = _pitching_ratio(evidence["IP"], denominator)
+    output["ConfidenceTier"] = np.where(output["Reliability"] >= 0.5, "core", "low-sample")
     output["Name"] = latest["Name"]
     output["Year"] = year
     output["Age"] = ages

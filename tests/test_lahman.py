@@ -173,7 +173,7 @@ def test_offline_cli(
         args += ["--team", "BOS"]
     assert main(args) == 0
     result = pd.read_csv(out)
-    assert len(result) == (1 if command == "player" else (3 if kind == "batting" else 2))
+    assert len(result) == (1 if command == "player" else 3)
     assert set(result.Year) == {2022}
     assert result.Reliability.gt(0).all()
 
@@ -405,7 +405,7 @@ def test_league_commands_match_batch(lahman: Path, command: str, kind: str) -> N
     assert main([command, *common, "--out", str(out)]) == 0
     assert main(["batch", *common, "--kind", kind, "--out", str(batch)]) == 0
     pd.testing.assert_frame_equal(pd.read_csv(out), pd.read_csv(batch))
-    assert len(pd.read_csv(out)) == (3 if kind == "batting" else 2)
+    assert len(pd.read_csv(out)) == 3
 
 
 def test_pitcher_full_history_survives_team_and_qualification_selection(lahman: Path) -> None:
@@ -488,8 +488,7 @@ def test_full_schema_in_cli_and_csv(lahman: Path, kind: str, schema: str) -> Non
 
     frame = LahmanSource(str(lahman)).project("batch", 2022, kind)
     expected = ["Name", "Year", "PlayerID", "Age", *schema.split(","), "Reliability"]
-    if kind == "batting":
-        expected.append("ConfidenceTier")
+    expected.append("ConfidenceTier")
     out = to_csv(frame, lahman / "schema.csv")
     assert pd.read_csv(out).columns.tolist() == expected
     assert to_cli_table(frame).splitlines()[0].split() == expected
@@ -540,7 +539,7 @@ def test_duplicate_name_selected_by_id(
         ("batting", "unknown", 2),
         ("pitching", "unknown", 2),
         ("batting", "minor", 0),
-        ("pitching", "minor", 2),
+        ("pitching", "minor", 0),
     ],
 )
 def test_player_id_lookup_preserves_eligibility(
@@ -658,9 +657,7 @@ def test_missing_age_excludes_only_affected_players(
     people.to_csv(path, index=False)
     source = LahmanSource(str(lahman))
     batch = source.project("batch", 2022, kind)
-    assert set(batch.PlayerID) == (
-        ({"star", "other", "minor"} if kind == "batting" else {"star", "other"}) - {player_id}
-    )
+    assert set(batch.PlayerID) == ({"star", "other", "minor"} - {player_id})
     assert batch.Age.between(15, 70).all()
     assert f"Skipping 1 {population}" in caplog.text
     assert f"Player IDs: {player_id}" in caplog.text
@@ -723,7 +720,7 @@ def test_1934_html_survives_unknown_birth_year(
     assert "1934" in html
     assert ("Test Star" in html) == (missing_id != "star")
     assert "Other Player" in html
-    assert "Brief Career" not in html
+    assert ("Brief Career" in html) == (missing_id != "minor")
     assert "Skipping 1" in caplog.text
 
 
@@ -788,9 +785,12 @@ def test_population_without_qualified_batters_still_projects(lahman: Path) -> No
     assert result.ConfidenceTier.tolist() == ["low-sample"]
 
 
-def test_dated_eligibility_selects_low_sample_player_without_changing_model(lahman: Path) -> None:
+@pytest.mark.parametrize("kind", ["batting", "pitching"])
+def test_dated_eligibility_selects_low_sample_player_without_changing_model(
+    lahman: Path, kind: str
+) -> None:
     source = LahmanSource(str(lahman))
-    full = source.project("batch", 2022, "batting")
+    full = source.project("batch", 2022, kind)
     snapshot = lahman / "eligibility.csv"
     pd.DataFrame(
         [
@@ -806,7 +806,7 @@ def test_dated_eligibility_selects_low_sample_player_without_changing_model(lahm
         ("team", {"team": "NYY"}),
     ]:
         result = source.project(
-            command, 2022, "batting", eligibility_file=snapshot, as_of="2022-01-14", **selection
+            command, 2022, kind, eligibility_file=snapshot, as_of="2022-01-14", **selection
         )
         assert result.EligibilityAsOf.tolist() == ["2022-01-14"]
         pd.testing.assert_frame_equal(
@@ -817,32 +817,32 @@ def test_dated_eligibility_selects_low_sample_player_without_changing_model(lahm
         source.project(
             "player",
             2022,
-            "batting",
+            kind,
             player_id="star",
             eligibility_file=snapshot,
             as_of="2022-01-14",
         )
-    later = source.project("batch", 2022, "batting", eligibility_file=snapshot, as_of="2022-02-01")
+    later = source.project("batch", 2022, kind, eligibility_file=snapshot, as_of="2022-02-01")
     assert later.PlayerID.tolist() == ["other"]
     with pytest.raises(ProjectionError, match="No eligible players"):
         source.project(
-            "team", 2022, "batting", team="BOS", eligibility_file=snapshot, as_of="2022-01-14"
+            "team", 2022, kind, team="BOS", eligibility_file=snapshot, as_of="2022-01-14"
         )
 
 
-def test_eligibility_snapshot_requires_team_for_team_selection(lahman: Path) -> None:
+@pytest.mark.parametrize("kind", ["batting", "pitching"])
+def test_eligibility_snapshot_requires_team_for_team_selection(lahman: Path, kind: str) -> None:
     path = lahman / "eligibility.csv"
     pd.DataFrame([dict(PlayerID="minor", Year=2022, AsOf="2022-01-14", Eligible="true")]).to_csv(
         path, index=False
     )
     source = LahmanSource(str(lahman))
     with pytest.raises(DataLoadError, match="requires a Team column"):
-        source.project(
-            "team", 2022, "batting", team="BOS", eligibility_file=path, as_of="2022-01-14"
-        )
+        source.project("team", 2022, kind, team="BOS", eligibility_file=path, as_of="2022-01-14")
 
 
-def test_cli_exports_all_confidence_tiers_and_snapshot_date(lahman: Path) -> None:
+@pytest.mark.parametrize("command", ["hitters", "pitchers"])
+def test_cli_exports_all_confidence_tiers_and_snapshot_date(lahman: Path, command: str) -> None:
     path = lahman / "eligibility.csv"
     pd.DataFrame(
         [
@@ -855,7 +855,7 @@ def test_cli_exports_all_confidence_tiers_and_snapshot_date(lahman: Path) -> Non
         assert (
             main(
                 [
-                    "hitters",
+                    command,
                     "--year",
                     "2022",
                     "--data-dir",
@@ -881,3 +881,82 @@ def test_cli_exports_all_confidence_tiers_and_snapshot_date(lahman: Path) -> Non
             text = out.read_text()
             for value in ["<td>core</td>", "<td>low-sample</td>", "<td>2022-01-14</td>"]:
                 assert value in text
+
+
+def test_one_out_pitcher_receives_low_sample_projection(lahman: Path) -> None:
+    path = lahman / "Pitching.csv"
+    history = pd.read_csv(path)
+    history = history[~((history.playerID == "minor") & (history.yearID != 2021))]
+    counts = [c for c in history if c not in {"playerID", "yearID", "stint", "teamID"}]
+    history.loc[history.playerID == "minor", counts] = 0
+    history.loc[history.playerID == "minor", ["IPouts", "SO", "BFP"]] = [1, 1, 1]
+    history.to_csv(path, index=False)
+    source = LahmanSource(str(lahman))
+    for command, selection in [
+        ("player", {"player_id": "minor"}),
+        ("team", {"team": "BOS"}),
+        ("batch", {}),
+    ]:
+        result = source.project(command, 2022, "pitching", **selection)
+        row = result[result.PlayerID == "minor"].iloc[0]
+        assert row.IP == pytest.approx(60 + 0.5 / 3)
+        assert row.Reliability == pytest.approx((5 / 3) / (5 / 3 + 200))
+        assert row.ConfidenceTier == "low-sample"
+
+
+@pytest.mark.parametrize("all_players", [False, True])
+def test_zero_innings_are_not_a_pitching_sample(lahman: Path, all_players: bool) -> None:
+    path = lahman / "Pitching.csv"
+    history = pd.read_csv(path)
+    counts = [c for c in history if c not in {"playerID", "yearID", "stint", "teamID"}]
+    selected = history.index if all_players else history.index[history.playerID == "minor"]
+    history.loc[selected, counts] = 0
+    history.to_csv(path, index=False)
+    source = LahmanSource(str(lahman))
+    if all_players:
+        with pytest.raises(ProjectionError, match="No pitchers with positive innings"):
+            source.project("batch", 2022, "pitching")
+    else:
+        result = source.project("batch", 2022, "pitching")
+        assert set(result.PlayerID) == {"star", "other"}
+
+
+def test_pitcher_keeps_outless_season_when_another_season_has_innings(lahman: Path) -> None:
+    from backcaster.marcel import project_player
+
+    path = lahman / "Pitching.csv"
+    history = pd.read_csv(path)
+    history = history[~((history.playerID == "minor") & (history.yearID == 2019))]
+    counts = [c for c in history if c not in {"playerID", "yearID", "stint", "teamID"}]
+    history.loc[history.playerID == "minor", counts] = 0
+    history.loc[(history.playerID == "minor") & (history.yearID == 2020), ["BB", "BFP"]] = [5, 5]
+    history.loc[
+        (history.playerID == "minor") & (history.yearID == 2021), ["IPouts", "SO", "BFP"]
+    ] = [1, 1, 1]
+    history.to_csv(path, index=False)
+    source = LahmanSource(str(lahman))
+    seasons = pd.concat(
+        [source.season(year, "pitching", qualified=False) for year in [2019, 2020, 2021]]
+    )
+    prior = seasons[seasons.PlayerID == "minor"]
+    expected = project_player("Brief Career", prior, "pitching", 2022, league_df=seasons).assign(
+        PlayerID="minor"
+    )
+    actual = source.project("player", 2022, "pitching", player_id="minor")
+    pd.testing.assert_frame_equal(actual, expected)
+    assert actual.BB.iloc[0] > 0
+
+
+def test_outless_pitcher_with_batters_faced_is_still_included(lahman: Path) -> None:
+    path = lahman / "Pitching.csv"
+    history = pd.read_csv(path)
+    history = history[~((history.playerID == "minor") & (history.yearID != 2021))]
+    counts = [c for c in history if c not in {"playerID", "yearID", "stint", "teamID"}]
+    history.loc[history.playerID == "minor", counts] = 0
+    history.loc[history.playerID == "minor", ["BB", "BFP"]] = [1, 1]
+    history.to_csv(path, index=False)
+    result = LahmanSource(str(lahman)).project("player", 2022, "pitching", player_id="minor")
+    assert result.IP.tolist() == [60.0]
+    assert result.Reliability.tolist() == [0.0]
+    assert result.ConfidenceTier.tolist() == ["low-sample"]
+    assert result.BB.iloc[0] > 0

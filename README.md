@@ -110,8 +110,10 @@ Hitters receive a projection with any positive PA in the preceding three seasons
 subject to usable ages and the existing non-pitcher classification. There is no
 minimum-PA or reliability gate. `ConfidenceTier` labels reliability at least 0.50
 as `core` and lower values as `low-sample`; both tiers appear in every output.
-Pitchers retain the one-inning-per-team-game qualification rule in at least one
-prior season. All selected players use their available three-year history.
+Pitchers receive a projection with any recorded outs or batters faced in the
+lookback window, including relievers and appearances without an out. They use
+the same confidence labels, with no innings or reliability gate. All selected
+players use their available three-year history.
 Without a dated eligibility snapshot, this is a historical candidate population,
 including potentially retired or otherwise unavailable players.
 
@@ -153,13 +155,12 @@ FanGraphs abbreviation `LAD`). A projection year needs the preceding three seaso
 is unavailable. If the directory or required files are missing, the command
 reports the missing file and directory; it never attempts an online fetch.
 
-Batting inclusion requires positive lookback PA, without a minimum seasonal PA
-threshold. `season(..., qualified=True)` still exposes the historical 3.1-PA-per-game
-analytical filter for Python callers; projection commands do not apply it to hitters.
-Pitcher qualification remains one inning per game, using the maximum `G` from
-that year's Teams.csv. Relievers generally do not qualify under the pitching rule.
+Batting inclusion requires positive lookback PA; pitching requires recorded outs
+or batters faced. Neither has a minimum seasonal workload or reliability cutoff.
+`season(..., qualified=True)` still exposes the historical PA/IP analytical filters
+for Python callers; projection commands do not apply them.
 
-Player stints are summed before qualification. Plate appearances are calculated
+Player stints are summed before projection. Plate appearances are calculated
 as `AB + BB + HBP + SF + SH`; missing/blank HBP, SF, and SH values count as zero.
 Blank numeric counting-stat cells are also treated as zero; use a dataset with
 complete records for the seasons you intend to project.
@@ -186,15 +187,15 @@ rules as name lookups.
 
 Batter league regression and rebaselining use all positive-PA non-pitcher
 player-seasons. Output selection, including status snapshots, does not change
-that calculation. Pitching retains its qualified-only baseline and real-age
-performance adjustments. See [the batter model](docs/BATTER_MODEL.md) and
+that calculation. Pitcher regression likewise uses the full historical sample
+population, independently of roster, player, or team selection. See [the batter model](docs/BATTER_MODEL.md) and
 [the pitcher model](docs/PITCHER_MODEL.md).
 
 For every selected player, projections use all available seasons in the window,
 including seasons spent with other teams. Without a status snapshot, team
 selection uses historical last-stint membership for each season.
 
-### Dated batting eligibility
+### Dated player eligibility
 
 For a roster/status comparison, supply an explicit eligibility snapshot and date:
 
@@ -212,13 +213,16 @@ bettsmo01,2025,2025-01-14,true,LAN
 
 Create these decisions from a roster/organization/free-agent/retirement source
 as of the stated date. `Eligible` must be true or false. Unlisted players and
-false rows are excluded; listed players still need positive lookback PA and a
-usable birth year. Eligibility never depends on reliability. The file can contain
+false rows are excluded; listed players still need a lookback sample (PA for
+hitters, outs or batters faced for pitchers) and a usable birth year. Eligibility
+never depends on reliability. The file can contain
 multiple years and dates; only the exact `Year` and `AsOf` match is used, with
 unique PlayerID values within that snapshot.
 
-Both flags are required together and currently apply to batting only. `Team` is
-optional for league/player output and required for team output; it represents
+Both flags are required together and apply to batting and pitching. For pitchers,
+use `backcaster pitchers` (or `--kind pitching`) with the same flags. Use separate
+snapshot files if inclusion decisions differ between hitting and pitching roles.
+`Team` is optional for league/player output and required for team output; it represents
 membership at the snapshot date, with blanks allowed for unassigned players.
 With a snapshot, team selection uses this membership rather than historical teams.
 Exports include `EligibilityAsOf`. The snapshot filters output only; league
@@ -294,8 +298,7 @@ true innings rather than the displayed notation.
 ### Tracked statistics and order
 
 All outputs put available Name, Year, Player ID, and Age metadata first, followed
-by these statistics in order and then Reliability. Batter outputs also include
-ConfidenceTier; snapshot-filtered output appends EligibilityAsOf:
+by these statistics in order and then Reliability and ConfidenceTier; snapshot-filtered output appends EligibilityAsOf:
 
 ```text
 Batters:  PA,AB,R,H,2B,3B,HR,RBI,SB,CS,BB,SO,BA,OBP,SLG,OPS,TB,GDP,HBP,SH,SF,IBB

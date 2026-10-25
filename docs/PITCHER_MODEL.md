@@ -33,10 +33,13 @@ IP, or BF. BF is retained as the existing opportunity estimate, not rederived
 from the adjusted components. The former uniform age multiplier on innings and
 all counts is removed for pitchers; it canceled out of ERA and WHIP.
 
-Existing 5/4/3 evidence weights, 200-IP regression, and qualified-player league
-baselines remain. Playing time uses the recency formula below. Eligibility is qualification in at least one prior
-season, but each selected pitcher's full available three-year history is used
-regardless of qualification or team. Trade stints are combined first. Weights remain attached to calendar years
+Pitchers use 5/4/3 evidence weights, 200-IP regression, and a league baseline
+from the full historical sample population. Every pitcher with positive innings
+or batters faced in any prior season can receive a projection, including
+relievers and pitchers whose appearances recorded no outs. No seasonal workload
+or reliability cutoff applies. All available history contributes, including
+outless seasons and seasons with other teams. Trade stints are combined first.
+Weights remain attached to calendar years
 when a pitcher misses a season; a missing year does not promote an older
 season into the latest-year slot. Pitcher exports include PlayerID for matching. The reviewed marcelR 3/2/1 weights, 804 weighted
 regression outs, role-based playing time, and population rebaselining are not yet
@@ -66,7 +69,7 @@ batch projections. `MarcelConfig.season_weights` controls regression evidence;
 
 The 60-IP allowance is a fixed modeling choice. It does not establish a current
 roster spot, distinguish starters from relievers, or account for injuries and
-retirement. Historical qualification still determines selection. This implements
+retirement. Use a dated status snapshot to control target-season inclusion. This implements
 the playing-time alternative identified in the projection math audit; the matching
 example alone does not establish Baseball Reference or marcelR equivalence.
 
@@ -104,3 +107,22 @@ Parity tests compare every output column against the single-player calculation,
 including missing seasons, zero innings, undefined ratios, missing components,
 custom configuration, and age boundaries. This optimization changes execution
 cost without changing the pitching model.
+
+
+## Confidence and target-season eligibility
+
+Reliability is `weighted IP / (weighted IP + regression_ip)`. ConfidenceTier is
+`core` at reliability >=0.50 and `low-sample` below it. With the default prior,
+200 weighted innings is the boundary. Both tiers are projected and exported.
+A one-out latest-season sample contributes 5/3 weighted innings; its reliability
+is about 0.00826. A pitcher who faced a batter but recorded no outs can have zero
+reliability and still receive a projection under the regression prior.
+
+Dated eligibility snapshots (`--eligibility-file` and `--as-of`) use the same
+schema as hitting. They filter output and target-date team membership, with
+EligibilityAsOf included in exports. The full lookback sample population still
+supplies league regression rates, so a roster filter cannot change a retained
+pitcher's forecast. Without a snapshot, output is a historical candidate list;
+it does not infer active roster, free-agent, retirement, or role status. A
+position player with recorded pitching can therefore appear unless excluded by
+the supplied eligibility decisions.

@@ -10,7 +10,7 @@ import pandas as pd
 from backcaster.stat_columns import BATTING_STAT_COLUMNS, IDENTITY_COLUMNS, PITCHING_STAT_COLUMNS
 
 BATTING_COLUMNS = (*BATTING_STAT_COLUMNS, "Reliability", "ConfidenceTier")
-PITCHING_COLUMNS = (*PITCHING_STAT_COLUMNS, "Reliability")
+PITCHING_COLUMNS = (*PITCHING_STAT_COLUMNS, "Reliability", "ConfidenceTier")
 COLUMN_LABELS = {
     "PlayerID": "Player ID",
     "ConfidenceTier": "Confidence tier",

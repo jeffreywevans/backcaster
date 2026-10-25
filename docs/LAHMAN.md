@@ -49,9 +49,9 @@ missing values in the source database.
 
 The source also notes that player statistics may not sum to team totals when
 records are incomplete, and that player and team records can cover different
-sets of games. Batters need only positive lookback PA; pitcher qualification still uses one
-season-wide game count. Neither historical selection rule establishes a player's
-roster or retirement status for a target season. Review the
+sets of games. Batters need positive lookback PA; pitchers need positive outs or
+batters faced. Historical samples do not establish roster or retirement status
+for the target season; supply a dated eligibility snapshot when that matters. Review the
 source README's section 2.1 before interpreting historical Negro League results.
 
 ## Attribution and license

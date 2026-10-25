@@ -79,6 +79,10 @@ README before testing.
 
 For 0.4.2, also verify:
 
+- A one-out pitcher and an outless pitcher with a batter faced receive low-sample
+  projections. Dated snapshots also work for pitchers, without changing retained
+  forecasts. Confidence labels are not inclusion gates.
+
 - A hitter with just three PA in the latest lookback season is included with
   low reliability and ConfidenceTier=low-sample; no PA or reliability gate applies.
 - A dated eligibility snapshot filters players and team membership as of its

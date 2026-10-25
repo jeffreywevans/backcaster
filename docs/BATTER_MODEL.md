@@ -58,7 +58,7 @@ The output includes `ConfidenceTier`: `core` when unrounded reliability is at le
 0.50, otherwise `low-sample`. The boundary corresponds to 1,200 weighted PA,
 where evidence equals the regression prior. Both tiers are always exported.
 
-Roster/status inclusion is independent. The Lahman adapter optionally accepts
+Roster/status inclusion is independent. The Lahman adapter, for both hitting and pitching, optionally accepts
 `eligibility_file` and `as_of` (CLI: `--eligibility-file` and `--as-of`) containing
 a dated allowlist of target-season decisions. Its columns are PlayerID, Year,
 AsOf, Eligible, and optionally Team. Status filters act after the population

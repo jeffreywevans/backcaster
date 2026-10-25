@@ -55,7 +55,7 @@ def build_parser() -> argparse.ArgumentParser:
             sp.set_defaults(kind=kind)
         sp.add_argument("--format", choices=_OUTPUT_FORMAT_CHOICES, default="cli")
         sp.add_argument(
-            "--eligibility-file", help="Batting eligibility CSV keyed by Lahman PlayerID"
+            "--eligibility-file", help="Target-season eligibility CSV keyed by Lahman PlayerID"
         )
         sp.add_argument(
             "--as-of", help="Eligibility snapshot date (YYYY-MM-DD; requires --eligibility-file)"

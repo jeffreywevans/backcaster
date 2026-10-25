@@ -145,7 +145,7 @@ def test_projection_preserves_numeric_dtypes(scope: str) -> None:
     else:
         history = pd.concat([prior.assign(Name=name) for name in ["A", "B"]], ignore_index=True)
         result = project_team(history, "pitching", 2026)
-    numeric_columns = [column for column in result if column != "Name"]
+    numeric_columns = [column for column in result if column not in {"Name", "ConfidenceTier"}]
     assert all(pd.api.types.is_numeric_dtype(result[column]) for column in numeric_columns)
     assert result["Name"].map(lambda name: isinstance(name, str)).all()
     assert result["IP"].sum() == pytest.approx(len(result) * (0.5 * 200 + 0.1 * 180 + 60))
@@ -538,3 +538,17 @@ def test_team_rejects_invalid_fallback_age(age: float) -> None:
     prior = _pitching_prior().assign(Name="Pitcher")
     with pytest.raises(ProjectionError, match="valid birthYear or explicit age"):
         project_team(prior, "pitching", 2026, age=age)
+
+
+@pytest.mark.parametrize(
+    "evidence, expected", [(199.0, "low-sample"), (200.0, "core"), (201.0, "core")]
+)
+def test_pitcher_confidence_boundary_does_not_filter(evidence: float, expected: str) -> None:
+    prior = _pitching_prior().iloc[[0]].copy()
+    counts = [column for column in PITCHING_COMPONENTS if column in prior]
+    prior[counts] = prior[counts].astype(float) * ((evidence / 5) / 200)
+    scalar = project_player("Pitcher", prior, "pitching", 2026)
+    batch = project_team(prior.assign(Name="Pitcher"), "pitching", 2026)
+    pd.testing.assert_frame_equal(scalar, batch)
+    assert scalar.ConfidenceTier.tolist() == [expected]
+    assert scalar.Reliability.iloc[0] == pytest.approx(evidence / (evidence + 200))

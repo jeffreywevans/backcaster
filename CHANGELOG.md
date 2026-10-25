@@ -2,6 +2,8 @@
 
 ## 0.4.2
 
+- Include pitchers with any recorded outs or batters faced in the lookback, including relievers and outless appearances. Add ConfidenceTier without filtering low reliability, and extend dated eligibility/status and team snapshots to pitching. Use the full historical pitching sample population for regression independently of output selection.
+
 - Include every non-pitcher hitter with positive three-year lookback PA instead of requiring a qualified season. Add ConfidenceTier (`core` at reliability >=0.50, otherwise `low-sample`) without hiding either tier.
 - Add dated batting eligibility snapshots via `--eligibility-file` and `--as-of`; filter target-season status and team membership independently of the historical population calculation, and export EligibilityAsOf. Without a snapshot, outputs are historical candidates rather than roster forecasts.
 
