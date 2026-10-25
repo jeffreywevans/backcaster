@@ -559,10 +559,9 @@ def test_player_id_lookup_preserves_eligibility(
 
 
 def test_project_rejects_name_and_player_id(lahman: Path) -> None:
+    source = LahmanSource(str(lahman))
     with pytest.raises(ValueError, match="either name or player_id"):
-        LahmanSource(str(lahman)).project(
-            "player", 2022, "batting", name="Test Star", player_id="star"
-        )
+        source.project("player", 2022, "batting", name="Test Star", player_id="star")
 
 
 def test_csv_reads_select_columns_and_reuse_people_lookup(
