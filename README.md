@@ -508,3 +508,43 @@ imply endorsement or exact agreement with another implementation's projections.
 ## Security and responsible use
 
 Please review `SECURITY.md` for reporting guidance. Backcaster is an analytical utility and should be validated independently before use in production pipelines.
+
+## Desktop GUI
+
+Launch the desktop report workspace after installing Backcaster:
+
+```bash
+backcaster-gui
+# Or, from a source checkout:
+python -m backcaster.gui
+```
+
+The ServiceNow-inspired workspace displays **Backcaster** and the installed version,
+with a dark green navigation rail, report filters, and a scrollable results table.
+It requires a graphical desktop and Python's Tk support (on Debian/Ubuntu, install
+`python3-tk`; official Windows/macOS Python installers normally include Tk).
+
+1. Browse to the extracted Lahman CSV folder and click **Load selections**.
+2. Select a projection season, then **Particular player**, **Team**, **All hitters**,
+   or **All pitchers**. Player and team reports allow batting or pitching statistics.
+   Player selections include Lahman IDs to distinguish duplicate names. You can also
+   enter a full player name, an exact player ID, a team ID, or a season directly.
+3. Select a report output folder. **Save folders** stores both folder preferences
+   across launches; browsing also saves them. Settings are stored under the user's
+   platform configuration directory in `backcaster/settings.json`.
+4. Click **Generate report** to preview results, then **Export HTML** or **Export CSV**.
+   The save dialog lets you choose a filename and confirms overwrites. Keep exports
+   inside the selected report output folder, or change that folder first.
+
+Projection and export work runs in the background. The table previews up to 500
+players; exports contain the complete generated result. Exports always use the last
+successfully generated report; click **Generate report** after changing filters.
+The season list includes years with three preceding seasons in the loaded data.
+Player and team lists include historical entries; the projection engine checks
+eligibility for the chosen season. The existing CLI remains available with its
+working-directory export restriction.
+
+GUI integration tests use real Tk widgets. On a Linux machine without a display,
+install Xvfb and xauth, then run `xvfb-run -a pytest`. CI runs the full suite and
+coverage reports this way. Without a display, local runs skip window integration
+tests; settings, export, and CLI tests still run normally.

@@ -37,7 +37,7 @@ jobs:
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Generate reports for SonarCloud
-        run: pytest --junitxml=pytest.xml --cov=src --cov-report=xml:coverage.xml
+        run: xvfb-run -a pytest --junitxml=pytest.xml --cov=src --cov-report=xml:coverage.xml
 
       - name: Validate Sonar token availability
         env:
