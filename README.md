@@ -164,6 +164,11 @@ Player stints are summed before qualification. Plate appearances are calculated
 as `AB + BB + HBP + SF + SH`; missing/blank HBP, SF, and SH values count as zero.
 Blank numeric counting-stat cells are also treated as zero; use a dataset with
 complete records for the seasons you intend to project.
+
+Historical batting records with missing or invalid birth years are excluded with
+a stderr warning identifying the count and sample player IDs. Remaining batters
+are still projected; no default age is substituted. An entirely unusable
+population produces a clear error. See [historical data caveats](docs/LAHMAN.md).
 Pitcher playing time is `0.5 × last-year IP + 0.1 × two-years-ago IP + 60`,
 with missing calendar years contributing zero. The third prior season still
 contributes to regression and reliability. See [the pitcher model](docs/PITCHER_MODEL.md).

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import pandas as pd
@@ -212,6 +213,22 @@ class LahmanSource:
         # A primary pitcher appears as pitcher in more than half of their games.
         # Retain two-way hitters whose batting appearances outnumber pitching games.
         seasons = seasons[seasons["G_p"] <= seasons["G_all"] / 2].copy()
+        ages = year - pd.to_numeric(seasons["birthYear"], errors="coerce")
+        valid_age = ages.between(15, 70)
+        excluded = seasons.loc[~valid_age, "PlayerID"].drop_duplicates().tolist()
+        if excluded:
+            preview = ", ".join(excluded[:10]) + (", ..." if len(excluded) > 10 else "")
+            logging.getLogger(__name__).warning(
+                "Skipping %d non-pitcher batters with missing or invalid birthYear "
+                "(projection age must be 15–70). Player IDs: %s",
+                len(excluded),
+                preview,
+            )
+            seasons = seasons.loc[valid_age].copy()
+            if seasons.empty:
+                raise ProjectionError(
+                    "No non-pitcher batters with valid birthYear remain in the prior three seasons."
+                )
         projected = project_batters(seasons, year)
         qualified = seasons[seasons["Qualified"]]
         if qualified.empty:

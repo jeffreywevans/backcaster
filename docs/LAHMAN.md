@@ -29,6 +29,14 @@ for qualification thresholds, Lahman team IDs, and treatment of traded players.
 
 ## Historical data caveats
 
+A historical target such as `--year 1934` uses 1931–1933 statistics. Batters
+with unusable birth years are excluded from the projection population with a
+stderr warning listing their count and a sample of player IDs. The remaining
+batters can still be projected; age 29 is never silently substituted. If no
+usable batters remain, the command returns an error. This handles missing ages,
+but does not correct the historical missing-statistic and league-context issues
+below.
+
 The database includes historical major leagues and Negro League records under
 SABR's definitions. Those definitions can differ from other data providers, and
 historical research can revise the records. Negro League data comes from Seamheads.

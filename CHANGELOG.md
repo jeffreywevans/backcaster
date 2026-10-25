@@ -2,6 +2,8 @@
 
 ## 0.4.2
 
+- Exclude historical non-pitcher batters with unusable birth years, with a count-and-ID warning, so their missing ages do not block projections for the remaining population. Retain strict age validation in the low-level batter API.
+
 - Bootstrap uv 0.12.23 with a SHA-pinned setup-uv action and its embedded archive checksums instead of an unhashed pip install.
 
 - Add an explicit `age` fallback to `project_team`, matching `project_player`; birth years take precedence and CLI projections still require them.
