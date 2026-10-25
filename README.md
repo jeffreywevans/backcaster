@@ -107,6 +107,11 @@ File formats require `--out`; the CLI format prints to the terminal and rejects
 `--out`. Invalid output options fail before data is loaded. Unwritable output
 paths report an error on stderr and exit with status 2.
 
+Exports must stay within the current working directory or its subdirectories.
+Relative paths and absolute paths within that directory are accepted; paths that
+escape it through `..` or symbolic links are rejected before data is loaded.
+To export elsewhere, run Backcaster from the intended output directory.
+
 Hitters receive a projection with any positive PA in the preceding three seasons,
 subject to usable ages and the existing non-pitcher classification. There is no
 minimum-PA or reliability gate. `ConfidenceTier` labels reliability at least 0.50

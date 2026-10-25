@@ -10,7 +10,7 @@ import pandas as pd
 from backcaster.data import DataLoadError, PlayerLookupError
 from backcaster.lahman import LahmanSource
 from backcaster.marcel import ProjectionError
-from backcaster.outputs import to_cli_table, to_csv, to_html
+from backcaster.outputs import to_cli_table, to_csv, to_html, validate_output_path
 
 _FILE_RENDERERS = {"csv": to_csv, "html": to_html}
 _OUTPUT_FORMAT_CHOICES = ("cli", *_FILE_RENDERERS.keys())
@@ -34,6 +34,8 @@ def _validate_output_options(
         raise ValueError(f"--out is required for {output_format} output")
     if compare_actuals and output_format != "html":
         raise ValueError("--compare-actuals requires --format html")
+    if output_format in _FILE_RENDERERS and out:
+        validate_output_path(out)
 
 
 def _render(
@@ -72,7 +74,10 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument(
             "--as-of", help="Eligibility snapshot date (YYYY-MM-DD; requires --eligibility-file)"
         )
-        sp.add_argument("--out", help="Output path (required for csv/html; invalid with cli)")
+        sp.add_argument(
+            "--out",
+            help="Output path within the current working directory (required for csv/html; invalid with cli)",
+        )
         sp.add_argument(
             "--compare-actuals",
             action="store_true",

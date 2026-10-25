@@ -213,7 +213,7 @@ def _comparison_values(
     label: str,
     missing_label: str,
 ) -> dict[str, Any]:
-    values: dict[str, Any] = {column: "" for column in columns}
+    values: dict[str, Any] = dict.fromkeys(columns, "")
     if player_id not in indexed.index:
         values["Name"] = missing_label
         return values
