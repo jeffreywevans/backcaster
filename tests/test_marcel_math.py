@@ -148,7 +148,7 @@ def test_projection_preserves_numeric_dtypes(scope: str) -> None:
     numeric_columns = [column for column in result if column != "Name"]
     assert all(pd.api.types.is_numeric_dtype(result[column]) for column in numeric_columns)
     assert result["Name"].map(lambda name: isinstance(name, str)).all()
-    assert result["IP"].sum() == pytest.approx(len(result) * (5 * 200 + 4 * 180 + 3 * 210) / 12)
+    assert result["IP"].sum() == pytest.approx(len(result) * (0.5 * 200 + 0.1 * 180 + 60))
     assert result["Year"].eq(2026).all()
 
 
@@ -172,10 +172,10 @@ def test_project_player_default_prior_df_baseline_branch() -> None:
     assert float(out.loc[0, "IP"]) > 0
 
 
-def test_project_player_zero_playing_time() -> None:
+def test_project_player_zero_history_uses_playing_time_allowance() -> None:
     prior = pd.DataFrame([{"Season": 2025, **{c: 0.0 for c in PITCHING_COMPONENTS}}])
     out = project_player("Zero PT", prior, "pitching", 2026)
-    assert float(out.loc[0, "IP"]) == 0.0
+    assert float(out.loc[0, "IP"]) == 60.0
     assert float(out.loc[0, "Reliability"]) == 0.0
 
 
@@ -349,14 +349,14 @@ def test_pitcher_missing_year_keeps_calendar_weights() -> None:
     prior = _pitching_prior()
     prior = prior[prior.Season != 2024]
     result = project_player("Pitcher", prior, "pitching", 2026, age=29).iloc[0]
-    assert result["IP"] == pytest.approx((5 * 200 + 3 * 210) / 8)
+    assert result["IP"] == pytest.approx(0.5 * 200 + 60)
     assert result["Reliability"] == pytest.approx(1630 / 1830)
 
 
 def test_pitcher_future_season_has_no_evidence() -> None:
     prior = _pitching_prior().iloc[[0]].assign(Season=2026)
     result = project_player("Pitcher", prior, "pitching", 2026, age=29).iloc[0]
-    assert result["IP"] == 0
+    assert result["IP"] == 60
     assert result["Reliability"] == 0
 
 
@@ -400,7 +400,7 @@ def test_pitching_config_controls_evidence_regression_and_playing_time() -> None
     rates = {column: 0.0 for column in PITCHING_COMPONENTS[1:]}
     rates["ER"] = 0.5
     result = project_player("Pitcher", prior, "pitching", 2026, config, league_rates=rates).iloc[0]
-    assert result.IP == pytest.approx((2 * 200 + 180) / 3 * 0.5)
+    assert result.IP == pytest.approx((0.5 * 200 + 0.1 * 180 + 60) * 0.5)
     assert result.Reliability == pytest.approx(580 / 680)
     assert result.ERA == pytest.approx(9 * (2 * 65 + 70 + 100 * 0.5) / 680)
 
@@ -478,3 +478,40 @@ def test_vectorized_pitching_rejects_invalid_age(birth: object) -> None:
     prior = _pitching_prior().assign(Name="Pitcher", birthYear=birth)
     with pytest.raises(ProjectionError, match="valid birthYear"):
         project_team(prior, "pitching", 2026)
+
+
+@pytest.mark.parametrize(
+    "seasons, innings, expected",
+    [
+        ([2025], [180.0], 150.0),
+        ([2024], [180.0], 78.0),
+        ([2023], [180.0], 60.0),
+        ([2025, 2024, 2023], [181.0, 185.0, 524 / 3], 169.0),
+        ([2025, 2023], [180.0, 210.0], 150.0),
+    ],
+)
+def test_pitcher_calendar_playing_time_decay(
+    seasons: list[int], innings: list[float], expected: float
+) -> None:
+    prior = _pitching_prior().iloc[: len(seasons)].copy()
+    prior["Season"] = seasons
+    prior["IP"] = innings
+    for config in [MarcelConfig(), MarcelConfig(season_weights=(1.0, 1.0, 1.0))]:
+        scalar = project_player("Pitcher", prior, "pitching", 2026, config).iloc[0]
+        batch = project_team(prior.assign(Name="Pitcher"), "pitching", 2026, config).iloc[0]
+        assert scalar.IP == pytest.approx(expected)
+        assert batch.IP == pytest.approx(expected)
+        for stat in ["ERA", "WHIP", "Reliability"]:
+            assert scalar[stat] == pytest.approx(batch[stat])
+
+
+def test_pitcher_playing_time_scales_counts_without_changing_rates() -> None:
+    prior = _pitching_prior()
+    normal = project_team(prior.assign(Name="Pitcher"), "pitching", 2026).iloc[0]
+    scaled = project_team(
+        prior.assign(Name="Pitcher"), "pitching", 2026, MarcelConfig(default_ip_growth=0.5)
+    ).iloc[0]
+    for column in PITCHING_COMPONENTS:
+        assert scaled[column] == pytest.approx(normal[column] * 0.5)
+    for column in ["ERA", "WHIP", "H9", "HR9", "BB9", "SO9", "Reliability"]:
+        assert scaled[column] == pytest.approx(normal[column])
