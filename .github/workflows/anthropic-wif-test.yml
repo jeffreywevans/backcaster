@@ -1,0 +1,25 @@
+import anthropic
+from anthropic import WorkloadIdentityCredentials
+import os
+
+
+def fetch_github_oidc_token() -> str:
+    # Set by the "Fetch GitHub OIDC token" step in the workflow tab.
+    return os.environ["JWT"]
+
+client = anthropic.Anthropic(
+    credentials=WorkloadIdentityCredentials(
+        identity_token_provider=fetch_github_oidc_token,
+        federation_rule_id="fdrl_01UaMr3GV1KrBxiHmcVVtDQg",
+        organization_id="8f78ac87-56aa-47c6-8eb2-d7f8ce669871",
+        service_account_id="svac_017UxmyCK4Ywf3kfYBEDS2Jv",
+        workspace_id="wrkspc_01KLy66NXvumLKH6AhrSSsY7",
+    ),
+)
+
+message = client.messages.create(
+    model="claude-sonnet-5-5",
+    max_tokens=1024,
+    messages=[{"role": "user", "content": "Hello, Claude"}],
+)
+print(next(block.text for block in message.content if block.type == "text"))
