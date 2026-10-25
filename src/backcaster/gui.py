@@ -23,6 +23,11 @@ from backcaster.lahman import LahmanSource
 from backcaster.outputs import _display_frame, to_csv, to_html
 
 APP_NAME = "Backcaster"
+SCOPE_ALL_HITTERS = "All hitters"
+UI_FONT = "Segoe UI"
+ACCENT_BUTTON_STYLE = "Accent.TButton"
+SCOPE_ALL_PITCHERS = "All pitchers"
+SCOPE_PLAYER = "Particular player"
 
 
 def settings_path() -> Path:
@@ -85,7 +90,7 @@ class Workspace:
         self.data_dir = tk.StringVar(value=saved.get("data_dir", _default_data_dir()))
         self.output_dir = tk.StringVar(value=saved.get("output_dir", str(Path.cwd() / "reports")))
         self.year = tk.StringVar(value=str(date.today().year))
-        self.scope = tk.StringVar(value="All hitters")
+        self.scope = tk.StringVar(value=SCOPE_ALL_HITTERS)
         self.kind = tk.StringVar(value="batting")
         self.player = tk.StringVar()
         self.team = tk.StringVar()
@@ -109,20 +114,20 @@ class Workspace:
         style = ttk.Style(w)
         style.theme_use("clam")
         style.configure("TFrame", background="#f3f6f5")
-        style.configure("TLabel", background="#f3f6f5", foreground="#203b3c", font=("Segoe UI", 10))
-        style.configure("Title.TLabel", font=("Segoe UI", 23, "bold"))
-        style.configure("Heading.TLabel", font=("Segoe UI", 12, "bold"))
-        style.configure("TButton", padding=(14, 9), font=("Segoe UI", 10))
-        style.configure("Accent.TButton", background="#166b54", foreground="white")
-        style.map("Accent.TButton", background=[("active", "#0f5140")])
+        style.configure("TLabel", background="#f3f6f5", foreground="#203b3c", font=(UI_FONT, 10))
+        style.configure("Title.TLabel", font=(UI_FONT, 23, "bold"))
+        style.configure("Heading.TLabel", font=(UI_FONT, 12, "bold"))
+        style.configure("TButton", padding=(14, 9), font=(UI_FONT, 10))
+        style.configure(ACCENT_BUTTON_STYLE, background="#166b54", foreground="white")
+        style.map(ACCENT_BUTTON_STYLE, background=[("active", "#0f5140")])
         style.configure(
             "Treeview",
             rowheight=29,
             background="white",
             fieldbackground="white",
-            font=("Segoe UI", 10),
+            font=(UI_FONT, 10),
         )
-        style.configure("Treeview.Heading", font=("Segoe UI", 10, "bold"), padding=8)
+        style.configure("Treeview.Heading", font=(UI_FONT, 10, "bold"), padding=8)
         rail = tk.Frame(w, bg="#143b3e", width=200)
         rail.pack(side="left", fill="y")
         rail.pack_propagate(False)
@@ -132,7 +137,7 @@ class Workspace:
             ("▤   Report workspace", 11, "white"),
         ]:
             tk.Label(
-                rail, text=text, bg="#143b3e", fg=color, font=("Segoe UI", size), anchor="w"
+                rail, text=text, bg="#143b3e", fg=color, font=(UI_FONT, size), anchor="w"
             ).pack(fill="x", padx=18, pady=(25, 0))
         tk.Label(
             rail,
@@ -140,7 +145,7 @@ class Workspace:
             justify="left",
             bg="#143b3e",
             fg="#b6cbcc",
-            font=("Segoe UI", 10),
+            font=(UI_FONT, 10),
             anchor="w",
         ).pack(side="bottom", fill="x", padx=18, pady=25)
         body = ttk.Frame(w, padding=24)
@@ -178,7 +183,7 @@ class Workspace:
             1,
             "Report scope",
             self.scope,
-            ["Particular player", "Team", "All hitters", "All pitchers"],
+            [SCOPE_PLAYER, "Team", SCOPE_ALL_HITTERS, SCOPE_ALL_PITCHERS],
             True,
         )
         self.kind_box = self._combo(
@@ -192,7 +197,9 @@ class Workspace:
         self._scope_changed()
         actions = ttk.Frame(body)
         actions.pack(fill="x", pady=(0, 16))
-        self._button(actions, "Generate report", self._generate, "Accent.TButton").pack(side="left")
+        self._button(actions, "Generate report", self._generate, ACCENT_BUTTON_STYLE).pack(
+            side="left"
+        )
         self.csv_button = self._button(actions, "Export CSV", lambda: self._export("csv"))
         self.csv_button.pack(side="right")
         self.html_button = self._button(actions, "Export HTML", lambda: self._export("html"))
@@ -252,10 +259,10 @@ class Workspace:
 
     def _scope_changed(self) -> None:
         scope = self.scope.get()
-        if scope in ("All hitters", "All pitchers"):
-            self.kind.set("batting" if scope == "All hitters" else "pitching")
+        if scope in (SCOPE_ALL_HITTERS, SCOPE_ALL_PITCHERS):
+            self.kind.set("batting" if scope == SCOPE_ALL_HITTERS else "pitching")
         self.kind_box.configure(state="disabled" if scope.startswith("All ") else "readonly")
-        self.player_box.configure(state="normal" if scope == "Particular player" else "disabled")
+        self.player_box.configure(state="normal" if scope == SCOPE_PLAYER else "disabled")
         self.team_box.configure(state="normal" if scope == "Team" else "disabled")
 
     def _browse(self, variable: tk.StringVar) -> None:
@@ -324,32 +331,36 @@ class Workspace:
 
         self._run(lambda: load_choices(directory), loaded, "Loading local Lahman selections…")
 
+    def _projection_selection(self) -> tuple[str, int, str, str, dict[str, str]]:
+        year = int(self.year.get())
+        if not 1874 <= year <= 9999:
+            raise ValueError("Choose a projection season between 1874 and 9999.")
+        scope = self.scope.get()
+        command = {
+            SCOPE_PLAYER: "player",
+            "Team": "team",
+            SCOPE_ALL_HITTERS: "batch",
+            SCOPE_ALL_PITCHERS: "batch",
+        }[scope]
+        kind = self.kind.get()
+        kwargs: dict[str, str] = {}
+        if command == "player":
+            player = self.player.get().strip()
+            if not player:
+                raise ValueError("Select a player or enter a full name or Lahman player ID.")
+            if player.endswith("]") and " [" in player:
+                kwargs["player_id"] = player.rsplit(" [", 1)[1][:-1]
+            else:
+                kwargs["name" if " " in player else "player_id"] = player
+        if command == "team":
+            kwargs["team"] = self.team.get().strip()
+            if not kwargs["team"]:
+                raise ValueError("Select or enter a Lahman team ID.")
+        return command, year, scope, kind, kwargs
+
     def _generate(self) -> None:
         try:
-            year = int(self.year.get())
-            if not 1874 <= year <= 9999:
-                raise ValueError("Choose a projection season between 1874 and 9999.")
-            scope = self.scope.get()
-            command = {
-                "Particular player": "player",
-                "Team": "team",
-                "All hitters": "batch",
-                "All pitchers": "batch",
-            }[scope]
-            kind = self.kind.get()
-            kwargs: dict[str, str] = {}
-            if command == "player":
-                player = self.player.get().strip()
-                if not player:
-                    raise ValueError("Select a player or enter a full name or Lahman player ID.")
-                if player.endswith("]") and " [" in player:
-                    kwargs["player_id"] = player.rsplit(" [", 1)[1][:-1]
-                else:
-                    kwargs["name" if " " in player else "player_id"] = player
-            if command == "team":
-                kwargs["team"] = self.team.get().strip()
-                if not kwargs["team"]:
-                    raise ValueError("Select or enter a Lahman team ID.")
+            command, year, scope, kind, kwargs = self._projection_selection()
         except ValueError as exc:
             messagebox.showerror(APP_NAME, str(exc), parent=self.window)
             return
