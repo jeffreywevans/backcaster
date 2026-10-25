@@ -46,6 +46,9 @@ dev = [
 [project.scripts]
 backcaster = "backcaster.cli:main"
 
+[project.gui-scripts]
+backcaster-gui = "backcaster.gui:main"
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 

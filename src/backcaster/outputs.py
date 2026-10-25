@@ -138,19 +138,21 @@ def to_cli_table(df: pd.DataFrame) -> str:
     return _display_frame(df).to_string(index=False)
 
 
-def validate_output_path(out_path: str | Path) -> Path:
-    """Resolve an export destination and confine it to the working directory."""
-    root = Path.cwd().resolve()
+def validate_output_path(out_path: str | Path, *, output_root: str | Path | None = None) -> Path:
+    """Confine exports to the working directory or an explicitly selected root."""
+    root = Path(output_root).resolve() if output_root is not None else Path.cwd().resolve()
     out = Path(out_path).resolve()
     if not out.is_relative_to(root):
         raise ValueError(
-            f"Output path must stay within the current working directory ({root}): {out_path}"
+            f"Output path must stay within the {'selected output folder' if output_root is not None else 'current working directory'} ({root}): {out_path}"
         )
     return out
 
 
-def to_csv(df: pd.DataFrame, out_path: str | Path) -> Path:
-    out = validate_output_path(out_path)
+def to_csv(
+    df: pd.DataFrame, out_path: str | Path, *, output_root: str | Path | None = None
+) -> Path:
+    out = validate_output_path(out_path, output_root=output_root)
     out.parent.mkdir(parents=True, exist_ok=True)
     display = _display_frame(df)
     for column in ("Name", "PlayerID"):
@@ -167,8 +169,14 @@ def to_csv(df: pd.DataFrame, out_path: str | Path) -> Path:
     return out
 
 
-def to_html(df: pd.DataFrame, out_path: str | Path, actuals: pd.DataFrame | None = None) -> Path:
-    out = validate_output_path(out_path)
+def to_html(
+    df: pd.DataFrame,
+    out_path: str | Path,
+    actuals: pd.DataFrame | None = None,
+    *,
+    output_root: str | Path | None = None,
+) -> Path:
+    out = validate_output_path(out_path, output_root=output_root)
     out.parent.mkdir(parents=True, exist_ok=True)
     actual_display = _display_frame(actuals) if actuals is not None else None
     variances = _display_variances(df, actuals) if actuals is not None else None
