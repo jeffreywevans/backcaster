@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.4.2
+
+- Prevent CSV formula injection by escaping Name and PlayerID cells beginning with `=`, `+`, `-`, `@`, tab, or carriage return.
+- Add `player --player-id` to disambiguate duplicate names while retaining qualification rules. Require exactly one of `--name` or `--player-id`.
+- Report unwritable output paths as CLI errors with exit status 2; reject `--out` with CLI output and validate output options before loading data.
+- Preserve undefined batter rates as NaN and display them blank. Format Reliability to six decimals across CLI, CSV, and HTML; bind each numeric column's display precision correctly.
+- Preserve numeric projection dtypes and vectorize pitcher population calculations, retaining the single-player formulas and shared league baseline.
+- Read only needed Lahman CSV columns and reuse an indexed People lookup across seasons.
+- Remove the unused legacy batting projection path and its misleading configuration fields. Document the population batter API and scope MarcelConfig to pitching.
+- Rename the local data-loading exception to DataLoadError and document the Python API changes.
+- Add uv.lock for reproducible CI, build tools, and wheel smoke tests; raise the pandas minimum to 2.2.2 for NumPy 2 compatibility and configure Dependabot for uv.
+- Correct action-pin version comments, pass SonarCloud shell inputs through environment variables, and resolve static-analysis findings in exception tests.
+
+Compatibility: `project_player` and `project_team` now support pitching only;
+Python batting callers must use `backcaster.batters.project_batters` with the full
+non-pitcher population. MarcelConfig no longer accepts `regression_pa`,
+`default_pa_growth`, or `age_adjustment_fn`. Import `DataLoadError` instead of
+`DataFetchError`. Undefined batter BA/OBP/SLG/OPS remain NaN internally and export
+as blank cells; Reliability exports use six decimal places. CSV identity values
+with dangerous prefixes receive a leading apostrophe. Python 3.13+ remains required.
+
 ## 0.4.1
 
 - Project batter R, RBI, SB, CS, GDP, and IBB; derive TB and BA from full-precision hit components. Use the requested complete stat order and BA label.
