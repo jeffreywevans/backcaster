@@ -11,6 +11,7 @@ from backcaster.stat_columns import BATTING_STAT_COLUMNS, IDENTITY_COLUMNS, PITC
 
 BATTING_COLUMNS = (*BATTING_STAT_COLUMNS, "Reliability", "ConfidenceTier")
 PITCHING_COLUMNS = (*PITCHING_STAT_COLUMNS, "Reliability", "ConfidenceTier")
+TABLE_ROW_END = "</tr>"
 COLUMN_LABELS = {
     "PlayerID": "Player ID",
     "ConfidenceTier": "Confidence tier",
@@ -248,7 +249,7 @@ def _table(
         rows.append(
             f'<tr data-player="true" data-group="{group}" data-expanded="true">'
             + _row_cells(values, columns, "projection", group, comparison)
-            + "</tr>"
+            + TABLE_ROW_END
         )
         if comparison:
             player_id = _cell(values.get("PlayerID", ""))
@@ -262,13 +263,13 @@ def _table(
                 f'<tr class="detail-row actual-row" data-detail="true" data-group="{group}" '
                 f'id="actual-{group}">'
                 + _row_cells(actual_values, columns, "actual", group, comparison)
-                + "</tr>"
+                + TABLE_ROW_END
             )
             rows.append(
                 f'<tr class="detail-row variance-row" data-detail="true" data-group="{group}" '
                 f'id="variance-{group}">'
                 + _row_cells(variance_values, columns, "variance", group, comparison)
-                + "</tr>"
+                + TABLE_ROW_END
             )
     return (
         '<table id="projections"><caption class="sr-only">Player projection statistics</caption><thead><tr>'
