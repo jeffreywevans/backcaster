@@ -1,11 +1,24 @@
 # Changelog
 
-## 0.5.0
+## 0.5.1
 
 - Add a Yes/No actual-season comparison filter in the desktop workspace. Generate
   actuals and variance with the report and retain that snapshot for both exports.
   CSV comparisons add Actual/Variance statistic columns and ActualStatus; HTML
   uses expandable comparison rows. No keeps projection-only output.
+
+- Center numeric columns in the desktop preview and HTML report, including actuals
+  and variances. Keep names and player IDs left-aligned. Position HTML sort arrows
+  independently so heading labels stay centered when sorting.
+- Extend automated tests for comparison exports, missing actuals, signed innings
+  variance, and numeric alignment while retaining 100% line and branch coverage.
+
+Compatibility: projections and existing CLI commands are unchanged. Comparison
+requires target-season data in addition to the three prior seasons. Python 3.13+
+and Tk support are still required for the GUI. Regenerate existing HTML exports
+to apply the alignment fixes.
+
+## 0.5.0
 
 - Add a ServiceNow-inspired desktop report workspace, launched with `backcaster-gui`
   or `python -m backcaster.gui`, showing the application name and installed version.

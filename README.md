@@ -29,10 +29,10 @@ Upgrade to the latest release available on PyPI:
 python -m pip install --upgrade backcaster
 ```
 
-To install a specific release, such as 0.5.0:
+To install a specific release, such as 0.5.1:
 
 ```powershell
-python -m pip install --upgrade backcaster==0.5.0
+python -m pip install --upgrade backcaster==0.5.1
 ```
 
 Run the command using the same Python environment where you run Backcaster.
@@ -535,7 +535,7 @@ It requires a graphical desktop and Python's Tk support (on Debian/Ubuntu, insta
 3. Select a report output folder. **Save folders** stores both folder preferences
    across launches; browsing also saves them. Settings are stored under the user's
    platform configuration directory in `backcaster/settings.json`.
-4. Set **Compare actual season** to **Yes** to include actual results for the selected
+4. Set **Compare actual season** (new in 0.5.1) to **Yes** to include actual results for the selected
    season and variance (actual minus projected), or **No** for projections only.
    Comparison requires target-season data in addition to the three prior seasons.
 5. Click **Generate report** to preview results, then **Export HTML** or **Export CSV**.
