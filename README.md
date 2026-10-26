@@ -29,10 +29,10 @@ Upgrade to the latest release available on PyPI:
 python -m pip install --upgrade backcaster
 ```
 
-To install a specific release, such as 0.5.2:
+To install a specific release, such as 0.5.3:
 
 ```powershell
-python -m pip install --upgrade backcaster==0.5.2
+python -m pip install --upgrade backcaster==0.5.3
 ```
 
 Run the command using the same Python environment where you run Backcaster.
@@ -359,8 +359,9 @@ statistics and batting/pitching rates in a consistent order. The report includes
 
 Your display precision rules apply, including baseball innings notation. Rates
 retain their trailing decimal places and OPS values above 1.000 display normally.
-Search filters the visible rows; printing respects that current view. Without
-JavaScript, the complete table is still readable. See
+Search filters the visible rows; printing respects that current view. Projection rows
+remain readable without JavaScript; search, sorting, and comparison controls
+require JavaScript. See
 [HTML report customization](docs/HTML_REPORTS.md) for theme and column constants.
 
 ### Compare projections with actual results (new in 0.4.3)

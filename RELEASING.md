@@ -1,6 +1,6 @@
 # Releasing Backcaster
 
-## Prepare 0.5.2
+## Prepare 0.5.3
 
 The package version is defined in `src/backcaster/__init__.py`; setuptools reads it
 when building both distributions. After changing the version, run `uv lock` and
@@ -50,8 +50,8 @@ These GitHub and PyPI settings must be configured separately from the repository
 
 1. Merge the prepared changes into `main` and confirm CI passes, including Python
    3.13 and 3.14 and the 100% coverage gate.
-2. Create a GitHub release named **0.5.2**, using tag **v0.5.2** at the validated
-   commit on `main`. Use the 0.5.2 changelog entry as the release notes.
+2. Create a GitHub release named **0.5.3**, using tag **v0.5.3** at the validated
+   commit on `main`. Use the 0.5.3 changelog entry as the release notes.
 3. Publish the GitHub release as a stable release. This triggers `workflow.yml`;
    a draft does not trigger publication, and a prerelease does not upload to PyPI.
 4. Review the build and the `pypi` deployment job; approve it if the environment
@@ -60,8 +60,8 @@ These GitHub and PyPI settings must be configured separately from the repository
 5. After the upload succeeds, verify from a fresh environment:
 
    ```bash
-   python -m pip install backcaster==0.5.2
-   python -c 'from backcaster import __version__; assert __version__ == "0.5.2"'
+   python -m pip install backcaster==0.5.3
+   python -c 'from backcaster import __version__; assert __version__ == "0.5.3"'
    backcaster --help
    backcaster hitters --help
    backcaster pitchers --help
@@ -83,10 +83,10 @@ at one, and SO/W at two. W-L% is a three-decimal fraction. Undefined W-L% and
 SO/W should be blank. Confirm the local CSVs include the fields listed in the
 README before testing.
 
-For 0.5.2, verify the desktop workspace on a graphical desktop:
+For 0.5.3, verify the desktop workspace on a graphical desktop:
 
 - Launch `backcaster-gui` and `python -m backcaster.gui`; confirm the title and
-  navigation show Backcaster v0.5.2.
+  navigation show Backcaster v0.5.3.
 - Load local Lahman selections and generate player, team, all-hitter, and
   all-pitcher reports. Verify player IDs distinguish duplicate names and the
   batting/pitching selector follows report scope.
@@ -103,7 +103,7 @@ For 0.5.2, verify the desktop workspace on a graphical desktop:
 - Save both folder preferences and restart the app to confirm persistence.
 - Confirm bad filters, missing data, and unwritable folders show readable errors.
 
-For the 0.5.2 batter calculation change, verify:
+For the batting calculations and 0.5.3 age/export changes, verify:
 
 - Age 29 leaves independent event rates unchanged before raking. At age 25,
   beneficial events get a 1.024 multiplier and SO gets 0.976; at age 32 these are
@@ -112,6 +112,13 @@ For the 0.5.2 batter calculation change, verify:
   remain conserved. Model rate precision is unchanged. Verify displayed and calculation ages use
   completed age on June 30 (June 30 birthday included, July 1 excluded), and
   missing/invalid birth dates are excluded with a readable warning.
+- Verify birthdays on June 30 versus July 1, leap-day births, invalid dates, and
+  incomplete dates. Player/team/batch projections and actuals must agree on age.
+  Confirm People.csv includes birthYear, birthMonth, and birthDay; incomplete
+  player dates are excluded with warnings, and missing columns give a data error.
+- Verify batting exported TB equals H + 2B + 2×3B + 3×HR from displayed counts.
+  BA/OBP/SLG/OPS and comparison variances use the rounded-count export basis;
+  model DataFrames and pitching rate calculations remain full precision.
 - Recreate older projections before comparing model versions. The reported
   reference MAE improvements are not independently reproduced; do not describe
   them as verified accuracy gains. See `docs/BATTER_MODEL.md`.

@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.5.3
+
+- Include all Python test fixtures, including conftest.py, in the source archive
+  so its test suite can run with the same setup as the repository.
 
 - Use completed age on June 30 of the target season for batter and pitcher
   adjustments, displayed ages, and actual-season data. Read birthYear/birthMonth/
@@ -12,6 +15,13 @@
   from rounded counts. Apply the same arithmetic to preview, CLI, CSV, HTML,
   actuals, and batting variances. Keep model DataFrames and pitching calculations
   at full precision. Missing inputs and zero denominators remain blank.
+
+Compatibility: People.csv now requires all three birth-date columns, and
+records with incomplete or invalid dates are excluded with warnings. June-30 age
+can change forecasts and eligibility near the 15–70 age boundaries. Regenerate
+reports to use the new ages and rounded-count batting arithmetic. Projection
+DataFrames retain full precision; reported reference-agreement improvements
+remain unverified. Python 3.13+ is still required.
 
 ## 0.5.2
 
