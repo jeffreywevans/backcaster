@@ -317,3 +317,75 @@ def test_module_entrypoint_explains_missing_display(monkeypatch):
     monkeypatch.setattr(tk, "Tk", fail)
     with pytest.raises(SystemExit, match="requires a graphical desktop: no display"):
         runpy.run_path(gui.__file__, run_name="__main__")
+
+
+@pytest.mark.parametrize("scope", ["All hitters", "All pitchers"])
+@pytest.mark.parametrize("format", ["html", "csv"])
+def test_comparison_toggle_preview_and_exports(
+    workspace, lahman_data, tmp_path, monkeypatch, scope, format
+):
+    for table in ("Batting", "Pitching", "Teams", "Appearances"):
+        path = lahman_data / f"{table}.csv"
+        history = pd.read_csv(path)
+        actual = history[history.yearID == 2021].copy()
+        actual["yearID"] = 2022
+        if "HR" in actual:
+            actual["HR"] += 1
+        pd.concat([history, actual], ignore_index=True).to_csv(path, index=False)
+    app = workspace
+    app.data_dir.set(str(lahman_data))
+    app.year.set("2022")
+    app.scope.set(scope)
+    app._scope_changed()
+    assert app.compare.get() == "No"
+    app.compare.set("Yes")
+    app._generate()
+    settle(app)
+    gui.messagebox.showerror.assert_not_called()
+    assert app.actuals is not None
+    assert "Actual HR" in app.tree["columns"]
+    assert "Variance HR" in app.tree["columns"]
+    assert str(app.tree.column("Actual HR", "anchor")) == "center"
+    assert str(app.tree.column("Variance HR", "anchor")) == "center"
+    assert "Actuals & variance" in app.summary.get()
+    # Exports must use the generated comparison even if the toggle changes later.
+    app.compare.set("No")
+    app.output_dir.set(str(tmp_path / "reports"))
+    destination = tmp_path / "reports" / f"comparison.{format}"
+    monkeypatch.setattr(gui.filedialog, "asksaveasfilename", lambda **kwargs: str(destination))
+    app._export(format)
+    settle(app)
+    if format == "csv":
+        exported = pd.read_csv(destination)
+        assert len(exported) == len(app.result)
+        for row in exported.itertuples(index=False):
+            assert row.ActualStatus == "Available"
+        row = exported.iloc[0]
+        actual = app.actuals.set_index("PlayerID").loc[row.PlayerID]
+        projection = app.result.set_index("PlayerID").loc[row.PlayerID]
+        assert row["Actual HR"] == actual.HR
+        assert row["Variance HR"] == round(actual.HR - projection.HR)
+    else:
+        text = destination.read_text()
+        assert 'class="detail-row actual-row"' in text
+        assert 'class="detail-row variance-row"' in text
+    app._generate()
+    settle(app)
+    assert app.actuals is None
+    assert "Actual HR" not in app.tree["columns"]
+
+
+def test_comparison_without_actuals_preserves_last_report(workspace, lahman_data, monkeypatch):
+    app = workspace
+    app.data_dir.set(str(lahman_data))
+    app.year.set("2022")
+    app._generate()
+    settle(app)
+    previous = app.result
+    monkeypatch.setattr(gui.LahmanSource, "actuals", lambda *args: pd.DataFrame())
+    app.compare.set("Yes")
+    app._generate()
+    settle(app)
+    assert "No actual results available" in app.status.get()
+    assert app.result is previous
+    assert app.actuals is None

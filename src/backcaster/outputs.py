@@ -134,6 +134,29 @@ def _display_variances(projected: pd.DataFrame, actuals: pd.DataFrame) -> pd.Dat
     return pd.DataFrame(rows)
 
 
+def comparison_frame(projected: pd.DataFrame, actuals: pd.DataFrame) -> pd.DataFrame:
+    """Display one player per row with actuals and actual-minus-projected variances."""
+    display = _display_frame(projected).reset_index(drop=True)
+    actual_display = _display_frame(actuals).set_index("PlayerID")
+    variances = _display_variances(projected, actuals).set_index("PlayerID")
+    display["ActualStatus"] = display["PlayerID"].map(
+        lambda player_id: "Available" if player_id in actual_display.index else "No actual results"
+    )
+    stats = PITCHING_STAT_COLUMNS if "IP" in projected else BATTING_STAT_COLUMNS
+    for column in stats:
+        if column in projected and column in actual_display:
+            display[f"Actual {column}"] = (
+                display["PlayerID"].map(actual_display[column]).astype(object).fillna("")
+            )
+            display[f"Variance {column}"] = (
+                display["PlayerID"]
+                .map(variances.reindex(columns=stats)[column])
+                .astype(object)
+                .fillna("")
+            )
+    return display
+
+
 def to_cli_table(df: pd.DataFrame) -> str:
     return _display_frame(df).to_string(index=False)
 
@@ -150,11 +173,15 @@ def validate_output_path(out_path: str | Path, *, output_root: str | Path | None
 
 
 def to_csv(
-    df: pd.DataFrame, out_path: str | Path, *, output_root: str | Path | None = None
+    df: pd.DataFrame,
+    out_path: str | Path,
+    actuals: pd.DataFrame | None = None,
+    *,
+    output_root: str | Path | None = None,
 ) -> Path:
     out = validate_output_path(out_path, output_root=output_root)
     out.parent.mkdir(parents=True, exist_ok=True)
-    display = _display_frame(df)
+    display = _display_frame(df) if actuals is None else comparison_frame(df, actuals)
     for column in ("Name", "PlayerID"):
         if column in display:
             # CSV quoting alone does not prevent spreadsheet formula execution.

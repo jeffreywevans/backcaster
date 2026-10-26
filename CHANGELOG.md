@@ -2,6 +2,11 @@
 
 ## 0.5.0
 
+- Add a Yes/No actual-season comparison filter in the desktop workspace. Generate
+  actuals and variance with the report and retain that snapshot for both exports.
+  CSV comparisons add Actual/Variance statistic columns and ActualStatus; HTML
+  uses expandable comparison rows. No keeps projection-only output.
+
 - Add a ServiceNow-inspired desktop report workspace, launched with `backcaster-gui`
   or `python -m backcaster.gui`, showing the application name and installed version.
 - Select projection seasons, individual players (including exact Lahman IDs), teams,

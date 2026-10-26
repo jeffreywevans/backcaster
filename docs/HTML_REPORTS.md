@@ -1,8 +1,8 @@
 # HTML reports
 
 In the desktop GUI (`backcaster-gui`, new in 0.5.0), generate a report and choose
-**Export HTML** to save it within the selected report output folder. Historical
-actual-result comparisons remain available through the CLI.
+**Export HTML** to save it within the selected report output folder. Set **Compare actual season** to **Yes** before generation to include actuals
+and actual-minus-projected variance in the preview, HTML, and CSV exports.
 
 Generate reports through the CLI, for example:
 

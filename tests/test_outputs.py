@@ -327,3 +327,35 @@ def test_expanded_pitching_display_order_and_precision() -> None:
         "IP": "161.2",
     }.items():
         assert actual[stat] == expected
+
+
+def test_comparison_csv_partial_actuals_and_baseball_variance(tmp_path):
+    from backcaster.outputs import to_csv
+
+    projections = pd.DataFrame(
+        [
+            {"Name": "=Unsafe", "PlayerID": "a", "Year": 2020, "IP": 10 + 1 / 3, "HR": 5},
+            {"Name": "Missing", "PlayerID": "b", "Year": 2020, "IP": 3, "HR": 2},
+        ]
+    )
+    actuals = pd.DataFrame([{"PlayerID": "a", "IP": 11, "HR": 3}])
+    output = to_csv(projections, tmp_path / "comparison.csv", actuals)
+    rows = pd.read_csv(output, keep_default_na=False)
+    assert rows.loc[0, "Name"] == "'=Unsafe"
+    assert rows.loc[0, "Actual IP"] == "11.0"
+    assert rows.loc[0, "Variance IP"] == "+0.2"
+    assert rows.loc[0, "Variance HR"] == "-2"
+    assert rows.loc[1, "ActualStatus"] == "No actual results"
+    assert rows.loc[1, "Actual IP"] == ""
+    assert rows.loc[1, "Variance HR"] == ""
+
+
+def test_comparison_csv_no_matching_actuals_is_blank(tmp_path):
+    projections = pd.DataFrame([{"PlayerID": "missing", "HR": 2}])
+    actuals = pd.DataFrame(columns=["PlayerID", "HR"])
+    result = pd.read_csv(
+        to_csv(projections, tmp_path / "empty.csv", actuals), keep_default_na=False
+    )
+    assert result.loc[0, "ActualStatus"] == "No actual results"
+    assert result.loc[0, "Actual HR"] == ""
+    assert result.loc[0, "Variance HR"] == ""

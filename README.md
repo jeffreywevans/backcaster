@@ -535,7 +535,10 @@ It requires a graphical desktop and Python's Tk support (on Debian/Ubuntu, insta
 3. Select a report output folder. **Save folders** stores both folder preferences
    across launches; browsing also saves them. Settings are stored under the user's
    platform configuration directory in `backcaster/settings.json`.
-4. Click **Generate report** to preview results, then **Export HTML** or **Export CSV**.
+4. Set **Compare actual season** to **Yes** to include actual results for the selected
+   season and variance (actual minus projected), or **No** for projections only.
+   Comparison requires target-season data in addition to the three prior seasons.
+5. Click **Generate report** to preview results, then **Export HTML** or **Export CSV**.
    The save dialog lets you choose a filename and confirms overwrites. Keep exports
    inside the selected report output folder, or change that folder first.
 
@@ -551,3 +554,13 @@ GUI integration tests use real Tk widgets. On a Linux machine without a display,
 install Xvfb and xauth, then run `xvfb-run -a pytest`. CI runs the full suite and
 coverage reports this way. Without a display, local runs skip window integration
 tests; settings, export, and CLI tests still run normally.
+
+With comparison enabled, the preview and CSV include `Actual …` and `Variance …`
+columns for each statistic, plus `ActualStatus`. HTML includes expandable Actual
+and Variance rows. Missing player actuals have blank comparison values and an
+explicit label; if no selected players have actual results, generation reports an
+error and retains the last successful report. Variance uses signed baseball
+notation for innings (for example, `+0.2` means two outs). Exports preserve the
+comparison setting from the generated report even if you later change the toggle;
+generate again to apply a new setting. The CLI's `--compare-actuals` option continues
+to support HTML only; Python callers can pass `actuals` to either output writer.
