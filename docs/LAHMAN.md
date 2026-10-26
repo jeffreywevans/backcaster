@@ -13,7 +13,7 @@ This is the default directory on Windows. Elsewhere the default is
 `~/Baseball/lahman`. Use `LAHMAN_DATA_DIR` or `--data-dir` to select another
 location. All commands run offline, including when no `--data-dir` is supplied.
 Backcaster needs `People.csv`, `Teams.csv`, and `Batting.csv` or `Pitching.csv`,
-depending on the projection kind. Both kinds require `People.csv.birthYear`
+depending on the projection kind. Both kinds require `People.csv.birthYear`, `birthMonth`, and `birthDay`
 for age adjustment. Batters also require `Appearances.csv` for pitcher classification; see
 [the batter model](BATTER_MODEL.md). Keep those files from the same database edition.
 
@@ -36,7 +36,7 @@ comparison uses 2022–2024 to project, then loads 2025 results by PlayerID. The
 ## Historical data caveats
 
 A historical target such as `--year 1934` uses 1931–1933 statistics. Batters and pitchers
-with unusable birth years are excluded from the projection population with a
+with unusable or incomplete birth dates are excluded from the projection population with a
 stderr warning listing their count and a sample of player IDs. The remaining
 players can still be projected; age 29 is never silently substituted. If no
 usable players remain, the command returns an error. This handles missing ages,

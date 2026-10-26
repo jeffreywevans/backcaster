@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from backcaster.ages import BIRTH_COLUMNS, season_ages
 from backcaster.batters import project_batters
 from backcaster.data import DataLoadError, PlayerLookupError
 from backcaster.eligibility import read_eligibility
@@ -52,20 +53,20 @@ def _actual_pitching(season: pd.DataFrame, year: int) -> pd.DataFrame:
 def _actual_output(season: pd.DataFrame, year: int, stats: tuple[str, ...]) -> pd.DataFrame:
     actual = season.copy()
     actual["Year"] = year
-    actual["Age"] = year - pd.to_numeric(actual["birthYear"], errors="coerce")
+    actual["Age"] = season_ages(actual, year)
     return actual[[*IDENTITY_COLUMNS, *stats]].reset_index(drop=True)
 
 
 def _exclude_invalid_ages(seasons: pd.DataFrame, year: int, population: str) -> pd.DataFrame:
     """Keep historical players with usable ages and report excluded player IDs."""
-    ages = year - pd.to_numeric(seasons["birthYear"], errors="coerce")
+    ages = season_ages(seasons, year)
     valid_age = ages.between(15, 70)
     excluded = seasons.loc[~valid_age, "PlayerID"].drop_duplicates().tolist()
     if excluded:
         preview = ", ".join(excluded[:10]) + (", ..." if len(excluded) > 10 else "")
         logging.getLogger(__name__).warning(
-            "Skipping %d %s with missing or invalid birthYear "
-            "(projection age must be 15–70). Player IDs: %s",
+            "Skipping %d %s with missing or invalid birthYear/birthMonth/birthDay "
+            "(June-30 projection age must be 15–70). Player IDs: %s",
             len(excluded),
             population,
             preview,
@@ -73,7 +74,7 @@ def _exclude_invalid_ages(seasons: pd.DataFrame, year: int, population: str) -> 
         seasons = seasons.loc[valid_age].copy()
         if seasons.empty:
             raise ProjectionError(
-                f"No {population} with valid birthYear remain in the prior three seasons."
+                f"No {population} with valid birthYear and complete birth date remain in the prior three seasons."
             )
     return seasons
 
@@ -96,7 +97,7 @@ class LahmanSource:
         self._people: pd.DataFrame | None = None
 
     def read(self, name: str, required: set[str]) -> pd.DataFrame:
-        optional = {"Batting": {"HBP", "SF", "SH"}, "People": {"birthYear"}}.get(name, set())
+        optional = {"Batting": {"HBP", "SF", "SH"}, "People": set(BIRTH_COLUMNS)}.get(name, set())
         columns = required | optional
         if name not in self.tables or columns - self._requested_columns[name]:
             columns |= self._requested_columns.get(name, set())
@@ -207,7 +208,7 @@ class LahmanSource:
                 people["nameFirst"].fillna("") + " " + people["nameLast"].fillna("")
             ).str.strip()
             self._people = people.assign(Name=names).set_index("playerID")
-            self._people = self._people[["Name", *(["birthYear"] if "birthYear" in people else [])]]
+            self._people = self._people[["Name", *[c for c in BIRTH_COLUMNS if c in people]]]
         totals = totals.reset_index()
         for column in self._people:
             totals[column] = totals["playerID"].map(self._people[column])
@@ -249,7 +250,7 @@ class LahmanSource:
 
     def actuals(self, year: int, kind: str, player_ids: Iterable[str]) -> pd.DataFrame:
         """Load target-season results for projected players in a historical comparison."""
-        self.read("People", {"playerID", "nameFirst", "nameLast", "birthYear"})
+        self.read("People", {"playerID", "nameFirst", "nameLast", *BIRTH_COLUMNS})
         season = self.season(year, kind, qualified=False)
         requested = set(player_ids)
         season = season[season["PlayerID"].isin(requested)].copy()
@@ -261,7 +262,7 @@ class LahmanSource:
         """Load the complete historical sample before any output selection."""
         if kind == "batting":
             return self._batting_population(year)
-        self.read("People", {"playerID", "nameFirst", "nameLast", "birthYear"})
+        self.read("People", {"playerID", "nameFirst", "nameLast", *BIRTH_COLUMNS})
         seasons = pd.concat(
             [self.season(y, kind, qualified=False) for y in (year - 1, year - 2, year - 3)],
             ignore_index=True,
@@ -309,7 +310,7 @@ class LahmanSource:
         return selected
 
     def _batting_population(self, year: int) -> tuple[pd.DataFrame, pd.DataFrame]:
-        self.read("People", {"playerID", "nameFirst", "nameLast", "birthYear"})
+        self.read("People", {"playerID", "nameFirst", "nameLast", *BIRTH_COLUMNS})
         seasons = pd.concat(
             [self.season(y, "batting", qualified=False) for y in (year - 1, year - 2, year - 3)],
             ignore_index=True,

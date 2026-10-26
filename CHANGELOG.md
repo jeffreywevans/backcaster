@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Use completed age on June 30 of the target season for batter and pitcher
+  adjustments, displayed ages, and actual-season data. Read birthYear/birthMonth/
+  birthDay from People.csv, exclude incomplete or invalid dates with a warning,
+  and require June-30 ages of 15–70 for projection eligibility. Low-level pitcher
+  callers without birth data may continue supplying an explicit June-30 age.
+
 - Derive reported batter TB from rounded H/2B/3B/HR, then derive BA/OBP/SLG/OPS
   from rounded counts. Apply the same arithmetic to preview, CLI, CSV, HTML,
   actuals, and batting variances. Keep model DataFrames and pitching calculations

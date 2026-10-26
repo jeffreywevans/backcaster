@@ -13,9 +13,30 @@ from backcaster.marcel import ProjectionError
 def lahman(tmp_path: Path) -> Path:
     pd.DataFrame(
         [
-            {"playerID": "star", "nameFirst": "Test", "nameLast": "Star", "birthYear": 1990},
-            {"playerID": "other", "nameFirst": "Other", "nameLast": "Player", "birthYear": 1993},
-            {"playerID": "minor", "nameFirst": "Brief", "nameLast": "Career", "birthYear": 1995},
+            {
+                "playerID": "star",
+                "nameFirst": "Test",
+                "nameLast": "Star",
+                "birthYear": 1990,
+                "birthMonth": 1,
+                "birthDay": 1,
+            },
+            {
+                "playerID": "other",
+                "nameFirst": "Other",
+                "nameLast": "Player",
+                "birthYear": 1993,
+                "birthMonth": 1,
+                "birthDay": 1,
+            },
+            {
+                "playerID": "minor",
+                "nameFirst": "Brief",
+                "nameLast": "Career",
+                "birthYear": 1995,
+                "birthMonth": 1,
+                "birthDay": 1,
+            },
         ]
     ).to_csv(tmp_path / "People.csv", index=False)
     batting, pitching, teams = [], [], []
@@ -757,7 +778,10 @@ def test_all_players_missing_birth_year_reports_actionable_error(
     people["birthYear"] = float("nan")
     people.to_csv(path, index=False)
     source = LahmanSource(str(lahman))
-    with pytest.raises(ProjectionError, match=f"No {population} with valid birthYear remain"):
+    with pytest.raises(
+        ProjectionError,
+        match=f"No {population} with valid birthYear and complete birth date remain",
+    ):
         source.project("batch", 2022, kind)
 
 
@@ -1036,3 +1060,40 @@ def test_outless_pitcher_with_batters_faced_is_still_included(lahman: Path) -> N
     assert result.Reliability.tolist() == [0.0]
     assert result.ConfidenceTier.tolist() == ["low-sample"]
     assert result.BB.iloc[0] > 0
+
+
+@pytest.mark.parametrize("kind", ["batting", "pitching"])
+def test_june_30_age_is_used_across_commands_and_actuals(lahman, kind):
+    path = lahman / "People.csv"
+    people = pd.read_csv(path)
+    people.loc[people.playerID == "star", ["birthMonth", "birthDay"]] = [7, 1]
+    people.loc[people.playerID == "other", ["birthMonth", "birthDay"]] = [6, 30]
+    people.to_csv(path, index=False)
+    source = LahmanSource(str(lahman))
+    batch = source.project("batch", 2022, kind).set_index("PlayerID")
+    assert batch.loc["star", "Age"] == 31
+    assert batch.loc["other", "Age"] == 29
+    for command, selector in [("player", {"player_id": "star"}), ("team", {"team": "BOS"})]:
+        selected = source.project(command, 2022, kind, **selector).set_index("PlayerID")
+        pd.testing.assert_series_equal(selected.loc["star"], batch.loc["star"])
+    actual = source.actuals(2021, kind, ["star", "other"]).set_index("PlayerID")
+    assert actual.loc["star", "Age"] == 30
+    assert actual.loc["other", "Age"] == 28
+    # July birthdays must change the actual age adjustment, not only the label.
+    people.loc[people.playerID == "star", ["birthMonth", "birthDay"]] = [6, 30]
+    people.to_csv(path, index=False)
+    older = LahmanSource(str(lahman)).project("batch", 2022, kind).set_index("PlayerID")
+    assert older.loc["star", "Age"] == 32
+    expected_direction = 1 if kind == "pitching" else -1
+    assert (older.loc["star", "HR"] - batch.loc["star", "HR"]) * expected_direction > 0
+
+
+@pytest.mark.parametrize("kind", ["batting", "pitching"])
+def test_missing_birth_day_excludes_player_without_guessing(lahman, kind, caplog):
+    path = lahman / "People.csv"
+    people = pd.read_csv(path)
+    people.loc[people.playerID == "star", "birthDay"] = float("nan")
+    people.to_csv(path, index=False)
+    result = LahmanSource(str(lahman)).project("batch", 2022, kind)
+    assert "star" not in result.PlayerID.tolist()
+    assert "birthMonth/birthDay" in caplog.text

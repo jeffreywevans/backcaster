@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from backcaster.ages import season_ages
 from backcaster.marcel import ProjectionError
 from backcaster.normalize import safe_divide
 from backcaster.stat_columns import BATTING_STAT_COLUMNS, CONTEXT_STATS, IDENTITY_COLUMNS
@@ -76,11 +77,10 @@ def _playing_time(history: pd.DataFrame, year: int) -> pd.Series:
 def _age_rates(
     rates: pd.DataFrame, people: pd.DataFrame, year: int
 ) -> tuple[pd.DataFrame, pd.Series]:
-    birth = pd.to_numeric(people["birthYear"], errors="coerce")
-    age = year - birth
-    if birth.isna().any() or not np.isfinite(age).all() or ((age < 15) | (age > 70)).any():
+    age = season_ages(people, year)
+    if not np.isfinite(age).all() or ((age < 15) | (age > 70)).any():
         raise ProjectionError(
-            "Valid birthYear is required for every batter in the projection population."
+            "Valid birthYear, birthMonth, and birthDay are required for every batter in the projection population."
         )
     adjustment = (age - 29) * np.where(age > 29, 0.003, 0.006)
     aged = rates.copy()

@@ -109,7 +109,9 @@ For the 0.5.2 batter calculation change, verify:
   beneficial events get a 1.024 multiplier and SO gets 0.976; at age 32 these are
   0.991 and 1.009. SH/SF stay neutral before raking, and OUT is the residual PA.
 - Player PA, reliability, league event rates after raking, and IBB/GDP bounds
-  remain conserved. Age definition and full-precision derived rates are unchanged.
+  remain conserved. Model rate precision is unchanged. Verify displayed and calculation ages use
+  completed age on June 30 (June 30 birthday included, July 1 excluded), and
+  missing/invalid birth dates are excluded with a readable warning.
 - Recreate older projections before comparing model versions. The reported
   reference MAE improvements are not independently reproduced; do not describe
   them as verified accuracy gains. See `docs/BATTER_MODEL.md`.

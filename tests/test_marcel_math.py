@@ -332,7 +332,7 @@ def test_pitcher_age_curve_changes_rates_not_opportunities(age: int, factor: flo
 
 
 def test_pitcher_birth_year_overrides_default_age() -> None:
-    prior = _pitching_prior().assign(birthYear=1992)
+    prior = _pitching_prior().assign(birthYear=1992, birthMonth=1, birthDay=1)
     actual = project_player("Pitcher", prior, "pitching", 2026)
     expected = project_player("Pitcher", _pitching_prior(), "pitching", 2026, age=34)
     pd.testing.assert_frame_equal(actual, expected)
@@ -340,7 +340,7 @@ def test_pitcher_birth_year_overrides_default_age() -> None:
 
 @pytest.mark.parametrize("birth", [float("nan"), float("inf"), "unknown", 1800, 2025])
 def test_pitcher_invalid_birth_year(birth: object) -> None:
-    prior = _pitching_prior().assign(birthYear=birth)
+    prior = _pitching_prior().assign(birthYear=birth, birthMonth=1, birthDay=1)
     with pytest.raises(ProjectionError, match="valid birthYear"):
         project_player("Pitcher", prior, "pitching", 2026)
 
@@ -443,6 +443,8 @@ def test_vectorized_pitching_matches_scalar_reference(
             prior[identity] = None if player == 5 else f"id{player}"
         if birth_years:
             prior["birthYear"] = 2026 - age
+            prior["birthMonth"] = 1
+            prior["birthDay"] = 1
         for column in PITCHING_COMPONENTS:
             if column in prior:
                 prior[column] *= 1 + player * 0.1
@@ -475,7 +477,7 @@ def test_vectorized_pitching_matches_scalar_reference(
 
 @pytest.mark.parametrize("birth", [float("nan"), float("inf"), "unknown", 1800, 2025])
 def test_vectorized_pitching_rejects_invalid_age(birth: object) -> None:
-    prior = _pitching_prior().assign(Name="Pitcher", birthYear=birth)
+    prior = _pitching_prior().assign(Name="Pitcher", birthYear=birth, birthMonth=1, birthDay=1)
     with pytest.raises(ProjectionError, match="valid birthYear"):
         project_team(prior, "pitching", 2026)
 
@@ -526,7 +528,7 @@ def test_team_explicit_age_matches_player_fallback(age: float) -> None:
 
 
 def test_team_birth_year_overrides_explicit_age() -> None:
-    prior = _pitching_prior().assign(Name="Pitcher", birthYear=1992)
+    prior = _pitching_prior().assign(Name="Pitcher", birthYear=1992, birthMonth=1, birthDay=1)
     expected = project_team(prior, "pitching", 2026)
     actual = project_team(prior, "pitching", 2026, age=25)
     pd.testing.assert_frame_equal(actual, expected)
@@ -552,3 +554,12 @@ def test_pitcher_confidence_boundary_does_not_filter(evidence: float, expected: 
     pd.testing.assert_frame_equal(scalar, batch)
     assert scalar.ConfidenceTier.tolist() == [expected]
     assert scalar.Reliability.iloc[0] == pytest.approx(evidence / (evidence + 200))
+
+
+@pytest.mark.parametrize("month,day", [(None, 1), (1, None), (6, 31), (2, 29)])
+def test_incomplete_or_invalid_pitcher_birth_date_is_not_replaced_by_fallback(month, day):
+    prior = _pitching_prior().assign(Name="Pitcher", birthYear=1991, birthMonth=month, birthDay=day)
+    with pytest.raises(ProjectionError, match="birthMonth and birthDay"):
+        project_player("Pitcher", prior, "pitching", 2026, age=29)
+    with pytest.raises(ProjectionError, match="birthMonth and birthDay"):
+        project_team(prior, "pitching", 2026, age=29)

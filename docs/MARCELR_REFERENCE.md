@@ -39,7 +39,9 @@ The review also found differences from Backcaster's batter pipeline: marcelR
 uses reciprocal age decline, independent per-stat rebaselining to a weighted
 three-year league target, and `Fielding`-based primary positions. Backcaster's
 current choices are documented in [the batter model](BATTER_MODEL.md).
-They must not be described as equivalent without comparison tests.
+Backcaster now measures batter and pitcher age on June 30 using complete birth
+dates; the reviewed upstream birth-year age convention is different. They must
+not be described as equivalent without comparison tests.
 
 ## Attribution when adapting code
 

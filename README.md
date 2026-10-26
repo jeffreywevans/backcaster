@@ -141,7 +141,10 @@ Set the `LAHMAN_DATA_DIR` environment variable to change the default, or pass
 `--data-dir` to override it for one command. No network requests or online
 fallbacks are made. The directory must contain `People.csv`, `Teams.csv`, and
 `Batting.csv` or `Pitching.csv` for the selected kind. Both kinds require valid
-`birthYear` values in `People.csv`; batters additionally require `Appearances.csv`. Filenames are matched
+`birthYear`, `birthMonth`, and `birthDay` values in `People.csv`. Age is the
+player's completed age on **June 30 of the projection year**: June 30 birthdays
+count as reached; July 1 birthdays do not. The same age drives age adjustments
+and all output formats. Batters additionally require `Appearances.csv`. Filenames are matched
 without regard to case. The database is not bundled with Backcaster.
 
 For the default Windows directory, no additional flag is needed:
@@ -175,7 +178,7 @@ as `AB + BB + HBP + SF + SH`; missing/blank HBP, SF, and SH values count as zero
 Blank numeric counting-stat cells are also treated as zero; use a dataset with
 complete records for the seasons you intend to project.
 
-Historical batting and pitching records with missing or invalid birth years are excluded with
+Historical batting and pitching records with missing, incomplete, or invalid birth dates are excluded with
 a stderr warning identifying the count and sample player IDs. Remaining players
 are still projected; no default age is substituted. An entirely unusable
 population produces a clear error. See [historical data caveats](docs/LAHMAN.md).
@@ -224,7 +227,7 @@ bettsmo01,2025,2025-01-14,true,LAN
 Create these decisions from a roster/organization/free-agent/retirement source
 as of the stated date. `Eligible` must be true or false. Unlisted players and
 false rows are excluded; listed players still need a lookback sample (PA for
-hitters, outs or batters faced for pitchers) and a usable birth year. Eligibility
+hitters, outs or batters faced for pitchers) and a usable, complete birth date. Eligibility
 never depends on reliability. The file can contain
 multiple years and dates; only the exact `Year` and `AsOf` match is used, with
 unique PlayerID values within that snapshot.
