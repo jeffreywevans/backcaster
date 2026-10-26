@@ -1,0 +1,2 @@
+include CHANGELOG.md RELEASING.md SECURITY.md CODE_OF_CONDUCT.md uv.lock
+recursive-include docs *.md *.txt

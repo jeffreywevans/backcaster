@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.2
 
 - Correct batter aging before population rebaselining: apply plain age factors to
   independent events, keep SH/SF neutral, and compute other AB outs as the residual
@@ -11,6 +11,15 @@
 - Start HTML actual/variance rows collapsed. Add Expand all and Collapse all
   controls to comparison reports; Reset restores the collapsed default. Bulk
   controls include players hidden by search and preserve filtering and sorting.
+
+- Include documentation, release/policy files, and `uv.lock` in the source archive.
+  Correct report documentation to describe collapsed defaults and bulk controls.
+
+Compatibility: this release changes batter event projections through residual-OUT
+aging. Recompute forecasts before comparing versions. Player PA, reliability,
+age definition, and full-precision rate calculations remain unchanged. Python
+3.13+ is still required. Regenerate HTML reports for the new controls. Reported
+reference MAE improvements have not been independently verified.
 
 ## 0.5.1
 

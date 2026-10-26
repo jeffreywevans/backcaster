@@ -29,10 +29,10 @@ Upgrade to the latest release available on PyPI:
 python -m pip install --upgrade backcaster
 ```
 
-To install a specific release, such as 0.5.1:
+To install a specific release, such as 0.5.2:
 
 ```powershell
-python -m pip install --upgrade backcaster==0.5.1
+python -m pip install --upgrade backcaster==0.5.2
 ```
 
 Run the command using the same Python environment where you run Backcaster.
@@ -386,8 +386,10 @@ indicate direction: a positive ERA variance means more earned runs per nine
 innings than projected. IP differences use signed baseball innings notation;
 `+1.2` means one inning and two outs.
 
-Rows start expanded. Use the control beside each player name to collapse or
-expand them; the rows stay with their player when sorting or filtering, and
+Rows start collapsed. Use the triangle beside each player to expand its details,
+or **Expand all** / **Collapse all** to control every player, including those hidden
+by search. **Reset** clears search and sorting and collapses every comparison.
+The rows stay with their player when sorting or filtering, and
 printing preserves the current view. A projected player without a target-season
 record is labeled `Actual (no recorded stats)` and has blank variance cells.
 Players absent from the projection population are not added from the actuals.
@@ -472,7 +474,7 @@ pytest
 ### Coverage + JUnit reports
 
 ```bash
-pytest --junitxml=pytest.xml --cov=src --cov-branch --cov-report=xml:coverage.xml --cov-fail-under=100
+xvfb-run -a pytest --junitxml=pytest.xml --cov=src --cov-branch --cov-report=xml:coverage.xml --cov-fail-under=100
 ```
 
 ### Lint and types

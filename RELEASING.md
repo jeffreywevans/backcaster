@@ -1,6 +1,6 @@
 # Releasing Backcaster
 
-## Prepare 0.5.1
+## Prepare 0.5.2
 
 The package version is defined in `src/backcaster/__init__.py`; setuptools reads it
 when building both distributions. After changing the version, run `uv lock` and
@@ -21,6 +21,9 @@ uv run --locked --no-sync python -m twine check --strict dist/*
 
 On headless Linux, install Xvfb and xauth to run the GUI tests; on a graphical
 desktop, omit `xvfb-run -a`. Python must include Tk support.
+
+The source archive includes `uv.lock`, release/policy files, and the documentation
+(including upstream attribution) so the documented source workflow is available.
 
 Use a clean `dist/` directory for release builds so previous versions are not uploaded.
 The Publish to PyPI workflow can be run manually on the release candidate branch
@@ -47,8 +50,8 @@ These GitHub and PyPI settings must be configured separately from the repository
 
 1. Merge the prepared changes into `main` and confirm CI passes, including Python
    3.13 and 3.14 and the 100% coverage gate.
-2. Create a GitHub release named **0.5.1**, using tag **v0.5.1** at the validated
-   commit on `main`. Use the 0.5.1 changelog entry as the release notes.
+2. Create a GitHub release named **0.5.2**, using tag **v0.5.2** at the validated
+   commit on `main`. Use the 0.5.2 changelog entry as the release notes.
 3. Publish the GitHub release as a stable release. This triggers `workflow.yml`;
    a draft does not trigger publication, and a prerelease does not upload to PyPI.
 4. Review the build and the `pypi` deployment job; approve it if the environment
@@ -57,8 +60,8 @@ These GitHub and PyPI settings must be configured separately from the repository
 5. After the upload succeeds, verify from a fresh environment:
 
    ```bash
-   python -m pip install backcaster==0.5.1
-   python -c 'from backcaster import __version__; assert __version__ == "0.5.1"'
+   python -m pip install backcaster==0.5.2
+   python -c 'from backcaster import __version__; assert __version__ == "0.5.2"'
    backcaster --help
    backcaster hitters --help
    backcaster pitchers --help
@@ -80,10 +83,10 @@ at one, and SO/W at two. W-L% is a three-decimal fraction. Undefined W-L% and
 SO/W should be blank. Confirm the local CSVs include the fields listed in the
 README before testing.
 
-For 0.5.1, verify the desktop workspace on a graphical desktop:
+For 0.5.2, verify the desktop workspace on a graphical desktop:
 
 - Launch `backcaster-gui` and `python -m backcaster.gui`; confirm the title and
-  navigation show Backcaster v0.5.1.
+  navigation show Backcaster v0.5.2.
 - Load local Lahman selections and generate player, team, all-hitter, and
   all-pitcher reports. Verify player IDs distinguish duplicate names and the
   batting/pitching selector follows report scope.
@@ -99,6 +102,17 @@ For 0.5.1, verify the desktop workspace on a graphical desktop:
   player IDs remain left-aligned. Regenerate older HTML exports to see the fix.
 - Save both folder preferences and restart the app to confirm persistence.
 - Confirm bad filters, missing data, and unwritable folders show readable errors.
+
+For the 0.5.2 batter calculation change, verify:
+
+- Age 29 leaves independent event rates unchanged before raking. At age 25,
+  beneficial events get a 1.024 multiplier and SO gets 0.976; at age 32 these are
+  0.991 and 1.009. SH/SF stay neutral before raking, and OUT is the residual PA.
+- Player PA, reliability, league event rates after raking, and IBB/GDP bounds
+  remain conserved. Age definition and full-precision derived rates are unchanged.
+- Recreate older projections before comparing model versions. The reported
+  reference MAE improvements are not independently reproduced; do not describe
+  them as verified accuracy gains. See `docs/BATTER_MODEL.md`.
 
 Also verify existing report behavior:
 
