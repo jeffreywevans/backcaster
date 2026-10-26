@@ -102,7 +102,8 @@ the final output need not retain the exact pre-raking age multipliers.
 
 The mutually exclusive events are singles, doubles, triples, HR, BB, HBP, SO, SH,
 SF, and remaining AB outs. Reconstruct H and AB and derive TB and recompute BA/OBP/SLG/OPS after
-rebaselining. All counts retain decimal precision; no rounding enters the formulas.
+rebaselining. Model counts and derived rates retain full precision. Rounding is
+applied only to copies at the report boundary, as described below.
 
 ## Validation
 
@@ -149,16 +150,19 @@ components. BA replaces AVG in canonical batter output. The formulas are:
 
 The new contextual projections do not change existing H/AB/BB/HBP/SF outcomes
 or batting rates; they do not create additional hits or PA. Compute all derived
-values before output rounding, including TB.
+model values before output rounding, including TB. The reporting layer separately
+recomputes TB and batting rates from rounded count components.
 
 ## Reference comparison limits
 
 The age adjustment continues to use `projection year − birthYear`. A displayed
 June-30 age or fractional birthday-based age is a separate modeling decision;
 reference output alone does not establish which age its calculation uses.
-Derived rates continue to use unrounded counts. They may differ slightly from
-rates recomputed from rounded exported counts; this preserves calculation
-precision and is intentional.
+Model rates continue to use unrounded counts. Exported TB and batting rates
+are recomputed from rounded counts on a copy; this improves report arithmetic
+without changing the model, population constraints, or the Python projection
+DataFrame. Batting comparison variances use the same rounded-count basis before
+final rate formatting. Missing inputs and zero denominators stay undefined.
 
 Regression weights, 1,200-PA regression, playing time, and reliability are unchanged
 by the residual-OUT correction. Tests check plain age factors and neutral sacrifices
