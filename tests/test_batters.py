@@ -27,6 +27,8 @@ def history() -> pd.DataFrame:
                     SF=0,
                     SH=0,
                     birthYear=1996,
+                    birthMonth=1,
+                    birthDay=1,
                     R=exposure * 0.12,
                     RBI=exposure * 0.11,
                     SB=exposure * 0.02,
@@ -254,7 +256,11 @@ def test_invalid_context_counts(stat: str, value: float, message: str) -> None:
 )
 def test_confidence_tier_uses_unrounded_reliability(weighted_pa: float, expected: str) -> None:
     data = history()
-    numeric = [c for c in data if c not in {"PlayerID", "Name", "Season", "birthYear"}]
+    numeric = [
+        c
+        for c in data
+        if c not in {"PlayerID", "Name", "Season", "birthYear", "birthMonth", "birthDay"}
+    ]
     data = data.astype(dict.fromkeys(numeric, float))
     # Each player's three equal seasons contribute 12 times their seasonal PA.
     for player in ["A", "B"]:
@@ -291,7 +297,9 @@ def test_age_factors_preserve_independent_events_and_sacrifices(age: int) -> Non
         index=pd.Index(["player"], name="PlayerID"),
     )
     original = rates.copy(deep=True)
-    people = pd.DataFrame({"birthYear": [2025 - age]}, index=rates.index)
+    people = pd.DataFrame(
+        {"birthYear": [2025 - age], "birthMonth": [1], "birthDay": [1]}, index=rates.index
+    )
     aged, ages = batters._age_rates(rates, people, 2025)
     adjustment = (age - 29) * (0.003 if age > 29 else 0.006)
     for column in ["1B", "2B", "3B", "HR", "BB", "HBP", "R", "RBI", "SB", "IBB"]:

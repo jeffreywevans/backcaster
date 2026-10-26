@@ -5,6 +5,7 @@ import math
 import numpy as np
 import pandas as pd
 
+from backcaster.ages import season_ages
 from backcaster.normalize import safe_divide
 from backcaster.schemas import MarcelConfig
 from backcaster.stat_columns import PITCHING_EXTRA_COUNTS
@@ -20,9 +21,11 @@ PITCHING_COMPONENTS = ["IP", "ER", "H", "HR", "BB", "SO", "BF", *PITCHING_EXTRA_
 def _pitcher_age(prior: pd.DataFrame, year: int, fallback: float) -> float:
     age = fallback
     if "birthYear" in prior:
-        age = year - float(pd.to_numeric(prior["birthYear"].iloc[0], errors="coerce"))
+        age = float(season_ages(prior.iloc[:1], year).iloc[0])
     if not math.isfinite(age) or not 15 <= age <= 70:
-        raise ProjectionError("A valid birthYear or explicit age is required for pitcher aging.")
+        raise ProjectionError(
+            "A valid birthYear or explicit age is required for pitcher aging; birth dates also require valid birthMonth and birthDay."
+        )
     return age
 
 
@@ -214,12 +217,12 @@ def project_team(
     if not latest["Name"].map(lambda name: isinstance(name, str)).all():
         raise ProjectionError("Encountered non-string player name in team input.")
     ages = (
-        year - pd.to_numeric(latest["birthYear"], errors="coerce")
-        if "birthYear" in latest
-        else pd.Series(age, index=latest.index)
+        season_ages(latest, year) if "birthYear" in latest else pd.Series(age, index=latest.index)
     ).astype(float)
     if not (np.isfinite(ages) & ages.between(15, 70)).all():
-        raise ProjectionError("A valid birthYear or explicit age is required for pitcher aging.")
+        raise ProjectionError(
+            "A valid birthYear or explicit age is required for pitcher aging; birth dates also require valid birthMonth and birthDay."
+        )
 
     weights = (
         prior["Season"]

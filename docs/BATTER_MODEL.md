@@ -30,17 +30,17 @@ regression PA, playing time, and age adjustments follow the fixed rules below.
 ## Inputs and eligibility
 
 Batting now requires `Appearances.csv` (`playerID`, `yearID`, `G_all`, `G_p`) and
-`People.csv.birthYear`, in addition to the existing tables. Files must be from the
+`People.csv.birthYear`, `birthMonth`, and `birthDay`, in addition to the existing tables. Files must be from the
 same edition. Read only the three completed seasons preceding the projection year.
-The Lahman adapter excludes non-pitcher batters with missing, nonnumeric, or
-implausible birth years (projection ages outside 15–70). It logs the number of
+The Lahman adapter excludes non-pitcher batters with missing, incomplete, or
+invalid birth dates, or June-30 projection ages outside 15–70. It logs the number of
 excluded players and up to ten IDs to stderr so incomplete historical records
 do not block the remaining population. Their seasons are excluded from regression,
 league baselines, and rebaselining. Output selection then operates on
 the remaining population. If no usable batters remain, projection fails with a
-clear error. The birthYear column is still required.
+clear error. All three birth-date columns are required.
 
-The low-level `project_batters` API continues to require valid birth years for
+The low-level `project_batters` API continues to require valid, complete birth dates for
 every input player; it does not silently substitute age 29.
 
 Aggregate trade stints first. Define a primary pitcher as someone pitching in more
@@ -78,7 +78,8 @@ for schema and January 14, 2025 comparison instructions.
    Reliability is `weighted PA / (weighted PA + 1200)`.
 4. Set projected PA to `0.5 × latest PA + 0.1 × preceding PA + 200`. Missing-year PA
    is zero. Do not use actual statistics from the projected year.
-5. Compute age as `projection year − birthYear`. Set the signed adjustment to
+5. Compute completed age on June 30: `projection year − birthYear − 1` for
+   July–December birthdays, otherwise `projection year − birthYear`. Set the signed adjustment to
    `(age − 29) × .003` above 29, or `(age − 29) × .006` otherwise. Multiply singles,
    doubles, triples, HR, BB, and HBP rates by `1 − adjustment`, and strikeout
    rates by `1 + adjustment`. Leave SH and SF rates unchanged. Do not age OUT:
@@ -155,9 +156,10 @@ recomputes TB and batting rates from rounded count components.
 
 ## Reference comparison limits
 
-The age adjustment continues to use `projection year − birthYear`. A displayed
-June-30 age or fractional birthday-based age is a separate modeling decision;
-reference output alone does not establish which age its calculation uses.
+The age adjustment and displayed Age now use completed age on June 30, including
+leap-day birthdays. Complete, valid birth dates are required; no fractional age
+or missing-date imputation is used. This is the selected season-age convention,
+not a claim that a reference provider uses the same calculation.
 Model rates continue to use unrounded counts. Exported TB and batting rates
 are recomputed from rounded counts on a copy; this improves report arithmetic
 without changing the model, population constraints, or the Python projection
@@ -165,7 +167,7 @@ DataFrame. Batting comparison variances use the same rounded-count basis before
 final rate formatting. Missing inputs and zero denominators stay undefined.
 
 Regression weights, 1,200-PA regression, playing time, and reliability are unchanged
-by the residual-OUT correction. Tests check plain age factors and neutral sacrifices
+by the residual-OUT correction or June-30 age convention. Tests check plain age factors and neutral sacrifices
 before raking, nonnegative residual outs, fixed PA, final league-rate conservation,
 and bounded contextual counts after raking. The user-supplied comparison reports
 improved reference agreement, but those MAE figures have not been independently

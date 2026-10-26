@@ -21,7 +21,7 @@ COLUMN_HELP = {
     "IP": "Innings in baseball notation: .1 = one out, .2 = two outs",
     "Reliability": "Observed-evidence weight; not a probability of prediction accuracy",
     "ConfidenceTier": "core: reliability at least 0.50; low-sample: below 0.50. Both receive projections.",
-    "Age": "Projection year minus birth year",
+    "Age": "Completed age on June 30 of the projection year",
 }
 
 REPORT_CSS = r"""
