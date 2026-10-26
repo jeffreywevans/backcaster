@@ -58,10 +58,10 @@ input:focus,button:focus-visible,.table-scroll:focus-visible { outline:3px solid
 table { border-collapse:separate; border-spacing:0; min-width:100%; width:max-content; font-size:12px; font-variant-numeric:tabular-nums; }
 caption { text-align:left; padding:0; }
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
-th,td { padding:11px 13px; white-space:nowrap; text-align:right; border-bottom:1px solid #eaf0ed; }
+th,td { padding:11px 13px; white-space:nowrap; text-align:center; border-bottom:1px solid #eaf0ed; }
 th { position:sticky; top:0; background:#eaf0ed; color:#49605b; z-index:2; font-size:11px; letter-spacing:.02em; }
-th button { background:none; color:inherit; border:0; padding:0; font-weight:700; white-space:nowrap; }
-th button::after { content:' ↕'; opacity:.4; font-weight:400; }
+th button { position:relative; background:none; color:inherit; border:0; padding:0; font-weight:700; white-space:nowrap; }
+th button::after { position:absolute; left:100%; top:0; margin-left:4px; content:' ↕'; opacity:.4; font-weight:400; }
 th[aria-sort=ascending] button::after { content:' ↑'; opacity:1; }
 th[aria-sort=descending] button::after { content:' ↓'; opacity:1; }
 td:first-child,th:first-child { text-align:left; position:sticky; left:0; }
