@@ -132,20 +132,28 @@ REPORT_JS = r"""
      sorted.forEach(append); filter();
    });
  });
- body.querySelectorAll('.compare-toggle').forEach(button=>button.addEventListener('click',()=>{
-   const player=button.closest('tr');
-   const expanded=button.getAttribute('aria-expanded')!=='true';
+ function setExpanded(player,expanded) {
+   const button=player.querySelector('.compare-toggle');
+   if(!button)return;
    button.setAttribute('aria-expanded',String(expanded));
    button.setAttribute('aria-label',`${expanded?'Hide':'Show'} historical comparison for ${button.dataset.name}`);
-   player.dataset.expanded=String(expanded);filter();
+   player.dataset.expanded=String(expanded);
+ }
+ function setAllExpanded(expanded) {
+   groups.forEach(group=>setExpanded(group.player,expanded));
+   filter();
+ }
+ body.querySelectorAll('.compare-toggle').forEach(button=>button.addEventListener('click',()=>{
+   setExpanded(button.closest('tr'),button.getAttribute('aria-expanded')!=='true');
+   filter();
  }));
+ document.getElementById('expand-all')?.addEventListener('click',()=>setAllExpanded(true));
+ document.getElementById('collapse-all')?.addEventListener('click',()=>setAllExpanded(false));
  search.addEventListener('input',filter);
  document.getElementById('reset').addEventListener('click',()=>{
    search.value='';active=-1;ascending=true;
    groups.forEach(group=>{
-     group.player.dataset.expanded='true';
-     const button=group.player.querySelector('.compare-toggle');
-     if(button){button.setAttribute('aria-expanded','true');button.setAttribute('aria-label',`Hide historical comparison for ${button.dataset.name}`);}
+     setExpanded(group.player,false);
      append(group);
    });
    table.querySelectorAll('th').forEach(th=>th.setAttribute('aria-sort','none'));filter();
@@ -197,9 +205,9 @@ def _row_cells(
         if column == "Name" and row_type == "projection" and comparison:
             player_name = escape(value, quote=True)
             content = (
-                f'<button type="button" class="compare-toggle" aria-expanded="true" '
+                f'<button type="button" class="compare-toggle" aria-expanded="false" '
                 f'aria-controls="actual-{group} variance-{group}" '
-                f'aria-label="Hide historical comparison for {player_name}" '
+                f'aria-label="Show historical comparison for {player_name}" '
                 f'data-name="{player_name}"><span class="chevron" aria-hidden="true">▾</span>'
                 f"<span>{escape(value)}</span></button>"
             )
@@ -247,7 +255,7 @@ def _table(
     for group, record in enumerate(frame.to_dict(orient="records")):
         values = {str(key): value for key, value in record.items()}
         rows.append(
-            f'<tr data-player="true" data-group="{group}" data-expanded="true">'
+            f'<tr data-player="true" data-group="{group}" data-expanded="false">'
             + _row_cells(values, columns, "projection", group, comparison)
             + TABLE_ROW_END
         )
@@ -261,13 +269,13 @@ def _table(
             )
             rows.append(
                 f'<tr class="detail-row actual-row" data-detail="true" data-group="{group}" '
-                f'id="actual-{group}">'
+                f'id="actual-{group}" hidden>'
                 + _row_cells(actual_values, columns, "actual", group, comparison)
                 + TABLE_ROW_END
             )
             rows.append(
                 f'<tr class="detail-row variance-row" data-detail="true" data-group="{group}" '
-                f'id="variance-{group}">'
+                f'id="variance-{group}" hidden>'
                 + _row_cells(variance_values, columns, "variance", group, comparison)
                 + TABLE_ROW_END
             )
@@ -313,9 +321,15 @@ def render_report(
         "Projection, actual, and variance rows" if comparison else "One row per projected player"
     )
     table_hint = (
-        "Use the control beside a player to show or hide actual and variance rows. Select a column heading to sort."
+        "Comparisons start collapsed. Expand a player, expand all, or collapse all. Select a column heading to sort."
         if comparison
         else "Select a column heading to sort."
+    )
+    comparison_controls = (
+        '<button type="button" class="action" id="expand-all" aria-controls="projections">Expand all</button>'
+        '<button type="button" class="action" id="collapse-all" aria-controls="projections">Collapse all</button>'
+        if comparison
+        else ""
     )
     return f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -326,7 +340,7 @@ def render_report(
 <div class="card"><div class="card-label">Projection year</div><div class="card-value">{escape(years)}</div><div class="card-note">The season being projected</div></div>
 <div class="card"><div class="card-label">Projection type</div><div class="card-value">{kind}</div><div class="card-note">Marcel-style statistical baseline</div></div></section>
 <section class="panel" aria-label="Player projections"><div class="toolbar"><div><h2>Player projections</h2><p class="table-hint">{table_hint}</p></div>
-<div class="controls"><label for="search">Find players</label><input id="search" type="search" placeholder="Search name, ID, or statistic…" autocomplete="off"><button type="button" class="action" id="reset">Reset</button><button type="button" class="action primary" id="print">Print report</button></div></div>
+<div class="controls"><label for="search">Find players</label><input id="search" type="search" placeholder="Search name, ID, or statistic…" autocomplete="off">{comparison_controls}<button type="button" class="action" id="reset">Reset</button><button type="button" class="action primary" id="print">Print report</button></div></div>
 <div class="table-scroll" tabindex="0" aria-label="Scrollable projection statistics">{_table(frame, columns, actual_frame, variance_frame)}</div>
 <p class="empty" id="no-matches"{"" if count == 0 else " hidden"}>No players to display.</p>
 <div class="table-footer"><span id="visible-count" role="status" aria-live="polite">Showing {count} of {count} players</span><span>Rounded for presentation</span></div></section>

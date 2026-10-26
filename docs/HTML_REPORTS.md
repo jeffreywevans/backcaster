@@ -72,7 +72,10 @@ seasons. The report then adds two rows beneath every projected player:
   values are red.
 
 The button beside each player name expands or collapses that player's comparison.
-Rows start expanded, remain attached to their player during sorting and filtering,
+Rows start collapsed. Use **Expand all** or **Collapse all** to change every player
+at once, including players hidden by search. Individual triangles toggle just one
+player. **Reset** clears search and sorting and collapses all comparisons. Rows
+remain attached to their player during sorting and filtering,
 and print in their current state. If Lahman has no target-season record for a
 projected player, the report says `Actual (no recorded stats)` and leaves the
 variance cells blank. This avoids treating a season without an appearance as a
