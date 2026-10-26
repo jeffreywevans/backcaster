@@ -85,9 +85,15 @@ def _age_rates(
     adjustment = (age - 29) * np.where(age > 29, 0.003, 0.006)
     aged = rates.copy()
     positive = ["1B", "2B", "3B", "HR", "BB", "HBP", "R", "RBI", "SB", "IBB"]
-    negative = ["SO", "OUT", "CS", "GDP"]
+    negative = ["SO", "CS", "GDP"]
     aged[positive] = aged[positive].mul(1 - adjustment, axis=0)
     aged[negative] = aged[negative].mul(1 + adjustment, axis=0)
+    # Keep independent event multipliers intact; remaining AB outs absorb the
+    # change instead of renormalizing every event (including neutral SH/SF).
+    residual = 1 - aged[EVENTS[:-1]].sum(axis=1)
+    if (residual < -1e-12).any():
+        raise ProjectionError("Age-adjusted batter events exceed available PA.")
+    aged["OUT"] = residual.clip(lower=0)
     return aged, age
 
 
@@ -164,7 +170,7 @@ def project_batters(seasons: pd.DataFrame, year: int) -> pd.DataFrame:
         .reindex(rates.index)
     )
     rates, age = _age_rates(rates, people, year)
-    event_rates = rates[EVENTS].div(rates[EVENTS].sum(axis=1), axis=0)
+    event_rates = rates[EVENTS]
     target = league_rates.loc[[year - 1]].iloc[0]
     projected = _rebaseline(event_rates.mul(pa, axis=0), pa, target[EVENTS])
     context = _project_context(rates, pa, target, projected)
