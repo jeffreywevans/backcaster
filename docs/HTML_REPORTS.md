@@ -58,7 +58,9 @@ available. Print styles remove controls and expand the table beyond its screen
 scroll region. Filtering and sort order are preserved for printing.
 
 IP uses baseball notation even inside HTML: 161.1 means 161 innings and one out,
-not 161.1 decimal innings. Rates are calculated before presentation rounding.
+not 161.1 decimal innings. Pitching rates use full-precision values. Batting TB
+and rates are derived from rounded count components, then rates are formatted
+to three decimals; model DataFrames remain full precision.
 Player names, metadata, values, and column labels are HTML-escaped.
 
 ## Historical accuracy comparisons
@@ -87,7 +89,8 @@ commands and is rejected for CSV and terminal output. Actuals are matched by
 PlayerID, combine all target-year stints, and do not require qualification.
 Only projected players appear; actual results do not add new players.
 
-Variances use full-precision values before formatting. Colors show direction,
+Batting variances use rounded counts and rates derived from them before rate
+formatting; pitching variances use full-precision values before formatting. Colors show direction,
 not whether a result is better: positive ERA variance means a higher ERA than
 projected. IP variances use signed baseball notation (`+1.2` means one inning
 and two outs). Projection-only metadata such as ConfidenceTier and Reliability

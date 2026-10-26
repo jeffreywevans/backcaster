@@ -99,9 +99,35 @@ def _format_variance(value: Any, column: str) -> str:
     return f"{sign}{number:.{places}f}"
 
 
+def _batting_export_values(df: pd.DataFrame) -> pd.DataFrame:
+    """Round batting counts first, then derive export arithmetic on a copy."""
+    values = df.copy()
+    if "IP" in values:
+        return values
+    for column in values.columns.intersection(list(COUNT_COLUMNS)):
+        values[column] = pd.to_numeric(
+            values[column].map(lambda v: _format_number(v, 0)), errors="coerce"
+        )
+    columns = set(values.columns)
+    if {"TB", "H", "2B", "3B", "HR"} <= columns:
+        values["TB"] = values["H"] + values["2B"] + 2 * values["3B"] + 3 * values["HR"]
+    if {"BA", "H", "AB"} <= columns:
+        values["BA"] = values["H"] / values["AB"].replace(0, float("nan"))
+    if {"OBP", "H", "AB", "BB", "HBP", "SF"} <= columns:
+        denominator = values["AB"] + values["BB"] + values["HBP"] + values["SF"]
+        values["OBP"] = (values["H"] + values["BB"] + values["HBP"]) / denominator.replace(
+            0, float("nan")
+        )
+    if {"SLG", "TB", "AB"} <= columns:
+        values["SLG"] = values["TB"] / values["AB"].replace(0, float("nan"))
+    if {"OPS", "OBP", "SLG"} <= columns:
+        values["OPS"] = values["OBP"] + values["SLG"]
+    return values
+
+
 def _display_frame(df: pd.DataFrame) -> pd.DataFrame:
     """Format a copy at the output boundary; preserve full-precision calculations."""
-    display = df.copy()
+    display = _batting_export_values(df)
     for column in display.columns:
         if column == "IP":
             display[column] = display[column].map(_format_innings)
@@ -119,6 +145,8 @@ def _display_frame(df: pd.DataFrame) -> pd.DataFrame:
 def _display_variances(projected: pd.DataFrame, actuals: pd.DataFrame) -> pd.DataFrame:
     if "PlayerID" not in projected or "PlayerID" not in actuals:
         raise ValueError("Historical comparison requires PlayerID in projections and actuals.")
+    projected = _batting_export_values(projected)
+    actuals = _batting_export_values(actuals)
     stats = PITCHING_STAT_COLUMNS if "IP" in projected else BATTING_STAT_COLUMNS
     actual_by_id = actuals.set_index("PlayerID")
     rows: list[dict[str, Any]] = []

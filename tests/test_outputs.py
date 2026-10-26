@@ -359,3 +359,88 @@ def test_comparison_csv_no_matching_actuals_is_blank(tmp_path):
     assert result.loc[0, "ActualStatus"] == "No actual results"
     assert result.loc[0, "Actual HR"] == ""
     assert result.loc[0, "Variance HR"] == ""
+
+
+def rounded_batting_fixture() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            dict(
+                Name="Example",
+                PlayerID="example",
+                Year=2025,
+                PA=450.99,
+                AB=400.5,
+                H=100.49,
+                **{"2B": 20.5, "3B": 3.49},
+                HR=10.5,
+                BB=40.5,
+                HBP=4.49,
+                SH=0,
+                SF=5.5,
+                TB=159.47,
+                BA=100.49 / 400.5,
+                OBP=(100.49 + 40.5 + 4.49) / (400.5 + 40.5 + 4.49 + 5.5),
+                SLG=159.47 / 400.5,
+                OPS=0.721,
+            )
+        ]
+    )
+
+
+def test_batting_display_arithmetic_uses_rounded_counts_without_mutation():
+    frame = rounded_batting_fixture()
+    original = frame.copy(deep=True)
+    row = _display_frame(frame).iloc[0]
+    assert row.TB == "160"
+    assert int(row.TB) == int(row.H) + int(row["2B"]) + 2 * int(row["3B"]) + 3 * int(row.HR)
+    assert row.BA == "0.249"
+    assert row.OBP == "0.321"
+    assert row.SLG == "0.399"
+    assert row.OPS == "0.720"
+    pd.testing.assert_frame_equal(frame, original)
+
+
+@pytest.mark.parametrize("format", ["cli", "csv", "html"])
+def test_export_batting_arithmetic_across_formats(tmp_path, format):
+    frame = rounded_batting_fixture()
+    if format == "csv":
+        row = pd.read_csv(to_csv(frame, tmp_path / "batting.csv"), dtype=str).iloc[0]
+        assert row.TB == "160"
+        assert row.BA == "0.249"
+        assert row.OPS == "0.720"
+    elif format == "html":
+        text = to_html(frame, tmp_path / "batting.html").read_text()
+        assert ">160</td>" in text
+        assert ">0.249</td>" in text
+        assert ">0.720</td>" in text
+    else:
+        text = to_cli_table(frame)
+        assert "160" in text
+        assert "0.249" in text
+        assert "0.720" in text
+
+
+def test_rounded_batting_variances_match_reported_counts(tmp_path):
+    frame = rounded_batting_fixture()
+    actuals = frame.copy()
+    actuals[["H", "2B", "3B", "HR", "TB"]] = [101, 20, 3, 11, 160]
+    actuals["BA"] = 101 / 400.5
+    actuals["SLG"] = 160 / 400.5
+    csv = pd.read_csv(to_csv(frame, tmp_path / "comparison.csv", actuals), dtype=str).iloc[0]
+    assert csv["TB"] == "160"
+    assert csv["Actual TB"] == "160"
+    assert csv["Variance TB"] == "0"
+    assert csv["Variance H"] == "+1"
+    html = to_html(frame, tmp_path / "comparison.html", actuals).read_text()
+    assert ">160</td>" in html
+    variances = _display_variances(frame, actuals).iloc[0]
+    assert variances.TB == "0"
+
+
+def test_rounded_zero_batting_denominators_stay_blank():
+    frame = rounded_batting_fixture()
+    frame[["AB", "H", "2B", "3B", "HR", "BB", "HBP", "SF"]] = 0.1
+    row = _display_frame(frame).iloc[0]
+    for stat in ["BA", "OBP", "SLG", "OPS"]:
+        assert row[stat] == ""
+    assert row.TB == "0"

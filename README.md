@@ -295,10 +295,14 @@ Terminal, CSV, and HTML outputs use the same display rules:
   `161.0` is 161 innings, `161.1` is 161 innings plus one out, and `161.2` is
   161 innings plus two outs. Three outs carry into the next whole inning.
 
-Calculations and Python projection DataFrames retain full precision. Rates are
-computed from unrounded totals, then formatted; they are not recalculated from
-rounded displayed counts. Independently rounded totals may therefore not add up
-exactly. Reliability shows six decimal places in CLI, CSV, and HTML output.
+Projection calculations and Python projection DataFrames retain full precision.
+For batting reports, round count components first, then calculate displayed
+`TB = H + 2B + 2×3B + 3×HR`. Derive BA, OBP, SLG, and OPS from those rounded
+counts, then format rates to three decimals. OPS uses the derived OBP and SLG
+before their final three-decimal formatting. Missing inputs and zero denominators
+remain blank. Other independently rounded totals may still differ (for example,
+PA versus its components). Pitching keeps its full-precision rate calculations.
+Reliability shows six decimal places in CLI, CSV, and HTML output.
 
 **CSV IP uses baseball notation too.** Convert `161.1` to `161 + 1/3` before doing
 arithmetic; treating it as 161.1 decimal innings gives incorrect results. Internally,
@@ -378,7 +382,9 @@ stints without requiring the player to meet a seasonal qualification threshold.
 Each projected player has two additional rows:
 
 - **Actual** shows the player's recorded target-season results.
-- **Variance** shows `actual - projected`, calculated before display rounding.
+- **Variance** shows `actual - projected`. Batting uses rounded counts and rates
+  derived from those counts, before final rate formatting; pitching uses full-
+  precision values before display rounding.
   For example, 25 actual HR against 20 projected HR displays `+5`.
 
 Positive differences are green and negative differences are red. These colors

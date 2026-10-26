@@ -162,6 +162,10 @@ backcaster hitters --year 2025 --format html --compare-actuals --out hitters_acc
 backcaster pitchers --year 2025 --format html --compare-actuals --out pitchers_accuracy_2025.html
 ```
 
+Verify batting export TB equals rounded H + 2B + 2×3B + 3×HR, and batting rates
+use those rounded components, including actuals and variance rows. Model
+DataFrames must remain unchanged.
+
 Verify Name/Year/Player ID/Age column order, rounded counts, fixed rate precision,
 search, numeric sorting, reset, and print layout. Reports need no external assets.
 

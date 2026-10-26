@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Derive reported batter TB from rounded H/2B/3B/HR, then derive BA/OBP/SLG/OPS
+  from rounded counts. Apply the same arithmetic to preview, CLI, CSV, HTML,
+  actuals, and batting variances. Keep model DataFrames and pitching calculations
+  at full precision. Missing inputs and zero denominators remain blank.
+
 ## 0.5.2
 
 - Correct batter aging before population rebaselining: apply plain age factors to

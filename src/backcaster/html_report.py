@@ -310,7 +310,7 @@ def render_report(
     notes = (
         "IP uses baseball notation: .1 is one out; .2 is two outs. ERA and per-nine rates use true innings before rounding. WHIP uses three decimals."
         if pitching
-        else "BA, OBP, SLG, and OPS use three decimal places. Counting statistics are rounded to whole numbers."
+        else "TB and batting rates are derived from rounded counts. BA, OBP, SLG, and OPS use three decimal places."
     )
     comparison_note = (
         " Variance is actual minus projected; positive values are green and negative values are red."
