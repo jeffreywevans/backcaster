@@ -104,7 +104,8 @@ Also verify existing report behavior:
 
 - Historical HTML comparisons work for both batters and pitchers with target-year
   results available. Projection inputs still use only the three preceding years.
-  Actual and Variance rows start expanded and stay with their player when sorting
+  Actual and Variance rows start collapsed; Expand all and Collapse all control
+  every player, and Reset restores collapsed rows. Rows stay with their player when sorting
   or filtering; print preserves the current view. Variance is actual minus
   projected, with signed baseball notation for IP. Missing target-year player
   records have a clear label and blank variances. CLI and CSV comparisons fail

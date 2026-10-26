@@ -204,6 +204,15 @@ def test_historical_comparison_rows_and_variance_colors(tmp_path: Path) -> None:
     parser.feed(text)
 
     assert text.count('class="compare-toggle"') == 2
+    assert text.count('class="compare-toggle" aria-expanded="false"') == 2
+    assert text.count('data-expanded="false"') == 2
+    assert 'id="actual-0" hidden' in text
+    assert 'id="variance-0" hidden' in text
+    assert 'id="actual-1" hidden' in text
+    assert 'id="variance-1" hidden' in text
+    assert 'aria-label="Show historical comparison for Aaron Example"' in text
+    assert 'id="expand-all" aria-controls="projections">Expand all</button>' in text
+    assert 'id="collapse-all" aria-controls="projections">Collapse all</button>' in text
     assert 'aria-controls="actual-0 variance-0"' in text
     assert text.count('class="detail-row actual-row"') == 2
     assert text.count('class="detail-row variance-row"') == 2
@@ -224,3 +233,11 @@ def test_historical_comparison_escapes_toggle_attributes(tmp_path: Path) -> None
     text = to_html(projections, tmp_path / "safe.html", actuals).read_text()
     assert 'data-name="A &amp;quot; &lt;script&gt;"' in text
     assert "<script>" not in text.split("<script>", 1)[0]
+
+
+def test_projection_only_report_has_no_comparison_controls(tmp_path: Path) -> None:
+    frame = pd.DataFrame([dict(Name="Player", Year=2022, PlayerID="p", Age=30, PA=100)])
+    text = to_html(frame, tmp_path / "projections.html").read_text()
+    assert 'id="expand-all"' not in text
+    assert 'id="collapse-all"' not in text
+    assert 'class="compare-toggle"' not in text

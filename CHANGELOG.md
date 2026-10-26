@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Start HTML actual/variance rows collapsed. Add Expand all and Collapse all
+  controls to comparison reports; Reset restores the collapsed default. Bulk
+  controls include players hidden by search and preserve filtering and sorting.
+
 ## 0.5.1
 
 - Add a Yes/No actual-season comparison filter in the desktop workspace. Generate
