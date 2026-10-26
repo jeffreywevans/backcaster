@@ -1,6 +1,6 @@
 # Releasing Backcaster
 
-## Prepare 0.5.0
+## Prepare 0.5.1
 
 The package version is defined in `src/backcaster/__init__.py`; setuptools reads it
 when building both distributions. After changing the version, run `uv lock` and
@@ -47,8 +47,8 @@ These GitHub and PyPI settings must be configured separately from the repository
 
 1. Merge the prepared changes into `main` and confirm CI passes, including Python
    3.13 and 3.14 and the 100% coverage gate.
-2. Create a GitHub release named **0.5.0**, using tag **v0.5.0** at the validated
-   commit on `main`. Use the 0.5.0 changelog entry as the release notes.
+2. Create a GitHub release named **0.5.1**, using tag **v0.5.1** at the validated
+   commit on `main`. Use the 0.5.1 changelog entry as the release notes.
 3. Publish the GitHub release as a stable release. This triggers `workflow.yml`;
    a draft does not trigger publication, and a prerelease does not upload to PyPI.
 4. Review the build and the `pypi` deployment job; approve it if the environment
@@ -57,8 +57,8 @@ These GitHub and PyPI settings must be configured separately from the repository
 5. After the upload succeeds, verify from a fresh environment:
 
    ```bash
-   python -m pip install backcaster==0.5.0
-   python -c 'from backcaster import __version__; assert __version__ == "0.5.0"'
+   python -m pip install backcaster==0.5.1
+   python -c 'from backcaster import __version__; assert __version__ == "0.5.1"'
    backcaster --help
    backcaster hitters --help
    backcaster pitchers --help
@@ -80,10 +80,10 @@ at one, and SO/W at two. W-L% is a three-decimal fraction. Undefined W-L% and
 SO/W should be blank. Confirm the local CSVs include the fields listed in the
 README before testing.
 
-For 0.5.0, verify the desktop workspace on a graphical desktop:
+For 0.5.1, verify the desktop workspace on a graphical desktop:
 
 - Launch `backcaster-gui` and `python -m backcaster.gui`; confirm the title and
-  navigation show Backcaster v0.5.0.
+  navigation show Backcaster v0.5.1.
 - Load local Lahman selections and generate player, team, all-hitter, and
   all-pitcher reports. Verify player IDs distinguish duplicate names and the
   batting/pitching selector follows report scope.
@@ -94,6 +94,9 @@ For 0.5.0, verify the desktop workspace on a graphical desktop:
   projected variances in the preview, HTML, and CSV. Set No and regenerate to verify
   projection-only output. Missing target-season data must show an error; partial
   player coverage must leave unavailable actuals and variances blank.
+- Confirm numeric values are centered in the GUI and HTML, including actuals and
+  variances, and HTML sort arrows do not shift the heading labels. Names and
+  player IDs remain left-aligned. Regenerate older HTML exports to see the fix.
 - Save both folder preferences and restart the app to confirm persistence.
 - Confirm bad filters, missing data, and unwritable folders show readable errors.
 
