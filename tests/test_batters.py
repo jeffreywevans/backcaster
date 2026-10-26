@@ -263,3 +263,102 @@ def test_confidence_tier_uses_unrounded_reliability(weighted_pa: float, expected
     result = project_batters(data, 2025)
     assert result.Reliability.iloc[0] == pytest.approx(weighted_pa / (weighted_pa + 1200))
     assert result.ConfidenceTier.eq(expected).all()
+
+
+@pytest.mark.parametrize("age", [20, 25, 29, 32, 40])
+def test_age_factors_preserve_independent_events_and_sacrifices(age: int) -> None:
+    rates = pd.DataFrame(
+        [
+            {
+                "1B": 0.15,
+                "2B": 0.05,
+                "3B": 0.005,
+                "HR": 0.035,
+                "BB": 0.08,
+                "HBP": 0.01,
+                "SO": 0.22,
+                "SH": 0.01,
+                "SF": 0.02,
+                "OUT": 0.42,
+                "R": 0.12,
+                "RBI": 0.11,
+                "SB": 0.02,
+                "CS": 0.01,
+                "GDP": 0.03,
+                "IBB": 0.005,
+            }
+        ],
+        index=pd.Index(["player"], name="PlayerID"),
+    )
+    original = rates.copy(deep=True)
+    people = pd.DataFrame({"birthYear": [2025 - age]}, index=rates.index)
+    aged, ages = batters._age_rates(rates, people, 2025)
+    adjustment = (age - 29) * (0.003 if age > 29 else 0.006)
+    for column in ["1B", "2B", "3B", "HR", "BB", "HBP", "R", "RBI", "SB", "IBB"]:
+        assert aged.loc["player", column] == pytest.approx(
+            rates.loc["player", column] * (1 - adjustment)
+        )
+    for column in ["SO", "CS", "GDP"]:
+        assert aged.loc["player", column] == pytest.approx(
+            rates.loc["player", column] * (1 + adjustment)
+        )
+    for column in ["SH", "SF"]:
+        assert aged.loc["player", column] == rates.loc["player", column]
+    assert aged.loc["player", "OUT"] == pytest.approx(1 - aged.loc["player", EVENTS[:-1]].sum())
+    assert aged[EVENTS].sum(axis=1).iloc[0] == pytest.approx(1)
+    assert ages.iloc[0] == age
+    pd.testing.assert_frame_equal(rates, original)
+
+
+def test_age_adjustment_rejects_impossible_event_capacity() -> None:
+    data = history()
+    data["birthYear"] = 2005  # All-walk age-20 population cannot receive a 5.4% boost.
+    data[["AB", "H", "2B", "HR", "SO", "GDP"]] = 0
+    data["BB"] = data["PA"]
+    with pytest.raises(ProjectionError, match="exceed available PA"):
+        project_batters(data, 2025)
+
+
+def test_residual_aging_preserves_population_constraints_after_raking() -> None:
+    data = history()
+    neutral = project_batters(data, 2025).set_index("PlayerID")
+    data.loc[data.PlayerID == "A", "birthYear"] = 2000
+    data.loc[data.PlayerID == "B", "birthYear"] = 1993
+    aged = project_batters(data, 2025).set_index("PlayerID")
+    pd.testing.assert_series_equal(aged.PA, neutral.PA)
+    pd.testing.assert_series_equal(aged.Reliability, neutral.Reliability)
+    assert aged.loc["A", "HR"] > neutral.loc["A", "HR"]
+    assert aged.loc["B", "HR"] < neutral.loc["B", "HR"]
+    np.testing.assert_allclose(_events(aged).sum(axis=1), aged.PA)
+    assert (_events(aged) >= 0).all().all()
+    latest = data[data.Season == 2024]
+    np.testing.assert_allclose(
+        _events(aged).sum() / aged.PA.sum(), _events(latest).sum() / latest.PA.sum(), atol=1e-10
+    )
+    assert aged.IBB.le(aged.BB + 1e-10).all()
+    assert aged.GDP.le(aged.AB - aged.H - aged.SO + 1e-10).all()
+
+
+def test_pipeline_keeps_plain_age_factors_before_population_raking(monkeypatch) -> None:
+    monkeypatch.setattr(batters, "_rebaseline", lambda events, pa, target: events)
+    data = history()
+    data["BB"] = data.PA * 0.05
+    data["HBP"] = data.PA * 0.01
+    data["SH"] = data.PA * 0.01
+    data["SF"] = data.PA * 0.02
+    data["AB"] = data.PA * 0.91
+    neutral = project_batters(data, 2025).set_index("PlayerID")
+    data.loc[data.PlayerID == "A", "birthYear"] = 2000
+    data.loc[data.PlayerID == "B", "birthYear"] = 1993
+    aged = project_batters(data, 2025).set_index("PlayerID")
+    for player, adjustment in [("A", -0.024), ("B", 0.009)]:
+        for stat in ["H", "2B", "3B", "HR", "BB", "HBP"]:
+            assert aged.loc[player, stat] == pytest.approx(
+                neutral.loc[player, stat] * (1 - adjustment)
+            )
+        assert aged.loc[player, "SO"] == pytest.approx(neutral.loc[player, "SO"] * (1 + adjustment))
+        for stat in ["SH", "SF"]:
+            assert aged.loc[player, stat] == neutral.loc[player, stat]
+        assert aged.loc[player, "AB"] == pytest.approx(
+            aged.loc[player, "PA"] - aged.loc[player, ["BB", "HBP", "SH", "SF"]].sum()
+        )

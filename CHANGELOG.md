@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Correct batter aging before population rebaselining: apply plain age factors to
+  independent events, keep SH/SF neutral, and compute other AB outs as the residual
+  PA. Remove event renormalization and reject impossible age-adjusted event totals.
+  Keep regression, playing time, reliability, age definition, and full-precision
+  rate calculations unchanged. Final population raking remains in place.
+
 - Start HTML actual/variance rows collapsed. Add Expand all and Collapse all
   controls to comparison reports; Reset restores the collapsed default. Bulk
   controls include players hidden by search and preserve filtering and sorting.

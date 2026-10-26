@@ -80,17 +80,25 @@ for schema and January 14, 2025 comparison instructions.
    is zero. Do not use actual statistics from the projected year.
 5. Compute age as `projection year − birthYear`. Set the signed adjustment to
    `(age − 29) × .003` above 29, or `(age − 29) × .006` otherwise. Multiply singles,
-   doubles, triples, HR, BB, and HBP rates by `1 − adjustment`, and strikeout/other
-   AB-out rates by `1 + adjustment`. Leave sacrifice rates neutral, then normalize
-   to preserve each player's PA. This choice applies aging to skill rather than
-   multiplying every count and denominator by the same factor, which would leave
-   all rates unchanged. The exact event-specific treatment is not specified in
-   the supplied recipe and may differ from Baseball Reference.
+   doubles, triples, HR, BB, and HBP rates by `1 − adjustment`, and strikeout
+   rates by `1 + adjustment`. Leave SH and SF rates unchanged. Do not age OUT:
+   set its rate to `1 − sum(1B, 2B, 3B, HR, BB, HBP, SO, SH, SF)`. Reject event
+   totals exceeding PA (apart from floating-point tolerance); do not silently
+   renormalize the independent events. This preserves the stated age factors
+   before population rebaselining and gives AB = PA − BB − HBP − SH − SF.
 6. Rebaseline the entire projected non-pitcher population to the latest completed
    season's league event rates. Iterative proportional fitting adjusts the event
    matrix until league totals match at fixed player PA. This is our explicit
    interpretation of rebaselining; it avoids incompatible AB, hits, and PA totals.
    Fail if it does not converge. Select the requested eligible players afterward.
+
+Earlier versions aged OUT as well, then normalized every player's events. That
+changed the independent event multipliers and moved nominally neutral SH/SF.
+The residual-OUT correction changes the event distribution entering raking.
+Removing only row normalization would not change the converged raked result:
+iterative proportional fitting absorbs initial per-player scaling. Raking still
+changes player event rates to satisfy both league totals and fixed player PA;
+the final output need not retain the exact pre-raking age multipliers.
 
 The mutually exclusive events are singles, doubles, triples, HR, BB, HBP, SO, SH,
 SF, and remaining AB outs. Reconstruct H and AB and derive TB and recompute BA/OBP/SLG/OPS after
@@ -103,7 +111,7 @@ calendar-year gaps, future-data exclusion, and conservation of league rates/play
 PA. Integration tests check three-PA inclusion, confidence boundaries, dated status
 selection, primary-pitcher exclusion, command consistency, and file errors.
 
-A manual 2025 check against Lahman CSVs distributed by Rdatasets produced Betts:
+A historical check **before the residual-OUT aging correction** against Lahman CSVs distributed by Rdatasets produced Betts:
 527.3 PA, 24.27 HR, .278 AVG, .362 OBP, .507 SLG, .869 OPS, .8583 reliability.
 The supplied Baseball Reference table has 527 PA, 24 HR, .281/.365/.512/.877 and
 86% reliability. Tango age is 33 for Betts (born 1992), while the reference displays
@@ -120,7 +128,7 @@ The shared schema in `stat_columns.py` controls model and report ordering.
 Project R/RBI/SB/CS/GDP/IBB using the same calendar weights, exposure-specific
 league regression, projected PA, and age model as the batter pipeline. They are
 separate overlapping counts: never include them in the mutually exclusive PA
-event matrix or its normalization. R/RBI/SB/IBB use the beneficial age direction;
+event matrix or the residual-OUT calculation. R/RBI/SB/IBB use the beneficial age direction;
 CS/GDP use the harmful direction. The GDP age direction is an explicit modeling
 choice, not a verified marcelR formula. These projections do not model lineup
 position, baserunning opportunities, teammates, or managerial intent separately.
@@ -142,3 +150,21 @@ components. BA replaces AVG in canonical batter output. The formulas are:
 The new contextual projections do not change existing H/AB/BB/HBP/SF outcomes
 or batting rates; they do not create additional hits or PA. Compute all derived
 values before output rounding, including TB.
+
+## Reference comparison limits
+
+The age adjustment continues to use `projection year − birthYear`. A displayed
+June-30 age or fractional birthday-based age is a separate modeling decision;
+reference output alone does not establish which age its calculation uses.
+Derived rates continue to use unrounded counts. They may differ slightly from
+rates recomputed from rounded exported counts; this preserves calculation
+precision and is intentional.
+
+Regression weights, 1,200-PA regression, playing time, and reliability are unchanged
+by the residual-OUT correction. Tests check plain age factors and neutral sacrifices
+before raking, nonnegative residual outs, fixed PA, final league-rate conservation,
+and bounded contextual counts after raking. The user-supplied comparison reports
+improved reference agreement, but those MAE figures have not been independently
+reproduced here: a matched reference table and the underlying input edition are
+needed. Agreement with reference forecasts also does not establish greater
+out-of-sample accuracy against actual season results.

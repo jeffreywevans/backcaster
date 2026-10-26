@@ -564,3 +564,8 @@ notation for innings (for example, `+0.2` means two outs). Exports preserve the
 comparison setting from the generated report even if you later change the toggle;
 generate again to apply a new setting. The CLI's `--compare-actuals` option continues
 to support HTML only; Python callers can pass `actuals` to either output writer.
+
+Batter aging uses independent event multipliers with remaining AB outs as the PA
+residual; sacrifices are neutral before population rebaselining. See the
+[batter method](docs/BATTER_MODEL.md) for formulas, validation, and reference
+comparison limitations.
