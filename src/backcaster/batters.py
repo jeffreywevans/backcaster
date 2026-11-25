@@ -158,9 +158,11 @@ def project_batters(seasons: pd.DataFrame, year: int) -> pd.DataFrame:
     history = seasons[seasons["Season"].isin([year - 1, year - 2, year - 3])].copy()
     if history.empty:
         raise ProjectionError("No non-pitcher batting history in the three prior seasons.")
-    history = history[history["PA"] > 0].copy()
+    history = history[history["PA"] > 0].reset_index(drop=True).rename_axis("HistoryRow")
     events = _events(history)
-    counts = events.join(_context_counts(history, events))
+    counts = events.join(
+        _context_counts(history, events), on="HistoryRow", how="left", validate="one_to_one"
+    )
     rates, evidence_pa, league_rates = _regress(history, counts, year)
     pa = _playing_time(history, year)
     people = (
@@ -174,7 +176,7 @@ def project_batters(seasons: pd.DataFrame, year: int) -> pd.DataFrame:
     target = league_rates.loc[[year - 1]].iloc[0]
     projected = _rebaseline(event_rates.mul(pa, axis=0), pa, target[EVENTS])
     context = _project_context(rates, pa, target, projected)
-    out = _summarize(projected.join(context), pa)
+    out = _summarize(projected.join(context, on="PlayerID", how="left", validate="one_to_one"), pa)
     out["Reliability"] = evidence_pa / (evidence_pa + 1200)
     out["ConfidenceTier"] = np.where(out["Reliability"] >= 0.5, "core", "low-sample")
     out["Age"], out["Name"], out["Year"] = age, people["Name"], year
