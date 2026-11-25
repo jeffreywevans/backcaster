@@ -94,6 +94,8 @@ backcaster hitters --year 2026
 backcaster pitchers --year 2026
 ```
 
+To compare a build with archived Marcel forecasts, use the [Marcel benchmark guide](references/marcel/README.md).
+
 To save files for comparison with Baseball Reference:
 
 ```powershell

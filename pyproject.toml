@@ -60,7 +60,7 @@ where = ["src"]
 version = {attr = "backcaster.__version__"}
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 
 
 [tool.ruff]
