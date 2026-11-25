@@ -1,0 +1,293 @@
+{
+  "source_sha256": "abe997a3904e499235ae4e7ae0fc1b43afe24a27bcfc1a01bdf63525aaadf3c4",
+  "files": [
+    {
+      "file": "2001-batting.csv",
+      "source": "2001 projections batter.csv",
+      "rows": 840,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "0ce7c93daf373507d8feb557f455c32e6f0a427daabd0c909e80e9030affca4d",
+      "sha256": "60a91e8bf27afc2e2e195fc5fb647d160d4a1664c50d9422d038ced48f259a71"
+    },
+    {
+      "file": "2001-pitching.csv",
+      "source": "2001 projections pitcher.csv",
+      "rows": 848,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "b6e8f20a54e767947ea3331365f0a1664067be5bed46b5966cb7c862bbd84994",
+      "sha256": "6027392e1be17d11f83b048f23c31d19501ef56a3fd256ceb42e106612c7010d"
+    },
+    {
+      "file": "2002-batting.csv",
+      "source": "2002 projections batter.csv",
+      "rows": 847,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "f513b8a8ac1d195165d318162c6e8490c6a3d65041fd24b71877f0882fca1ca1",
+      "sha256": "2e500a4307234e233723149af50724460133e6228eea4b737cc90d9f446dc0d0"
+    },
+    {
+      "file": "2002-pitching.csv",
+      "source": "2002 projections pitcher.csv",
+      "rows": 854,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "21151e8304b148d9d386cfeebc149771911d71fa3b01084f69c93080e3bec11e",
+      "sha256": "4b9b0edb0dded8cdb14494815351508f7bb23e2efcfbaecc95a4b470e39b6e19"
+    },
+    {
+      "file": "2003-batting.csv",
+      "source": "2003 projections batter.csv",
+      "rows": 847,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "36f9160a55f8354d38f5f543b2c24a3a6e7ce9eaf37e94db7f03122e5838b3af",
+      "sha256": "a694f9b57dd9fc5d69f027fd1e06aed3ee2cf3ef7243a18f7bc9f9bacc218ddc"
+    },
+    {
+      "file": "2003-pitching.csv",
+      "source": "2003 projections pitcher.csv",
+      "rows": 884,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "225230b30d958ac387ba75e75e31d40a97bf55252a904cfdbb8ddc82cceb9388",
+      "sha256": "5d48a1f1775c1e1f87596686c918d6f21a698160733de35dc93bed51601f41b8"
+    },
+    {
+      "file": "2004-batting.csv",
+      "source": "2004 projections batter.csv",
+      "rows": 839,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "17b7020b5de56a95bfe3d36222e5f9bd1fed9587bb1c6ed990bd8d8d1d81f3bb",
+      "sha256": "5183783003f3064f7924170be480d27ba7642c10338fd25314a235dd7765ce2b"
+    },
+    {
+      "file": "2004-pitching.csv",
+      "source": "2004 projections pitcher.csv",
+      "rows": 873,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "565f215770a3f3371c141a3420efe526959943d2098cc225aad8f288558de573",
+      "sha256": "8b5d7843bfaa1700ff505832255410139b6dd6208c7ca122a5a1d002ddbd752e"
+    },
+    {
+      "file": "2005-batting.csv",
+      "source": "2005 projections batter.csv",
+      "rows": 882,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "175ed226a5971747cc638d8e4f95c2414a012426fe4a829bd5c4890e8e5c8f1c",
+      "sha256": "1985b16764b7cb8e04c3646bc0b3c39556a001f3148953a469adcc0d2e1b79c5"
+    },
+    {
+      "file": "2005-pitching.csv",
+      "source": "2005 projections pitcher.csv",
+      "rows": 891,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "c4164e517caa5d45188d4ac9604b259f348d8e51ff716a8c10c013b15ce5d982",
+      "sha256": "25f40830dfa2d7d53e34fbcf83814af517ff3cfeaa34335f3fb6afee5951d322"
+    },
+    {
+      "file": "2006-batting.csv",
+      "source": "2006 projections batter.csv",
+      "rows": 867,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "85473f0f8206d3459c15da235855770eb6aab54e8b36bd975721f491d0ed44e5",
+      "sha256": "cf476ef785545e549f27a78cfc014f7e59050e0a1eb4e78e0d26be4fe437ee21"
+    },
+    {
+      "file": "2006-pitching.csv",
+      "source": "2006 projections pitcher.csv",
+      "rows": 888,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "27392ff0b701dbca7a72a297c48cf0055a985797301dd3401d91735a07996313",
+      "sha256": "f2f8494a8428c6286908fa74876e4d420b530203455b038c39ad7d09607bfa95"
+    },
+    {
+      "file": "2007-batting.csv",
+      "source": "2007 projections batter.csv",
+      "rows": 862,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "26a3aa26ccbe71e69add6a93950e572b34d99996d468eaa4eb87be8f3e1d9dfa",
+      "sha256": "68b0ed2ed88464d92c4810bb6155e2b357807d849e422a017b4ab9415163690b"
+    },
+    {
+      "file": "2007-pitching.csv",
+      "source": "2007 projections pitcher.csv",
+      "rows": 915,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "7d8a4f745731dafba13f51cfc6556eeb678818c6fec867d28ff3605d3fa977ba",
+      "sha256": "d7a293363bf23f88c9ef4d800e0f2b39bc100cd1edb662d69e354564f1eed9f4"
+    },
+    {
+      "file": "2008-batting.csv",
+      "source": "2008 projections batter.csv",
+      "rows": 849,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "be928154a8e3fe518aeb8d8acd379542f8f61f51fffe659b03852fe4244ad452",
+      "sha256": "a644c78437194ce467d602742145b4a2e402b57d37932252fde847b3c700a4e9"
+    },
+    {
+      "file": "2008-pitching.csv",
+      "source": "2008 projections pitcher.csv",
+      "rows": 918,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "f412dccdce19e21774c6227e16b9213b34caadd2a219d66348cbd304a7dff17a",
+      "sha256": "a0ff4a5f49d2391d1e01efe252591b0b538c2379bdf3c8c690b29f5c6900fcaf"
+    },
+    {
+      "file": "2009-batting.csv",
+      "source": "2009 projections batter.csv",
+      "rows": 863,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "0b6ba8258b02c827f806dbff78c60457800d57606d888e1d6bfc8f2de6cf4032",
+      "sha256": "a88701136cc2f651f54466f3159d0f5bc31a2b253195c22bc62b57140e176248"
+    },
+    {
+      "file": "2009-pitching.csv",
+      "source": "2009 projections pitcher.csv",
+      "rows": 942,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "677bf475569ee572a9d428279c196b899a771deb7815aa309be01a439d29c30d",
+      "sha256": "8c10b87765994254a44deb0a490703ddc076fd7aaae41f0ee9b8e39d5423a759"
+    },
+    {
+      "file": "2010-batting.csv",
+      "source": "2010 projections batter.csv",
+      "rows": 843,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "bf0163c7e7599c5e1e0e16cbb9acd98f7ebe32b03e5f3ed31e32c89b572c0cd5",
+      "sha256": "fdb5d1b27a329f75d1459fa367e7bed141b801b2d753c5014c1ba78e650708e8"
+    },
+    {
+      "file": "2010-pitching.csv",
+      "source": "2010 projections pitcher.csv",
+      "rows": 964,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "74a6dba56eaaa44ed865f9d42cd83ddd2b732249905605e99d5202d22f15a997",
+      "sha256": "0e7f69f13ca457df433a12dcdfeed41881f90fb48baa7b1229e6c4095dac123e"
+    },
+    {
+      "file": "2011-batting.csv",
+      "source": "2011 projections batter.csv",
+      "rows": 854,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "b1b08fa2907350eb4b012935af0e5b4e07e1acddf34c7429441a38ea039e7248",
+      "sha256": "cf9966026dc12c17c1a7d65185d6b743890b0608359fde4e4076bfa1b04a0a85"
+    },
+    {
+      "file": "2011-pitching.csv",
+      "source": "2011 projections pitcher.csv",
+      "rows": 936,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "e4078f87c91576af1eac312f3b3bb5c98534f14fa27613ec1206e5b57840e618",
+      "sha256": "d9f1358e5ed1ead334e5daf708989f5ba7cd8bba7afe9d204230425ea2b050ff"
+    },
+    {
+      "file": "2012-batting.csv",
+      "source": "2012 projections batter.csv",
+      "rows": 863,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "8aff2e9201b5eed93ed1549a4327732adb133347d3e19dacb2c79d49239eaf09",
+      "sha256": "69a32cee2512225d5bdfcd9222e9d7a8476261496905da8561af80d19fa32c61"
+    },
+    {
+      "file": "2012-pitching.csv",
+      "source": "2012 projections pitcher.csv",
+      "rows": 952,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "fb33721fde695f2ede5888e6c6d6900cef7fd46875d101abbb9a4f9935b257cf",
+      "sha256": "a613cc9c647567ad747737c89842ef73f98fe27a07a0c4cc5e7bb937f8aaf18a"
+    },
+    {
+      "file": "2024-batting.csv",
+      "source": "2024 projections batter.csv",
+      "rows": 493,
+      "blank_rows": 0,
+      "duplicate_rows": 21,
+      "source_sha256": "abd3bc06a2a07959e8b4923c8289c529baa873c7aee55341c16c94b5f712a8a6",
+      "sha256": "1990796dd4953abe8d1ce400cbf2e558760a5e9e5cbf3aabdd389e5452682e29"
+    },
+    {
+      "file": "2024-pitching.csv",
+      "source": "2024 projections pitcher.csv",
+      "rows": 610,
+      "blank_rows": 0,
+      "duplicate_rows": 13,
+      "source_sha256": "9b32493f5d12012bb575789c83f1ef02a60e27636b98d36ab9dd692ef369a42b",
+      "sha256": "7e7ff0a86c55c8030760b54b7575859fc3492f7fa601374d11cc43b615028ba4"
+    },
+    {
+      "file": "2025-batting.csv",
+      "source": "2025 projections batter.csv",
+      "rows": 504,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "c2f98a1436f2c54241083112f0d50750d50311bfa3fa4b1a9248f1f78cb1b3b2",
+      "sha256": "d75ae8f7601e7791a9a36b692308057a4be9d3fd1d5bbe28aeb308807ecfb96b"
+    },
+    {
+      "file": "2025-pitching.csv",
+      "source": "2025 projections pitcher.csv",
+      "rows": 611,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "838eff74811c2529a878c8dba99ef1d13d8e0e884ab6a11e4ef343a8a24783b0",
+      "sha256": "3f2c473dc59da5f2adb8e42634b8aa703b96d16632f47df8d89ab9222a957eaf"
+    },
+    {
+      "file": "2026-batting.csv",
+      "source": "2026 projections batter.csv",
+      "rows": 644,
+      "blank_rows": 807,
+      "duplicate_rows": 0,
+      "source_sha256": "9b57420e484bc7dccf9362e4cf2f0236d3fd7af99ddd3005e2ffceb94a340536",
+      "sha256": "5122dd02ccadfb689e9acb4d56b11a45365b17f3c3162125a139f8b478567253"
+    },
+    {
+      "file": "2026-pitching.csv",
+      "source": "2026 projections pitcher.csv",
+      "rows": 750,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "1c8769442038c1ace082da1915d93696e402e8f0661e89cd0f3986841865eba1",
+      "sha256": "50a47059275248a734ff91c18717fea336b252f7c475cd6d9355e5d6a7c1c6ea"
+    },
+    {
+      "file": "2027-batting.csv",
+      "source": "2027 projections batter.csv",
+      "rows": 673,
+      "blank_rows": 485,
+      "duplicate_rows": 0,
+      "source_sha256": "4ee43b0e20f92696daf48805e7756e7540839d9a191cea3c05bd60408f2ea7a1",
+      "sha256": "99204e53081518dc1d53fafd9a615d2c6f7aba38ef83bf2e45f07fcd0748edf4"
+    },
+    {
+      "file": "2027-pitching.csv",
+      "source": "2027 projections pitcher.csv",
+      "rows": 771,
+      "blank_rows": 0,
+      "duplicate_rows": 0,
+      "source_sha256": "d6a40f0ffb6f365bc9532d37d7b78660cd0ffa310a1e2d49e4e744bd7487e18d",
+      "sha256": "2f48dae3ffac886a31b102fc3a54284797448a1804eb00024f8d09e2aa8d972e"
+    }
+  ]
+}

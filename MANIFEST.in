@@ -1,3 +1,5 @@
 include CHANGELOG.md RELEASING.md SECURITY.md CODE_OF_CONDUCT.md uv.lock
 recursive-include docs *.md *.txt
 recursive-include tests *.py
+include tools/marcel_reference.py
+include references/marcel/README.md references/marcel/archive-manifest.json
